@@ -1,6 +1,6 @@
 # 计划执行索引
 
-更新时间：2026-07-04 16:35 CST
+更新时间：2026-07-04 17:07 CST
 
 ## 历史说明
 
@@ -16,6 +16,7 @@
 | 2026-07-04 15:50 CST | `PLAN-004-family-registry-design.md` | `PLAN-004-family-registry-design-OUTCOME.md` | 将输入类型决定 family 升级为系统扩展原则，增加 `FamilyRegistry` 设计，明确新增数据类型不改核心类，并修正 minbt 适配示例避免污染 core API。 |
 | 2026-07-04 16:31 CST | `PLAN-005-stable-core-api.md` | `PLAN-005-stable-core-api-OUTCOME.md` | 根据用户进一步反馈修正设计优先级：sigma2 core 应像 `pyta2.base.rIndicator` 一样轻量，稳定对象是 `rSignal` / `rKlineSignal` 继承式信号体系；`FeatureSet`、DataFrame batch、minbt adapter 下调为应用层或适配层；`rSignal` 的概念、命名、生命周期和默认行为应尽可能与 `rIndicator` 保持一致。 |
 | 2026-07-04 16:35 CST | `PLAN-006-design-doc-cleanup.md` | `PLAN-006-design-doc-cleanup-OUTCOME.md` | 整理 `docs/design`，只保留 `sigma2-20260704-overview.md` 作为当前总设计文档；过时设计移动到 `docs/design/backup/` 并标注历史备份，防止误读。 |
+| 2026-07-04 17:07 CST | `PLAN-007-step-core-api.md` | `PLAN-007-step-core-api-OUTCOME.md` | 根据最新接口评审，将 sigma2 core 的唯一公共状态推进入口定为 `step()`；`forward()` 保留为子类计算 hook；`rolling()` / `update()` 不作为 core 稳定接口；新增 `rKlineWindowSignal` 处理 K 线窗口型信号和 pyta2 adapter。 |
 
 ## 当前设计文档规则
 
