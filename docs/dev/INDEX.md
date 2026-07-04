@@ -1,6 +1,6 @@
 # 计划执行索引
 
-更新时间：2026-07-04 12:11 CST
+更新时间：2026-07-04 13:29 CST
 
 ## 历史说明
 
@@ -12,3 +12,4 @@
 | --- | --- | --- | --- |
 | 2026-07-04 10:38 CST | `PLAN-001-sigma2-roadmap.md` | `PLAN-001-sigma2-roadmap-OUTCOME.md` | 依据 `pyta2/docs/design/pyta2-sigma-20260627-v3.md` 完成 sigma2 初始化规划，明确项目定位、API 方案、内部架构、实施阶段和下一步优先级。 |
 | 2026-07-04 12:11 CST | `PLAN-002-signal-core-revision.md` | `PLAN-002-signal-core-revision-OUTCOME.md` | 根据用户反馈修正核心方向：sigma2 不是 pyta2 薄封装，应先实现类似 `rIndicator` 的通用 `rSignal`、K 线专属 `rKlineSignal`、标准输出、自定义信号和 pyta2 适配信号，并保留 orderbook/trades 的 data-kind 扩展口。 |
+| 2026-07-04 13:29 CST | `PLAN-003-system-design.md` | `PLAN-003-system-design-OUTCOME.md` | 从 ML 量化策略开发主场景出发，形成系统设计稿：用户主入口为 `FeatureSet.batch(data)` 和 `FeatureSet.online()`，内部输入对象不进入普通用户主路径，`rSignal` 明确为 rolling 内核，minbt 仅作为 adapter。 |
