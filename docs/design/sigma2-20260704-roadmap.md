@@ -2,6 +2,12 @@
 
 更新时间：2026-07-04 10:38 CST
 
+## 修订状态
+
+2026-07-04 12:08 CST 根据用户反馈修订：sigma2 不应只是 pyta2 的薄封装。本文中 `FeatureSpec + Pyta2Adapter` 的规划应降级为 pyta2 指标适配和矩阵输出层的实现细节；新的核心公共接口以 `docs/design/sigma2-20260704-signal-core.md` 为准，即通用 `rSignal`、数据类型专属信号、标准 K 线输入输出、组合信号和 `SignalEngine`。
+
+2026-07-04 12:11 CST 补充修订：K 线只是第一种数据类型，不是唯一模型。`rSignal` 不应把输入锁死为 OHLCV；OHLCV 契约属于 `rKlineSignal`。未来 orderbook、trades 等应通过 `rOrderBookSignal`、`rTradeSignal` 或同类 data-kind 子类扩展。
+
 ## 依据与现状
 
 本设计依据 `pyta2/docs/design/pyta2-sigma-20260627-v3.md`，并抽查了以下 pyta2 实现：
@@ -23,12 +29,16 @@
 
 ## 最终目标
 
-sigma2 的最终目标是成为金融 ML feature 生成和实时特征计算的轻量编排库：
+sigma2 的最终目标是成为金融 ML signal/feature 生成和实时特征计算的轻量信号库：
 
 - 用一份声明同时支持实时 rolling 与历史 batch。
+- 提供类似 `pyta2.base.rIndicator` 的通用 `rSignal` 基类，方便用户自定义信号。
+- `rSignal` 只规定生命周期、schema、输出和元信息，不固定具体行情输入字段。
+- 对 K 线通过 `rKlineSignal` 做标准化：rolling 输入为 `opens, highs, lows, closes, volumes`，单点更新输入为 `open, high, low, close, volume`。
+- 对 orderbook、trades 等未来数据类型，通过各自 data-kind 信号子类定义标准输入契约。
 - 支持 kline、orderbook、trades 等外部行情路径。
 - 支持基于已有 feature 输出继续计算新 feature。
-- 复用 pyta2 指标元信息，不重复维护 output/schema/window registry。
+- 可组合 pyta2 指标和自定义 sigma2 信号。
 - 输出稳定、可复现、适合训练矩阵的列名。
 - 保留清晰的内部接口，后续可优化 batch 性能而不改变用户 API。
 
@@ -106,36 +116,47 @@ features = [
 
 采用方案 C。
 
-公共稳定接口以 `FeatureSpec`、`FeatureEngine` 和 DSL 构造器为核心。`Pyta2Adapter`、`FeatureNode`、`PathBufferStore` 等内部接口不承诺公共兼容性。
+公共稳定接口以 `rSignal`、数据类型专属信号、`SignalEngine` 和 DSL 构造器为核心。`FeatureSpec` 可作为后续矩阵输出或声明式配置对象保留，但不再是 sigma2 的第一核心抽象。`rPyta2Signal`、`SignalNode`、`PathBufferStore` 等内部接口不承诺公共兼容性。
 
 ## 定稿 API
 
-### FeatureSpec
+此处原先以 `FeatureSpec` 为主的 API 已被 `docs/design/sigma2-20260704-signal-core.md` 修订。后续实现应先实现 `rSignal` 标准信号接口，再实现 pyta2 适配和声明式配置。
+
+### rSignal 与 rKlineSignal
 
 ```python
-@dataclass(frozen=True)
-class FeatureSpec:
-    name: str
-    cls: type[rIndicator]
-    params: dict[str, object]
-    bind: dict[str, str]
-    namespace: str = "feature"
-    extra_window: int = 0
-    outputs: str | dict[str, str] | None = None
+class rSignal:
+    data_kind: str | None = None
+
+    def rolling(self, *args, **kwargs):
+        ...
+
+    def update(self, *args, **kwargs):
+        ...
+
+class rKlineSignal(rSignal):
+    data_kind = "kline"
+
+    def forward(self, opens, highs, lows, closes, volumes):
+        ...
+
+    def update(self, open, high, low, close, volume):
+        ...
 ```
 
 约束：
 
-- `params` 使用 pyta2 真实构造参数，如 `{"n": 10}`、`{"n1": 26, "n2": 12, "n3": 9}`。
-- `bind` 的 key 必须完整匹配 `forward()` 的参数名。
-- `outputs=None` 时按 pyta2 `output_keys` 推导列名。
-- `outputs` 为字符串时仅允许单输出 feature。
-- `outputs` 为字典时 key 必须完整覆盖 pyta2 `output_keys`。
+- `rSignal` 固定生命周期和输出契约，不固定输入字段。
+- `rKlineSignal` 的 rolling 序列输入固定为 `opens, highs, lows, closes, volumes`。
+- `rKlineSignal` 的单点更新输入固定为 `open, high, low, close, volume`。
+- 未来 `rOrderBookSignal`、`rTradeSignal` 分别定义自己的标准输入。
+- 输出必须通过 `schema` 映射为稳定 dict。
+- pyta2 指标通过 `rPyta2Signal` 接入，而不是让用户直接围绕 pyta2 `forward()` 参数写绑定。
 
-### FeatureEngine
+### SignalEngine
 
 ```python
-engine = FeatureEngine(features)
+engine = SignalEngine(signals)
 
 row = engine.update(
     kline={
@@ -148,7 +169,13 @@ row = engine.update(
 )
 
 latest = engine.latest()
-matrix = engine.batch({"kline": kline_df})
+matrix = engine.batch(kline_df)
+```
+
+如果 engine 中全是 K 线信号，可以额外提供便捷形式：
+
+```python
+engine.update(open=101.0, high=103.0, low=100.0, close=102.0, volume=1200.0)
 ```
 
 行为：
