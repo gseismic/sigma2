@@ -22,7 +22,7 @@
 
 包含：
 
-- 新增 `docs/design/sigma2-20260704-system-design.md`。
+- 新增 `docs/design/sigma2-20260704-system-design.md`。该设计后续已移入 `docs/design/backup/sigma2-20260704-system-design.md`。
 - 新增本计划结果文件。
 - 更新 `docs/dev/INDEX.md`。
 - 更新 `docs/HANDOFF.md`。

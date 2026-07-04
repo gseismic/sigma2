@@ -4,10 +4,10 @@
 
 ## 完成内容
 
-- 新增 `docs/design/sigma2-20260704-signal-core.md`，定义通用 `rSignal`、K 线专属 `rKlineSignal`、标准 OHLCV 输入、标准输出、pyta2 适配和组合信号方向。
+- 新增 `docs/design/sigma2-20260704-signal-core.md`，定义通用 `rSignal`、K 线专属 `rKlineSignal`、标准 OHLCV 输入、标准输出、pyta2 适配和组合信号方向。该设计后续已移入 `docs/design/backup/sigma2-20260704-signal-core.md`。
 - 补充 data-kind 分层，明确 K 线不是唯一模型，未来 orderbook/trades 通过 `rOrderBookSignal`、`rTradeSignal` 等子类扩展。
 - 更新 `README.md`，把项目定位从 pyta2 feature 编排层修正为自有标准信号计算库。
-- 更新 `docs/design/sigma2-20260704-roadmap.md`，注明原 `FeatureSpec + Pyta2Adapter` 方向已降级为适配/配置细节。
+- 更新 `docs/design/sigma2-20260704-roadmap.md`，注明原 `FeatureSpec + Pyta2Adapter` 方向已降级为适配/配置细节。该设计后续已移入 `docs/design/backup/sigma2-20260704-roadmap.md`。
 - 更新 `docs/dev/INDEX.md`，追加本次计划和结果。
 - 更新 `docs/HANDOFF.md`，记录用户反馈后的核心修正。
 

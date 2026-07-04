@@ -4,7 +4,7 @@
 
 ## 完成内容
 
-- 更新 `docs/design/sigma2-20260704-system-design.md`。
+- 更新 `docs/design/sigma2-20260704-system-design.md`。该设计后续已移入 `docs/design/backup/sigma2-20260704-system-design.md`，当前实现依据见 `docs/design/sigma2-20260704-overview.md`。
 - 增加 `InputType -> SignalFamily -> Signal` 作为核心扩展关系。
 - 增加 `FamilyRegistry` 设计，要求 `FeatureSet` 和 `OnlineFeatureState` 只依赖 registry，不写死具体 family。
 - 明确新增数据类型通过 `InputType + Normalizer + family module + signal implementations` 加入。

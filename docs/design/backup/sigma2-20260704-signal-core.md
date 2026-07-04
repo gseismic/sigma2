@@ -1,6 +1,12 @@
 # sigma2 标准信号核心设计
 
-更新时间：2026-07-04 12:11 CST
+更新时间：2026-07-04 16:31 CST
+
+> 历史备份：本文是阶段性核心设计，不作为当前实现依据。当前唯一有效设计见 `docs/design/sigma2-20260704-overview.md`。
+
+## 状态
+
+本文是早期核心修订文档，保留历史讨论价值。后续实现以 `docs/design/sigma2-20260704-overview.md` 为准：公共稳定命名采用 `family`，`rSignal` 的概念、命名、生命周期和默认行为应尽可能与 `pyta2.base.rIndicator` 保持一致。
 
 ## 背景
 
@@ -127,7 +133,7 @@ class rGapSignal(rSignal):
 
 ## 定稿：rSignal 与 data-kind 子类
 
-`rSignal` 是 sigma2 的通用核心基类，生命周期和元信息尽量与 `pyta2.base.rIndicator` 保持一致。它不规定具体行情输入字段。
+`rSignal` 是 sigma2 的通用核心基类，生命周期、命名和元信息应尽量与 `pyta2.base.rIndicator` 保持一致。它不规定具体行情输入字段。
 
 ```python
 class rSignal:
@@ -142,7 +148,7 @@ class rSignal:
         buffer_size: int | None = None,
         extra_window: int = 0,
         buffer_factor: int = 2,
-        return_dict: bool = True,
+        return_dict: bool = False,
     ):
         ...
 
@@ -169,7 +175,7 @@ class rSignal:
 - `required_window`：`window + extra_window`。
 - `schema`：输出字段定义，建议复用 pyta2 的 `Schema`/`Space` 模型以保持一致。
 - `output_keys`：来自 `schema.keys()`。
-- `return_dict`：sigma2 默认 `True`，因为标准化输出是核心目标。
+- `return_dict`：默认值与 `rIndicator` 保持一致；标准化输出由 `schema`、`output_keys` 和 `make_dict_output()` 保证，应用层需要 dict 时显式传入 `return_dict=True`。
 - `outputs`：历史输出缓存。
 - `meta_info`：包含 `name`、`full_name`、`schema`、`window`、`extra_window`、`required_window`、`output_keys` 等。
 
@@ -219,7 +225,7 @@ signal.update(open, high, low, close, volume)
 行为：
 
 - `update()` 把单点追加到内部 OHLCV buffer。
-- `update()` 再用内部 buffer 调用 `forward(opens, highs, lows, closes, volumes)`。
+- `update()` 再委托 `rolling(opens, highs, lows, closes, volumes)`，由 `rolling()` 统一推进 `g_index`、调用 `forward()`、写入 `outputs` 并处理 `return_dict`。
 - 因此单点模式和 rolling 序列模式共享同一份计算语义。
 
 ### Python 命名说明
@@ -447,11 +453,11 @@ FeatureSpec(cls=rSMA, bind={"values": "kline.close"})
 
 ### 第二轮：是否与 pyta2 结构一致
 
-尽量一致。`window`、`schema`、`output_keys`、`required_window`、`rolling()`、`reset()`、`outputs`、`meta_info` 都应保留相同心智模型。主要差异是输入契约按 data-kind 标准化，以及 dict 输出默认标准化。
+尽量一致。`window`、`schema`、`output_keys`、`required_window`、`rolling()`、`forward()`、`reset()`、`reset_extras()`、`outputs`、`g_index`、`return_dict`、`make_dict_output()`、`meta_info` 都应保留相同心智模型。主要差异是输入契约按 data-kind/family 标准化，单点 `update()` 只是 family 子类的补充接口。
 
 ### 第三轮：是否支持单点实时数据
 
-支持。对 K 线，`rKlineSignal.update(open, high, low, close, volume)` 是一等接口，不是 batch 的附属能力。它追加内部 buffer 后调用同一个 `forward()`。其它 data-kind 子类也应提供各自标准化的单点更新接口。
+支持。对 K 线，`rKlineSignal.update(open, high, low, close, volume)` 是 family 子类的一等单点输入接口，不是 batch 的附属能力。它追加内部 buffer 后委托 `rolling()`，从而复用 `rIndicator` 风格的 `g_index`、输出缓存和 `return_dict` 语义。其它 family 子类也应提供各自标准化的单点更新接口。
 
 ### 第四轮：是否过早泛化
 
@@ -461,7 +467,7 @@ FeatureSpec(cls=rSMA, bind={"values": "kline.close"})
 
 后续第一轮代码实现应按以下顺序：
 
-1. 实现通用 `rSignal`，包含 schema 输出、`rolling()`、`update()`、`reset()`、`meta_info` 和 data-kind 元信息。
+1. 实现通用 `rSignal`，包含 schema 输出、`rolling()`、`reset()`、`meta_info` 和 family 元信息；`update()` 在 base 层最多作为 `rolling()` 兼容别名。
 2. 实现 `rKlineSignal`，包含 OHLCV buffer、标准 K 线 rolling/update 输入。
 3. 实现 1 到 2 个 K 线自定义信号测试，如 return、gap。
 4. 实现 `rPyta2Signal`，把 rSMA、rATR、rMACD 适配为 K 线标准信号。

@@ -20,9 +20,9 @@
 
 包含：
 
-- 新增 `docs/design/sigma2-20260704-signal-core.md`。
+- 新增 `docs/design/sigma2-20260704-signal-core.md`。该设计后续已移入 `docs/design/backup/sigma2-20260704-signal-core.md`。
 - 更新 `README.md`。
-- 更新 `docs/design/sigma2-20260704-roadmap.md` 的修订状态和核心 API 方向。
+- 更新 `docs/design/sigma2-20260704-roadmap.md` 的修订状态和核心 API 方向。该设计后续已移入 `docs/design/backup/sigma2-20260704-roadmap.md`。
 - 更新 `docs/HANDOFF.md`。
 - 更新 `docs/dev/INDEX.md`。
 - 生成本计划结果文件。

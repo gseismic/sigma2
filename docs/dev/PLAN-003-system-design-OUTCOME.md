@@ -4,7 +4,7 @@
 
 ## 完成内容
 
-- 新增 `docs/design/sigma2-20260704-system-design.md`，作为当前推荐系统设计稿。
+- 新增 `docs/design/sigma2-20260704-system-design.md`，作为当时推荐系统设计稿。该设计后续已移入 `docs/design/backup/sigma2-20260704-system-design.md`，当前实现依据见 `docs/design/sigma2-20260704-overview.md`。
 - 文档明确 `FeatureSet.batch(data)` 和 `FeatureSet.online()` 是用户主路径。
 - 文档明确 `KlineInput`、`OrderBookInput`、`TradeInput` 是内部标准化对象或高级接口，不要求普通用户手写。
 - 文档明确 `rSignal` 中 `r` 表示 rolling，是有状态内核，区别于 batch 特征生成主入口。

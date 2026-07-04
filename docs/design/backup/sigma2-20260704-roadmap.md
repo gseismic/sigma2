@@ -2,6 +2,8 @@
 
 更新时间：2026-07-04 10:38 CST
 
+> 历史备份：本文是早期规划文档，不作为当前实现依据。当前唯一有效设计见 `docs/design/sigma2-20260704-overview.md`。
+
 ## 修订状态
 
 2026-07-04 12:08 CST 根据用户反馈修订：sigma2 不应只是 pyta2 的薄封装。本文中 `FeatureSpec + Pyta2Adapter` 的规划应降级为 pyta2 指标适配和矩阵输出层的实现细节；新的核心公共接口以 `docs/design/sigma2-20260704-signal-core.md` 为准，即通用 `rSignal`、数据类型专属信号、标准 K 线输入输出、组合信号和 `SignalEngine`。
