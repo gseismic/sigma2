@@ -1,6 +1,6 @@
 # sigma2 交接文档
 
-更新时间：2026-07-04 13:29 CST
+更新时间：2026-07-04 15:50 CST
 
 ## 项目背景
 
@@ -33,6 +33,9 @@ sigma2 是计划中的量化 ML 信号与特征生成库。核心使用场景是
 - 根据最新讨论新增 `docs/design/sigma2-20260704-system-design.md`。
 - 新增 `docs/dev/PLAN-003-system-design.md` 和结果文件。
 - 更新计划索引和交接文档，明确 ML 主路径与内部输入对象边界。
+- 根据最新讨论更新系统设计，补充输入类型驱动 family 和 `FamilyRegistry`。
+- 新增 `docs/dev/PLAN-004-family-registry-design.md` 和结果文件。
+- 修正 minbt 示例，禁止 `update_minbt_bars(...)` 这类外部框架方法出现在 core 对象。
 
 ## 核心结论
 
@@ -41,7 +44,11 @@ sigma2 是计划中的量化 ML 信号与特征生成库。核心使用场景是
 - `rSignal` 中 `r` 表示 rolling，是有状态内核，区别于 batch 特征生成主入口。
 - Signal family 由输入类型决定，单 symbol 与多 symbol 要分开：`kline`、`multi_kline`、`orderbook`、`multi_orderbook`、`trade`、`multi_trade`、`composite`、`label`。
 - batch 是 sigma2 的核心场景，不是 online replay 的附属接口；第一版可用 replay 实现，但接口上必须是一等能力。
+- 输入类型是二次开发扩展轴：`InputType -> SignalFamily -> Signal`。
+- 新增数据类型应通过 `InputType + Normalizer + family module + registry` 加入，不应修改 `FeatureSet` / `OnlineFeatureState` 核心逻辑。
+- 在线核心接口应包含 `update(input_obj)` 和 `update_family(family, **data)`；`update_kline(...)` 只是便捷包装。
 - minbt 只作为 adapter，sigma2 核心命名使用 `kline/orderbook/trade/news`。
+- `FeatureSet`、`OnlineFeatureState`、`rSignal` 不能出现 `minbt` 等外部框架名。
 - pyta2 指标通过适配层接入 kline rolling 信号，sigma2 不重复维护 pyta2 指标定义。
 
 ## 重要文档
@@ -53,6 +60,7 @@ sigma2 是计划中的量化 ML 信号与特征生成库。核心使用场景是
 - `docs/dev/PLAN-001-sigma2-roadmap.md`
 - `docs/dev/PLAN-002-signal-core-revision.md`
 - `docs/dev/PLAN-003-system-design.md`
+- `docs/dev/PLAN-004-family-registry-design.md`
 - `docs/dev/INDEX.md`
 - `pyta2/docs/design/pyta2-sigma-20260627-v3.md`
 
@@ -67,5 +75,6 @@ sigma2 是计划中的量化 ML 信号与特征生成库。核心使用场景是
 5. 实现 `kline.ret`、`kline.sma`。
 6. 实现 `FeatureSet.online()` 和 `update_kline(...)`。
 7. 再扩展 orderbook/trade、pyta2 adapter、minbt adapter、composite 和 label。
+8. 在扩展 orderbook/trade 前先实现 `FamilyRegistry`，避免新增 family 时修改核心流程。
 
 不要先要求用户构造内部输入对象，也不要先做复杂 DAG、batch 向量化优化或 minbt 深度集成。
