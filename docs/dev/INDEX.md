@@ -1,6 +1,6 @@
 # 计划执行索引
 
-更新时间：2026-07-05 14:25 CST
+更新时间：2026-07-05 14:52 CST
 
 ## 历史说明
 
@@ -18,6 +18,7 @@
 | 2026-07-04 16:35 CST | `PLAN-006-design-doc-cleanup.md` | `PLAN-006-design-doc-cleanup-OUTCOME.md` | 整理 `docs/design`，只保留 `sigma2-20260704-overview.md` 作为当前总设计文档；过时设计移动到 `docs/design/backup/` 并标注历史备份，防止误读。 |
 | 2026-07-04 17:07 CST | `PLAN-007-step-core-api.md` | `PLAN-007-step-core-api-OUTCOME.md` | 根据最新接口评审，将 sigma2 core 的唯一公共状态推进入口定为 `step()`；`forward()` 保留为子类计算 hook；`rolling()` / `update()` 不作为 core 稳定接口；新增 `rKlineWindowSignal` 处理 K 线窗口型信号和 pyta2 adapter。 |
 | 2026-07-05 14:25 CST | `PLAN-008-pyta2-buffer-utils.md` | `PLAN-008-pyta2-buffer-utils-OUTCOME.md` | 根据用户提醒核对 pyta2 现有缓存工具，移除 `RingBuffer` 伪实现名；明确单列 rolling 状态优先用 `NumpyDeque`，多列 rolling 窗口和输出短缓存优先用 `DequeTable`，应用层长表可用 `VectorTable`。 |
+| 2026-07-05 14:41 CST | `PLAN-009-core-implementation.md` | `PLAN-009-core-implementation-OUTCOME.md` | 实施最小稳定核心：新增 Python 包骨架、`rSignal.step()` 生命周期、K 线 family、窗口型 K 线 family、实验性 orderbook/trade family、最小 pyta2 adapter、`rPyta2SMA` 类式快捷入口、第一批示例信号和 26 个 contract tests。 |
 
 ## 当前设计文档规则
 

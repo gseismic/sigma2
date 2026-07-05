@@ -1,6 +1,6 @@
 # sigma2 总体设计
 
-更新时间：2026-07-05 14:25 CST
+更新时间：2026-07-05 14:52 CST
 
 ## 状态
 
@@ -594,11 +594,12 @@ pyta2 是一个适配来源，不是 sigma2 core。
 推荐：
 
 ```python
-rPyta2Signal(
-    name="sma_close_20",
-    indicator_cls=rSMA,
+rPyta2SMA(20, field="close", name="sma_close_20")
+
+pyta2_signal(
+    "SMA",
     params={"n": 20},
-    input_map={"values": "closes"},
+    field="close",
 )
 ```
 
@@ -607,7 +608,10 @@ rPyta2Signal(
 - `rPyta2Signal` 对外仍是 `rKlineWindowSignal`。
 - `rPyta2Signal.step(open, high, low, close, volume)` 是公共入口。
 - adapter 内部可以维护 OHLCV 窗口并调用 pyta2 指标的 `rolling()`。
-- `input_map` 是 adapter 内部概念，不进入普通 K 线信号接口。
+- `rPyta2SMA`、`rPyta2ATR`、`rPyta2MACD` 这类快捷类是用户接口，应该继承标准 signal 对象。
+- `pyta2_signal()` / `resolve_pyta2_indicator()` 是适配层接口，负责把 pyta2 名称或 class 解析为 rolling indicator class。
+- `field` / `inputs` 是 adapter 参数，不进入普通 K 线信号接口。
+- 如果 pyta2 后续暴露顶层 `rSMA` 或 name registry，sigma2 只需要替换 resolver，不应改变 `rPyta2SMA` 用户代码。
 - sigma2 不重复维护 pyta2 指标定义，只读取其 `schema`、`output_keys`、`required_window`、`meta_info`。
 
 ## 应用层位置
@@ -647,7 +651,7 @@ from sigma2.app import FeatureSet
 features = FeatureSet([
     rReturn(n=1, name="ret_1", return_dict=True),
     rReturn(n=5, name="ret_5", return_dict=True),
-    SMA("close", window=20, name="sma_close_20", return_dict=True),
+    rPyta2SMA(20, field="close", name="sma_close_20", return_dict=True),
 ])
 
 X = features.batch(df, schema=schema)
