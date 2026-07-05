@@ -1,6 +1,6 @@
 # sigma2 总体设计
 
-更新时间：2026-07-04 17:07 CST
+更新时间：2026-07-05 14:25 CST
 
 ## 状态
 
@@ -16,6 +16,7 @@
 - `update()` 不进入 core。K 线未完成周期修正、盘口增量应用、实盘 preview 等由 adapter、stream builder 或 preview runner 处理。
 - `window` 表示产生有效输出所需的最少 step 数，不表示 core 默认维护原始输入历史。
 - 需要原始 OHLCV 历史序列的 K 线信号通过 `rKlineWindowSignal` opt-in 维护窗口；orderbook/trades 等 family 默认不承担历史 window 成本。
+- sigma2 不新增公共环形缓存抽象；内部 rolling 缓存优先复用 pyta2 已有的 `NumpyDeque`、`DequeTable`、`VectorTable` 等工具。
 - `FeatureSet`、DataFrame batch、ML 矩阵生成、minbt adapter 都是应用层能力，应该消费 core，而不是定义 core。
 
 ## 设计目标
@@ -388,27 +389,38 @@ class rKlineSignal(rSignal):
 需要 K 线历史序列的信号继承 `rKlineWindowSignal`。
 
 ```python
+from pyta2.utils.deque import DequeTable
+
+
 class rKlineWindowSignal(rKlineSignal):
     def reset_extras(self):
-        self.opens = RingBuffer(self.required_window)
-        self.highs = RingBuffer(self.required_window)
-        self.lows = RingBuffer(self.required_window)
-        self.closes = RingBuffer(self.required_window)
-        self.volumes = RingBuffer(self.required_window)
+        self._window = DequeTable(
+            maxlen=self.required_window,
+            buffer_factor=self.buffer_factor,
+            schema={
+                "open": "float64",
+                "high": "float64",
+                "low": "float64",
+                "close": "float64",
+                "volume": "float64",
+            },
+        )
         self.reset_window_extras()
 
     def _step_forward(self, open, high, low, close, volume):
-        self.opens.append(open)
-        self.highs.append(high)
-        self.lows.append(low)
-        self.closes.append(close)
-        self.volumes.append(volume)
+        self._window.append({
+            "open": open,
+            "high": high,
+            "low": low,
+            "close": close,
+            "volume": volume,
+        })
         return self.forward(
-            self.opens,
-            self.highs,
-            self.lows,
-            self.closes,
-            self.volumes,
+            self._window["open"],
+            self._window["high"],
+            self._window["low"],
+            self._window["close"],
+            self._window["volume"],
         )
 
     def reset_window_extras(self):
@@ -424,6 +436,7 @@ class rKlineWindowSignal(rKlineSignal):
 - `_step_forward()` 负责追加 OHLCV 历史窗口，然后调用 `forward()`。
 - `forward()` 接收标准 K 线序列：`opens, highs, lows, closes, volumes`。
 - 直接调用 `forward(opens, highs, lows, closes, volumes)` 不追加内部窗口，不进入 core 生命周期。
+- 内部窗口建议使用 `pyta2.utils.deque.DequeTable`，不要新增独立公共环形缓存抽象。
 - pyta2 adapter 和 SMA、ATR、MACD 等窗口型 K 线信号优先基于 `rKlineWindowSignal` 实现。
 - `rKlineWindowSignal` 只是 K 线 family 的便利基类，不把历史窗口要求扩散到 orderbook/trades。
 
@@ -434,6 +447,23 @@ class rKlineWindowSignal(rKlineSignal):
 - `FeatureSet`
 - minbt adapter
 - ML batch runner
+
+## 内部缓存工具选择
+
+sigma2 的公共 API 不暴露具体缓存容器，但实现时应优先复用 pyta2 已有工具，避免新建一套公共环形缓存抽象。
+
+推荐分工：
+
+- `pyta2.utils.deque.NumpyDeque`：单列 rolling 状态，例如某个信号内部只需要维护一列价格、收益或中间变量。
+- `pyta2.utils.deque.DequeTable`：多列 rolling 窗口，例如 OHLCV、输出短缓存、需要按列读取的实时窗口。
+- `pyta2.utils.vector.VectorTable`：无 `maxlen` 的列式长表，适合应用层 batch、ML 矩阵构造或历史结果收集，不属于 core signal 状态。
+
+约束：
+
+- `rSignal.outputs` 的实现应尽量沿用 pyta2 `rIndicator` 心智，优先使用 `DequeTable`。
+- `rKlineWindowSignal` 内部 OHLCV 窗口优先使用 `DequeTable`。
+- 具体容器是内部实现细节；普通信号作者只需要实现 `forward(...)`，不应被迫理解 `DequeTable`。
+- 如果后续需要兼容非 NumPy 对象或极端性能路径，可以在内部增加轻量 wrapper，但 wrapper 不应作为第一版公共 API。
 
 ## 同周期更新与 preview
 
@@ -741,6 +771,7 @@ from sigma2.adapters.minbt import MinbtFeatureAdapter
 - 直接调用 `forward()` 不改变 `g_index`、`outputs` 或 `return_dict` 行为。
 - family 基类不在 `forward()` 中维护输入历史；输入窗口维护只能发生在 `step()` 调用链内的内部 hook。
 - `rKlineWindowSignal.step()` 与手动维护窗口后调用窗口序列版 `forward()` 输出一致。
+- `rKlineWindowSignal` 默认内部窗口实现不引入新的公共环形缓存抽象，优先基于 `DequeTable`。
 - `FeatureSet.batch()` 的 replay 只能调用 `step()`，不能调用 `forward()`。
 - `make_dict_output()` 对标量、tuple、mapping 的行为稳定。
 - `output_keys` 与 dict 输出 key 完全一致。
