@@ -16,7 +16,16 @@ from .core import (
     rSignal,
     rTradeSignal,
 )
-from .kline import rGap, rPyta2SMA, rReturn, rSMA
+from .kline import (
+    rGap,
+    rKlineBoundTrigger,
+    rKlineFutureChange,
+    rKlineFutureHighLowChange,
+    rKlineFutureReturn,
+    rPyta2SMA,
+    rReturn,
+    rSMA,
+)
 from .orderbook import rBookSpread
 from .trade import rTradeSignedVolume
 from .utils import register_pyta2_indicator, resolve_pyta2_indicator
@@ -31,6 +40,10 @@ __all__ = [
     "resolve_pyta2_indicator",
     "rBookSpread",
     "rGap",
+    "rKlineBoundTrigger",
+    "rKlineFutureChange",
+    "rKlineFutureHighLowChange",
+    "rKlineFutureReturn",
     "rKlineSignal",
     "rKlineWindowSignal",
     "rOrderBookSignal",

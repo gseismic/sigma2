@@ -7,6 +7,10 @@ def test_root_package_reexports_core_and_common_signals():
         resolve_pyta2_indicator,
         rBookSpread,
         rGap,
+        rKlineBoundTrigger,
+        rKlineFutureChange,
+        rKlineFutureHighLowChange,
+        rKlineFutureReturn,
         rKlineSignal,
         rPyta2SMA,
         rReturn,
@@ -17,6 +21,10 @@ def test_root_package_reexports_core_and_common_signals():
 
     assert rSignal.__name__ == "rSignal"
     assert rKlineSignal.__name__ == "rKlineSignal"
+    assert rKlineFutureReturn.__name__ == "rKlineFutureReturn"
+    assert rKlineFutureChange.__name__ == "rKlineFutureChange"
+    assert rKlineFutureHighLowChange.__name__ == "rKlineFutureHighLowChange"
+    assert rKlineBoundTrigger.__name__ == "rKlineBoundTrigger"
     assert rReturn.__name__ == "rReturn"
     assert rGap.__name__ == "rGap"
     assert rSMA.__name__ == "rSMA"
@@ -48,7 +56,23 @@ def test_core_exports_signal_base_classes_and_pyta2_base():
 
 
 def test_root_family_packages_export_concrete_signals():
-    from sigma2.kline import rGap, rPyta2SMA, rReturn, rSMA
+    from sigma2.kline import (
+        rGap,
+        rKlineBoundTrigger,
+        rKlineFutureChange,
+        rKlineFutureHighLowChange,
+        rKlineFutureReturn,
+        rPyta2SMA,
+        rReturn,
+        rSMA,
+    )
+    from sigma2.kline.effect import rKlineFutureReturn as rKlineFutureReturnFromPackage
+    from sigma2.kline.effect.bound_trigger import rKlineBoundTrigger as rKlineBoundTriggerFromFile
+    from sigma2.kline.effect.future_change import rKlineFutureChange as rKlineFutureChangeFromFile
+    from sigma2.kline.effect.future_high_low_change import (
+        rKlineFutureHighLowChange as rKlineFutureHighLowChangeFromFile,
+    )
+    from sigma2.kline.effect.future_return import rKlineFutureReturn as rKlineFutureReturnFromFile
     from sigma2.kline.gap import rGap as rGapFromFile
     from sigma2.kline.pyta2 import rPyta2SMA as rPyta2SMAFromPackage
     from sigma2.kline.pyta2.sma import rPyta2SMA as rPyta2SMAFromFile
@@ -64,6 +88,11 @@ def test_root_family_packages_export_concrete_signals():
     assert rReturn is rReturnFromFile
     assert rGap is rGapFromFile
     assert rSMA is rSMAFromFile
+    assert rKlineFutureReturn is rKlineFutureReturnFromPackage
+    assert rKlineFutureReturn is rKlineFutureReturnFromFile
+    assert rKlineFutureChange is rKlineFutureChangeFromFile
+    assert rKlineFutureHighLowChange is rKlineFutureHighLowChangeFromFile
+    assert rKlineBoundTrigger is rKlineBoundTriggerFromFile
     assert rPyta2SMA is rPyta2SMAFromPackage
     assert rPyta2SMA is rPyta2SMAFromFile
     assert rBookSpread is rBookSpreadFromFile

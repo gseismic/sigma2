@@ -25,6 +25,11 @@ sigma2/
   utils/
     pyta2.py
   kline/
+    effect/
+      future_return.py
+      future_change.py
+      future_high_low_change.py
+      bound_trigger.py
     gap.py
     return_.py
     sma.py
@@ -44,6 +49,10 @@ sigma2/
 - `rTradeSignal`
 - `rPyta2Signal`
 - `rPyta2SMA`
+- `rKlineFutureReturn`
+- `rKlineFutureChange`
+- `rKlineFutureHighLowChange`
+- `rKlineBoundTrigger`
 - `pyta2_signal()`
 - `resolve_pyta2_indicator()`
 - `register_pyta2_indicator()`
@@ -58,7 +67,8 @@ sigma2/
 ```python
 from sigma2 import rPyta2SMA
 from sigma2.core import rSignal, rKlineSignal
-from sigma2.kline import rReturn, rGap, rSMA
+from sigma2.kline import rReturn, rGap, rSMA, rKlineFutureReturn
+from sigma2.kline.effect import rKlineFutureReturn
 from sigma2.kline.sma import rSMA
 from sigma2.kline.pyta2 import rPyta2SMA
 from sigma2.orderbook import rBookSpread
@@ -86,6 +96,29 @@ print(row)  # {"ma": 2.0}
 ```
 
 说明：`rPyta2SMA` 当前使用 pyta2 `rSMA`，因此输出 key 沿用 pyta2 schema，为 `ma`。如果需要纯 sigma2 示例信号，可使用 `rSMA`，输出 key 为 `sma`。
+
+## K 线 effect target 示例
+
+`sigma2.kline.effect` 是对 `pyta2.effect` 的 K 线 family 二层包装。用户仍然只输入标准 OHLCV：
+
+```python
+from sigma2.kline.effect import rKlineFutureReturn
+
+target = rKlineFutureReturn(2, return_dict=True)
+
+for price in [10.0, 11.0, 13.0]:
+    row = target.step(
+        open=price,
+        high=price,
+        low=price,
+        close=price,
+        volume=1.0,
+    )
+
+print(row)  # {"return": 0.3}
+```
+
+说明：`horizon=2` 的 target 需要当前点之后 2 根 K 线才能确定，因此 `step()` 返回的是延迟到未来窗口完成后才可计算的 anchor target。当前实现优先包装 stateless future effect；依赖反向调用状态的 future EMA 等不作为在线 `step()` 包装的第一批对象。
 
 ## 设计依据
 

@@ -20,6 +20,7 @@
 | 2026-07-05 14:25 CST | `PLAN-008-pyta2-buffer-utils.md` | `PLAN-008-pyta2-buffer-utils-OUTCOME.md` | 根据用户提醒核对 pyta2 现有缓存工具，移除 `RingBuffer` 伪实现名；明确单列 rolling 状态优先用 `NumpyDeque`，多列 rolling 窗口和输出短缓存优先用 `DequeTable`，应用层长表可用 `VectorTable`。 |
 | 2026-07-05 14:41 CST | `PLAN-009-core-implementation.md` | `PLAN-009-core-implementation-OUTCOME.md` | 实施最小稳定核心：新增 Python 包骨架、`rSignal.step()` 生命周期、K 线 family、窗口型 K 线 family、实验性 orderbook/trade family、最小 pyta2 adapter、`rPyta2SMA` 类式快捷入口、第一批示例信号和 26 个 contract tests。 |
 | 2026-07-07 12:01 CST | `PLAN-010-core-only-package-structure.md` | `PLAN-010-core-only-package-structure-OUTCOME.md` | 根据最新结构反馈完成 core-only 包结构迁移：移除旧 `base/families/signals/adapters` 公共源码结构，保留 `core` 为唯一核心目录，按根级 `kline/orderbook/trade` 分类拆分具体信号为单文件，并新增新导入路径 contract tests。 |
+| 2026-07-08 10:29 CST | `PLAN-011-kline-effect-wrappers.md` | `PLAN-011-kline-effect-wrappers-OUTCOME.md` | 新增 `sigma2.kline.effect` K 线 effect 包装层，提供 `rKlineFutureReturn`、`rKlineFutureChange`、`rKlineFutureHighLowChange`、`rKlineBoundTrigger`，统一标准 OHLCV step 输入，并补充延迟 target 语义测试。 |
 
 ## 当前设计文档规则
 
