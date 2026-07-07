@@ -1,6 +1,6 @@
 # sigma2 因子分析与研究训练层设计
 
-更新时间：2026-07-07 12:34 CST
+更新时间：2026-07-07 12:43 CST
 
 ## 状态
 
@@ -16,6 +16,8 @@
 - `Factor` 是一种有金融解释意义的 `Feature`；IC 等因子分析能力是 feature 诊断模块，不是整个系统的中心。
 - 研究训练层可以先作为 `sigma2.research` 实现，但接口要按未来可拆成独立包 `sigma2-research` 的边界设计。
 - 研究训练层只依赖 sigma2 的公共信号协议，不依赖 `sigma2.core` 内部实现。
+- 多 symbol、多 venue、多数据源场景必须通过 signal factory / clone 创建独立状态，不能复用同一个有状态 signal 实例。
+- 时间语义必须显式区分 `event_time`、`available_time`、`decision_time`、`target_start_time` 和 `target_end_time`，避免隐式未来函数。
 - 第一阶段重点是形成“从 sigma2 信号生成 feature、生成 target、做 IC/分组收益诊断、导出 ML/DL dataset”的最小闭环。
 - RL 环境和 minbt bridge 应在监督学习数据闭环稳定后再做。
 
@@ -230,6 +232,52 @@ class SignalLike:
 - runner 只能调用 `reset()` 和 `step()`。
 - runner 不能调用 `forward()`。
 - 多 symbol、多 venue、多输入流必须有独立 signal 状态。
+
+### SignalFactory 与 SignalSpec
+
+`rSignal` 是有状态对象。简单示例里用户传入 `rSMA(20)` 是可接受的，但 runner 在多 symbol、多 venue、多分片时不能复用同一个实例。
+
+研究训练层应支持三种 signal 输入形态：
+
+```python
+signals = [
+    rSMA(20),
+    lambda: rReturn(5),
+    SignalSpec(rSMA, args=(20,), kwargs={"field": "close"}, name="sma20"),
+]
+```
+
+语义：
+
+- `SignalLike` 实例：只允许用于单输入流；多输入流 runner 必须能 clone，否则报错。
+- `Callable[[], SignalLike]`：推荐多输入流使用，每条输入流调用一次 factory 创建独立状态。
+- `SignalSpec`：声明式 factory，适合配置文件、网格搜索、复现实验和序列化。
+
+推荐最小接口：
+
+```python
+class SignalSpec:
+    cls: type
+    args: tuple
+    kwargs: dict
+    name: str | None = None
+
+    def create(self):
+        return self.cls(*self.args, **self.kwargs)
+```
+
+clone 规则：
+
+- 如果 `rSignal` 后续提供 `clone()`，runner 可以使用 `signal.clone()`。
+- 如果没有 `clone()`，runner 不应依赖 `copy.deepcopy()` 作为稳定语义。
+- 多输入流场景下，传入裸 signal 实例且无法 clone 时应抛出明确错误。
+- 错误信息应提示用户改用 `lambda: rSMA(20)` 或 `SignalSpec(...)`。
+
+命名规则：
+
+- `SignalSpec.name` 可覆盖输出 feature 前缀。
+- 没有显式 name 时，使用 `signal.full_name` 和 `output_key` 生成列名。
+- 多个 signal 生成同名 column 时必须报错或要求用户显式 rename，不能静默覆盖。
 
 ## 用户接口
 
@@ -456,6 +504,54 @@ FeatureData
 - feature column 必须可追溯到 `family`、`full_name`、`output_key` 和可选版本。
 - 不锁死 pandas 后端，后续可支持 numpy、arrow、polars、torch。
 
+### FeatureData 不变量
+
+`FeatureData` 可以有不同后端，但必须有统一逻辑契约。
+
+推荐 canonical 形态：
+
+```text
+index:   (time, symbol)
+columns: feature columns
+values:  numeric or extension values
+mask:    same logical index, feature-level or row-level availability
+meta:    feature metadata and dataset metadata
+```
+
+不变量：
+
+- `(time, symbol)` 在同一个 `FeatureData` 内必须唯一。
+- `time` 必须单调可排序；同一 symbol 内按时间升序。
+- `symbol` 可选，但多资产训练强烈建议保留。
+- 重复 `(time, symbol)` 必须在 normalizer 阶段解决，不能进入 dataset。
+- feature column 顺序是稳定契约，`to_tabular()`、`to_sequence()`、online 输出必须复用同一顺序。
+- feature column 名必须唯一。
+- 缺失值和不可用状态不能只靠 `NaN` 表达，必须能通过 mask 判断。
+- `mask=False` 表示该值不可用于训练或计算；是否可交易由单独 tradable mask 表达。
+- metadata 必须能追溯每个 column 的 `family`、`source`、`full_name`、`output_key`、参数和可选版本。
+- 后端可以是 pandas、numpy、arrow、polars 或 torch adapter，但对外逻辑不变量不变。
+
+推荐 column metadata：
+
+```text
+FeatureColumnMeta
+  column
+  family
+  source
+  signal_name
+  signal_full_name
+  output_key
+  params
+  version
+  dtype
+```
+
+处理重复和冲突：
+
+- 同名 column 默认报错。
+- 用户可以通过 `name`、`prefix` 或 `rename` 显式解决。
+- 不建议自动添加 `_1`、`_2` 后缀，因为会破坏实验可追溯性。
+
 ### TargetData
 
 `TargetData` 表示监督学习标签。
@@ -477,6 +573,67 @@ TargetData
 - 默认避免未来函数。
 - 多 horizon 标签必须保留 horizon metadata。
 - 标签缺失和不可训练样本通过 mask 表达。
+
+### 时间语义与可用性
+
+因子研究和模型训练必须显式区分时间含义。
+
+核心时间字段：
+
+```text
+event_time:         市场事件发生时间
+available_time:     数据在系统中可被使用的时间
+decision_time:      策略或模型做决策的时间
+target_start_time:  标签收益或结果开始计量的时间
+target_end_time:    标签收益或结果结束计量的时间
+```
+
+默认约束：
+
+- feature 的 `available_time` 必须小于或等于 `decision_time`。
+- target 的 `target_start_time` 必须晚于或等于 `decision_time`。
+- `ForwardReturn(start="next")` 默认表示从下一可交易点开始计量收益。
+- K 线 close 产生的 feature 默认在该 K 线结束后才可用。
+- orderbook/trade feature 的可用时间由数据源时间戳和 latency 策略决定。
+
+推荐接口：
+
+```python
+target = ForwardReturn(
+    horizon=5,
+    price="close",
+    start="next",
+    decision_time="bar_close",
+)
+```
+
+可选 latency 策略：
+
+```python
+features = make_features(
+    data=klines,
+    signals=[...],
+    time="dt",
+    symbol="symbol",
+    availability="bar_close",
+)
+```
+
+策略示例：
+
+- `bar_close`：K 线结束后可用。
+- `next_bar_open`：下一根 K 线开盘时可用。
+- `event_time`：事件发生即认为可用。
+- `asof`：按最近可用时间对齐。
+- 自定义 callable：用户提供 `available_time = f(row)`。
+
+泄漏检查至少应验证：
+
+- feature `available_time <= decision_time`。
+- target `target_start_time >= decision_time`。
+- transform fit 不使用 validation/test 时间段。
+- multi-horizon target 不跨 split 边界泄漏。
+- sequence lookback 不越过训练/验证边界。
 
 ### AnalysisReport
 
@@ -526,6 +683,52 @@ ResearchDataset
 - `to_numpy(kind=...)`。
 - `to_torch(kind=...)`，可选依赖。
 - `analyze(...)`。
+
+### 多 family 对齐策略
+
+K 线、订单簿、成交、资金费率、新闻等数据源天然不同频。研究训练层必须把对齐策略做成显式参数，而不是隐式猜测。
+
+推荐对象：
+
+```python
+features = make_features(
+    data={
+        "kline": klines,
+        "orderbook": orderbooks,
+        "trade": trades,
+    },
+    signals=[...],
+    align=AlignPolicy(
+        clock="kline",
+        method="asof",
+        tolerance="1s",
+        latency="event_time",
+    ),
+)
+```
+
+核心参数：
+
+- `clock`：输出 feature 的主时间轴，例如 `kline`、`orderbook`、`trade`、自定义时间表。
+- `method`：`exact`、`asof`、`resample`、`aggregate`。
+- `tolerance`：允许使用多旧的数据。
+- `latency`：可用时间策略。
+- `fill`：缺失时是否填充，例如 `none`、`ffill`、`zero`。
+- `window`：事件聚合窗口，例如过去 1 秒成交量。
+
+默认策略：
+
+- 单 family 输入不需要显式 `AlignPolicy`。
+- 多 family 输入必须显式传入 `align`，否则报错。
+- 不允许默认把高频 orderbook/trade 静默 forward-fill 到 K 线时间轴。
+- 对齐后的每个 feature 必须保留来源 family 和原始可用时间 metadata。
+
+常见场景：
+
+- K 线因子研究：`clock="kline"`，`method="exact"`。
+- K 线 + orderbook：`clock="kline"`，`method="asof"`，要求 orderbook `available_time <= decision_time`。
+- 高频事件模型：`clock="event"`，按事件推进，K 线特征以 asof 方式提供。
+- 成交聚合特征：`method="aggregate"`，例如过去 1 秒 buy volume / sell volume。
 
 ## 因子分析模块
 
@@ -842,6 +1045,78 @@ env = observation/action/reward/simulator 的组合
 - `TrajectoryData`。
 - `make_env()`。
 
+### SimulatorLike 协议
+
+RL 和 minbt bridge 需要一个最小 simulator 协议，避免 research 层硬编码 minbt。
+
+推荐协议：
+
+```python
+class SimulatorLike:
+    def reset(self, *, start_time=None, state=None):
+        ...
+
+    def step(self, action, *, time=None, observation=None):
+        ...
+
+    @property
+    def state(self):
+        ...
+```
+
+推荐 `step()` 返回：
+
+```text
+SimulationStep
+  portfolio_state
+  execution
+  cost
+  slippage
+  pnl
+  risk
+  done
+  info
+```
+
+语义要求：
+
+- `reset()` 开启一个 episode 或回测区间。
+- `step(action)` 应用动作并推进交易状态。
+- `action` 可以是目标权重、离散买卖、订单意图，但必须由 `ActionSpace` 显式定义。
+- `cost`、`slippage`、`pnl` 必须可被 reward 读取。
+- simulator 可以由 minbt 实现，但 research 层只依赖协议。
+- simulator 的时间推进方式必须与 dataset / observation 的时间轴一致。
+
+最小 action space：
+
+```python
+action = TargetWeight(
+    max_abs=1.0,
+    long_only=False,
+)
+```
+
+最小 reward：
+
+```python
+reward = NetReturn(
+    cost=True,
+    risk_penalty=0.0,
+)
+```
+
+offline RL 需要额外对象：
+
+```text
+TrajectoryData
+  observation
+  action
+  reward
+  next_observation
+  done
+  info
+```
+
 ## minbt bridge
 
 正确关系：
@@ -888,10 +1163,17 @@ from sigma2_research.bridge.minbt import MinbtSimulator
 
 - `make_features()` 只调用 signal `reset()` 和 `step()`，不调用 `forward()`。
 - 多 symbol 输入使用独立 signal 状态。
+- 多 symbol 输入传入不可 clone 的裸 signal 实例时必须报错。
+- `SignalSpec.create()` 每次返回新的 signal 实例。
+- 同名 feature column 默认报错，不能静默覆盖。
 - `FeatureData` 保留 feature columns、time、symbol、mask 和 metadata。
+- `FeatureData` 内 `(time, symbol)` 唯一，同一 symbol 内时间升序。
 - feature column 可追溯到 family、full_name、output_key。
 - `ForwardReturn(start="next")` 默认不产生当前收盘到未来收盘的隐式未来函数。
 - target metadata 保留 horizon、start、price、return_type。
+- feature `available_time <= decision_time`，target `target_start_time >= decision_time`。
+- 多 family 输入不传 `AlignPolicy` 时必须报错。
+- `AlignPolicy(method="asof")` 不得使用 `available_time > decision_time` 的数据。
 - `IC(axis="cross_section")` 默认按同一时间截面计算。
 - `min_count` 不足时 IC 返回缺失而不是错误值。
 - transform 只能在训练集 fit，验证集和测试集只能 transform。
@@ -899,6 +1181,7 @@ from sigma2_research.bridge.minbt import MinbtSimulator
 - `ResearchDataset.to_sequence()` 的 feature 顺序、lookback 对齐和 mask 输出稳定。
 - `AnalysisReport` 默认无文件写入副作用。
 - `make_env()` 依赖 simulator 协议，不直接依赖 minbt。
+- `SimulatorLike.step()` 返回 cost、slippage、pnl、done 和 info，reward 只依赖该协议。
 
 ## 第一阶段实施顺序
 
@@ -907,13 +1190,15 @@ from sigma2_research.bridge.minbt import MinbtSimulator
 建议顺序：
 
 1. 实现最小 signal runner / `make_features()`，只消费 `SignalLike.reset()` 和 `SignalLike.step()`。
-2. 实现 `FeatureData`，先支持 DataFrame 输入输出，但内部契约不要锁死 pandas。
-3. 实现 `ForwardReturn` 和 `TargetData`，默认 `start="next"` 并记录 label metadata。
-4. 实现 `IC`、`RankIC`、`QuantileReturn` 和 `AnalysisReport`，优先返回结构化表格。
-5. 实现 `WalkForwardSplit`、`Winsorize`、`ZScore`。
-6. 实现 `ResearchDataset.to_tabular()` 和 `ResearchDataset.to_sequence()`。
-7. 再实现 `FeaturePipeline.to_online()`，确保离线训练和在线推理复用同一套 feature 顺序和 transform 状态。
-8. 最后再做 RL env builder、minbt bridge、torch adapter 和更复杂报告。
+2. 实现 `SignalSpec` / signal factory 规则，确保多输入流状态隔离。
+3. 实现 `FeatureData`，先支持 DataFrame 输入输出，但内部契约不要锁死 pandas。
+4. 实现时间语义字段和 `AlignPolicy`，先覆盖单 family exact 对齐和多 family asof 对齐。
+5. 实现 `ForwardReturn` 和 `TargetData`，默认 `start="next"` 并记录 label metadata。
+6. 实现 `IC`、`RankIC`、`QuantileReturn` 和 `AnalysisReport`，优先返回结构化表格。
+7. 实现 `WalkForwardSplit`、`Winsorize`、`ZScore`。
+8. 实现 `ResearchDataset.to_tabular()` 和 `ResearchDataset.to_sequence()`。
+9. 再实现 `FeaturePipeline.to_online()`，确保离线训练和在线推理复用同一套 feature 顺序和 transform 状态。
+10. 最后再做 `SimulatorLike`、RL env builder、minbt bridge、torch adapter 和更复杂报告。
 
 暂不优先做：
 
