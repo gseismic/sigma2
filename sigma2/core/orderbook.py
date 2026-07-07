@@ -4,7 +4,7 @@ from abc import abstractmethod
 from collections.abc import Sequence
 from typing import Any
 
-from sigma2.base import rSignal
+from .signal import rSignal
 
 BookLevel = tuple[float, float]
 

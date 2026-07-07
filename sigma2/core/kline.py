@@ -7,7 +7,7 @@ import numpy as np
 from numpy.typing import NDArray
 from pyta2.utils.deque import DequeTable
 
-from sigma2.base import rSignal
+from .signal import rSignal
 
 
 class rKlineSignal(rSignal):

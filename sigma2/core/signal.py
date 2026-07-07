@@ -11,11 +11,7 @@ from pyta2.utils.space import Space
 
 
 class rSignal(ABC):
-    """轻量有状态 rolling signal 基类。
-
-    生命周期尽量贴近 ``pyta2.base.rIndicator``，但唯一公共状态推进入口
-    是 ``step()``。子类只实现 ``forward()``。
-    """
+    """轻量有状态 rolling signal 基类。"""
 
     name: str | None = None
     family: str | None = None

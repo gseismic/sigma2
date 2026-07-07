@@ -6,7 +6,8 @@ import numpy as np
 import pytest
 from pyta2.utils.space import Scalar
 
-from sigma2 import rGap, rKlineSignal, rReturn, rSMA
+from sigma2.core import rKlineSignal
+from sigma2.kline import rGap, rReturn, rSMA
 
 
 class rCloseEcho(rKlineSignal):

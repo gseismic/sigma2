@@ -3,7 +3,7 @@ from __future__ import annotations
 from abc import abstractmethod
 from typing import Any, Literal
 
-from sigma2.base import rSignal
+from .signal import rSignal
 
 TradeSide = Literal["buy", "sell"] | None
 

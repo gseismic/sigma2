@@ -1,22 +1,25 @@
 """sigma2 公共 API。"""
 
-from ._pyta2 import ensure_pyta2_importable
+from .utils import ensure_pyta2_importable
 
 ensure_pyta2_importable()
 
 from pyta2.base.schema import Schema
 from pyta2.utils.space import Box, Scalar, Space
 
-from .adapters import (
+from .core import (
     pyta2_signal,
-    register_pyta2_indicator,
-    resolve_pyta2_indicator,
+    rKlineSignal,
+    rKlineWindowSignal,
+    rOrderBookSignal,
     rPyta2Signal,
-    rPyta2SMA,
+    rSignal,
+    rTradeSignal,
 )
-from .base import rSignal
-from .families import rKlineSignal, rKlineWindowSignal, rOrderBookSignal, rTradeSignal
-from .signals import rBookSpread, rGap, rReturn, rSMA, rTradeSignedVolume
+from .kline import rGap, rPyta2SMA, rReturn, rSMA
+from .orderbook import rBookSpread
+from .trade import rTradeSignedVolume
+from .utils import register_pyta2_indicator, resolve_pyta2_indicator
 
 __all__ = [
     "Box",

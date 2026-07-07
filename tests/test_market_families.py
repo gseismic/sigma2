@@ -4,7 +4,8 @@ import math
 
 import pytest
 
-from sigma2 import rBookSpread, rTradeSignedVolume
+from sigma2.orderbook import rBookSpread
+from sigma2.trade import rTradeSignedVolume
 
 
 def test_orderbook_signal_uses_snapshot_family_contract():

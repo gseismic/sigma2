@@ -3,7 +3,7 @@ from __future__ import annotations
 import numpy as np
 from pyta2.utils.space import Scalar
 
-from sigma2.families import rTradeSignal
+from sigma2.core import rTradeSignal
 
 
 class rTradeSignedVolume(rTradeSignal):

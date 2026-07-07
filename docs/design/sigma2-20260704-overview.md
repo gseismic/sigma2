@@ -1,6 +1,6 @@
 # sigma2 总体设计
 
-更新时间：2026-07-07 11:51 CST
+更新时间：2026-07-07 12:01 CST
 
 ## 状态
 
@@ -18,8 +18,8 @@
 - 需要原始 OHLCV 历史序列的 K 线信号通过 `rKlineWindowSignal` opt-in 维护窗口；orderbook/trades 等 family 默认不承担历史 window 成本。
 - sigma2 不新增公共环形缓存抽象；内部 rolling 缓存优先复用 pyta2 已有的 `NumpyDeque`、`DequeTable`、`VectorTable` 等工具。
 - sigma2 的源码组织也应以信号为中心：根目录直接是信号输入类型分类，例如 `sigma2/kline/`、`sigma2/orderbook/`、`sigma2/trade/`；每个具体信号一个文件。
-- `signals/`、`families/`、`adapters/` 不作为长期一级目录；非信号基础设施收拢到 `base/`、`core/`、`utils/`。
-- 通用 pyta2 信号基类和具体快捷信号类要分离：`rPyta2Signal` 这类基础设施放在 `base/`，pyta2 resolver 放在 `utils/`，`rPyta2SMA` 这类具体 K 线信号应放在 K 线信号分类目录下。
+- `base/`、`signals/`、`families/`、`adapters/` 不作为长期一级目录；非信号基础设施收拢到 `core/` 和 `utils/`。
+- `core/` 是唯一核心目录：`rSignal`、family 基类、pyta2 通用信号基类都在 `core/`；pyta2 resolver 放在 `utils/`。
 - 当前阶段不做全面 pyta2 指标 catalog 迁移；先稳定信号目录、继承契约和少量示例信号。
 - `FeatureSet`、DataFrame batch、ML 矩阵生成、minbt adapter 都是应用层能力，应该消费 core，而不是定义 core。
 
@@ -79,8 +79,7 @@ row = signal.step(open=101.0, high=103.0, low=100.0, close=102.0, volume=1200.0)
 | 层级 | 模块建议 | 稳定性 | 职责 |
 | --- | --- | --- | --- |
 | 信号分类层 | `sigma2.kline.*` / `sigma2.orderbook.*` / `sigma2.trade.*` | 用户主入口，随信号逐个稳定 | 具体信号类；每个信号一个文件 |
-| 基础层 | `sigma2.base.*` | 最先稳定 | `rSignal`、family 基类、schema、输出、生命周期 |
-| 核心编排层 | `sigma2.core.*` | 后稳定 | `SignalEngine`、registry、batch replay、组合执行等非信号编排 |
+| 核心层 | `sigma2.core.*` | 最先稳定 | `rSignal`、family 基类、schema、输出、生命周期、pyta2 通用信号基类；后续可加入 engine/registry |
 | 工具层 | `sigma2.utils.*` | 独立演进 | pyta2 resolver、缓存工具封装、通用辅助函数 |
 | 应用能力 | `sigma2.core` 的子模块或后续独立包 | 最后稳定 | `FeatureSet`、DataFrame batch、online state、训练矩阵、minbt adapter |
 
@@ -95,26 +94,20 @@ row = signal.step(open=101.0, high=103.0, low=100.0, close=102.0, volume=1200.0)
 
 ## 整体源码结构
 
-sigma2 的源码树应直接表达用户心智：打开包根目录，首先看到的是可以使用和扩展的信号分类。非信号对象不能挤占根目录的主要位置，应放入 `base/`、`core/` 或 `utils/`。
+sigma2 的源码树应直接表达用户心智：打开包根目录，首先看到的是可以使用和扩展的信号分类。非信号对象不能挤占根目录的主要位置，应放入 `core/` 或 `utils/`。
 
 目标结构：
 
 ```text
 sigma2/
   __init__.py
-  base/
+  core/
     __init__.py
     signal.py
     kline.py
     orderbook.py
     trade.py
     pyta2.py
-  core/
-    __init__.py
-    engine.py
-    registry.py
-    feature_set.py
-    minbt.py
   utils/
     __init__.py
     pyta2.py
@@ -145,9 +138,9 @@ sigma2/
 - Python 关键字冲突用后缀处理，例如 `return_.py` 中定义 `rReturn`。
 - 新增输入数据类型时新增根级 family 目录和对应 family 基类，不修改已有 family 的输入契约。
 - 新增具体 pyta2 快捷信号时放在所属数据类型目录下，例如 K 线 pyta2 SMA 位于 `kline/pyta2/sma.py`。
-- `base/` 只放稳定基类和输入契约，例如 `rSignal`、`rKlineSignal`、`rOrderBookSignal`、`rTradeSignal`、`rPyta2Signal`。
-- `core/` 只放运行时编排和应用层骨架，例如 engine、registry、batch replay、FeatureSet、minbt adapter。
+- `core/` 是唯一核心目录，放稳定基类、输入契约和后续运行时编排，例如 `rSignal`、`rKlineSignal`、`rOrderBookSignal`、`rTradeSignal`、`rPyta2Signal`，未来可加入 engine、registry、batch replay、FeatureSet、minbt adapter。
 - `utils/` 只放无状态或低状态辅助能力，例如 pyta2 name resolver、缓存工具选择、导入兼容。
+- 不再新增 `base/` 作为公共一级目录；`base` 和 `core` 同时存在会制造不必要的层级歧义。
 - 不再新增 `signals/` 作为公共一级目录；它会让用户多理解一层空泛概念。
 
 导入层级：
@@ -367,7 +360,6 @@ orderbook/
   book_spread.py
 trade/
   trade_signed_volume.py
-base/
 core/
 utils/
 ```
@@ -380,7 +372,7 @@ utils/
 - 每个信号单文件，便于 review、测试、文档和二次开发。
 - 保留与 pyta2 类似的可发现性，但不把 sigma2 限制为 K 线 TA 指标库。
 - 根目录直接呈现用户关心的信号分类，符合二次开发直觉。
-- `base/`、`core/`、`utils/` 明确承载非信号能力，用户不会误把 engine/adapter 当信号分类。
+- `core/`、`utils/` 明确承载非信号能力，用户不会误把 engine/adapter 当信号分类。
 
 缺点：
 
@@ -797,7 +789,7 @@ pyta2_signal(
 - `rPyta2Signal` 对外仍是 `rKlineWindowSignal`。
 - `rPyta2Signal.step(open, high, low, close, volume)` 是公共入口。
 - pyta2 信号基类内部可以维护 OHLCV 窗口并调用 pyta2 指标的 `rolling()`。
-- `rPyta2Signal` 是通用 pyta2 信号基类，位置应在 `sigma2.base.pyta2`。
+- `rPyta2Signal` 是通用 pyta2 信号基类，位置应在 `sigma2.core.pyta2`。
 - pyta2 名称解析、导入兼容等无状态辅助放在 `sigma2.utils.pyta2`。
 - `rPyta2SMA` 这类具体快捷类是用户可继承、可阅读的信号类，位置应在所属输入数据类型目录，例如 `sigma2.kline.pyta2.sma`。
 - `pyta2_signal()` / `resolve_pyta2_indicator()` 是工具或构造接口，负责把 pyta2 名称或 class 解析为 rolling indicator class。
@@ -809,9 +801,9 @@ pyta2_signal(
 
 ## 应用层位置
 
-`FeatureSet` 仍然有价值，但它不属于 core。
+`FeatureSet` 仍然有价值，但当前尚未实现。后续实现时，它应作为 core 消费者，而不是反向定义 `rSignal`。
 
-推荐位置：
+后续推荐位置：
 
 ```python
 from sigma2.core import FeatureSet
@@ -834,9 +826,9 @@ from sigma2.core import FeatureSet
 
 ### FeatureSet 与 ML batch
 
-`FeatureSet` 是应用层便利门面，用于把一组标准信号对象转成训练矩阵或在线特征行。
+`FeatureSet` 是后续应用层便利门面，用于把一组标准信号对象转成训练矩阵或在线特征行。
 
-推荐形态：
+后续推荐形态：
 
 ```python
 from sigma2.core import FeatureSet
@@ -988,7 +980,7 @@ from sigma2.core.minbt import MinbtFeatureAdapter
 
 1. 保持已实现的 `rSignal.step()`、family 子类和最小示例信号契约不变。
 2. 先把当前聚合信号重构为根级 `<family>/<signal>.py`，例如 `kline/sma.py`、`orderbook/book_spread.py`。
-3. 将 `rPyta2Signal` 与 `rPyta2SMA` 分层：通用 pyta2 信号基类放入 `base/pyta2.py`，resolver 放入 `utils/pyta2.py`，具体 `rPyta2SMA` 放入 `kline/pyta2/sma.py`。
+3. 将 `rPyta2Signal` 与 `rPyta2SMA` 分层：通用 pyta2 信号基类放入 `core/pyta2.py`，resolver 放入 `utils/pyta2.py`，具体 `rPyta2SMA` 放入 `kline/pyta2/sma.py`。
 4. 补齐导入路径 contract tests，确保顶层便捷导出和分组导出都稳定。
 5. 更新 README、交接文档和计划索引，移除“优先扩展 pyta2 catalog”的旧表述。
 6. 再实现最小 `SignalEngine`，仅作为 core 消费者，不反向污染 core。

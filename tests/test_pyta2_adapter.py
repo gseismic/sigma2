@@ -5,12 +5,9 @@ import math
 import numpy as np
 import pytest
 
-from sigma2 import (
-    pyta2_signal,
-    resolve_pyta2_indicator,
-    rPyta2Signal,
-    rPyta2SMA,
-)
+from sigma2.core import pyta2_signal, rPyta2Signal
+from sigma2.kline.pyta2 import rPyta2SMA
+from sigma2.utils.pyta2 import resolve_pyta2_indicator
 
 
 def test_resolve_pyta2_indicator_name_to_rolling_class():
