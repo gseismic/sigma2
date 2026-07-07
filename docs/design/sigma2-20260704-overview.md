@@ -1,6 +1,6 @@
 # sigma2 总体设计
 
-更新时间：2026-07-07 12:01 CST
+更新时间：2026-07-07 12:26 CST
 
 ## 状态
 
@@ -21,7 +21,10 @@
 - `base/`、`signals/`、`families/`、`adapters/` 不作为长期一级目录；非信号基础设施收拢到 `core/` 和 `utils/`。
 - `core/` 是唯一核心目录：`rSignal`、family 基类、pyta2 通用信号基类都在 `core/`；pyta2 resolver 放在 `utils/`。
 - 当前阶段不做全面 pyta2 指标 catalog 迁移；先稳定信号目录、继承契约和少量示例信号。
-- `FeatureSet`、DataFrame batch、ML 矩阵生成、minbt adapter 都是应用层能力，应该消费 core，而不是定义 core。
+- `FeatureSet`、DataFrame batch、ML 矩阵生成、minbt adapter、因子分析、深度学习数据集和强化学习环境都是应用层能力，应该消费 core，而不是定义 core。
+- 面向真实研究训练场景，应用层中心不应是传统 `FactorAnalysis`，而应是更通用的 `FeatureData -> TargetData -> ResearchDataset -> AnalysisReport / EnvBuilder`。
+- IC、RankIC、分组收益和换手分析是特征诊断能力，不是 sigma2 core，也不是研究训练层的唯一中心。
+- 研究训练层可以先作为 `sigma2.research` 存在，但接口必须按未来可拆成独立包 `sigma2-research` 的边界设计。
 
 ## 设计目标
 
@@ -81,20 +84,20 @@ row = signal.step(open=101.0, high=103.0, low=100.0, close=102.0, volume=1200.0)
 | 信号分类层 | `sigma2.kline.*` / `sigma2.orderbook.*` / `sigma2.trade.*` | 用户主入口，随信号逐个稳定 | 具体信号类；每个信号一个文件 |
 | 核心层 | `sigma2.core.*` | 最先稳定 | `rSignal`、family 基类、schema、输出、生命周期、pyta2 通用信号基类；后续可加入 engine/registry |
 | 工具层 | `sigma2.utils.*` | 独立演进 | pyta2 resolver、缓存工具封装、通用辅助函数 |
-| 应用能力 | `sigma2.core` 的子模块或后续独立包 | 最后稳定 | `FeatureSet`、DataFrame batch、online state、训练矩阵、minbt adapter |
+| 研究训练层 | `sigma2.research.*` 或后续独立包 `sigma2-research` | 最后稳定 | 特征生成、标签生成、因子诊断、监督学习数据集、强化学习环境、minbt bridge |
 
 稳定性顺序：
 
 1. 先稳定核心层。
 2. 再稳定常用内置信号。
 3. 再稳定 pyta2 信号基类和 resolver。
-4. 最后稳定 `FeatureSet` 等应用层门面。
+4. 最后稳定 `sigma2.research` 等研究训练层门面。
 
 原因：应用层需求最容易随真实使用变化，核心信号继承契约一旦稳定，用户今天写的信号就能被未来任意应用层复用。
 
 ## 整体源码结构
 
-sigma2 的源码树应直接表达用户心智：打开包根目录，首先看到的是可以使用和扩展的信号分类。非信号对象不能挤占根目录的主要位置，应放入 `core/` 或 `utils/`。
+sigma2 的源码树应直接表达用户心智：打开包根目录，首先看到的是可以使用和扩展的信号分类。非信号对象不能挤占根目录的主要位置，应优先放入 `core/`、`utils/` 或明确的应用层命名空间。
 
 目标结构：
 
@@ -125,12 +128,14 @@ sigma2/
   trade/
     __init__.py
     trade_signed_volume.py
+  research/        # 后续可选；按未来独立包边界设计
 ```
 
 稳定规则：
 
 - `sigma2.<family>` 是具体信号的主发现入口。
 - 根目录下的业务命名目录优先留给信号输入类型分类，例如 `kline`、`orderbook`、`trade`、未来的 `funding_rate`、`news`。
+- `research` 是明确的应用层命名空间，不是信号 family；如果后续拆成独立包，sigma2 core 和信号目录不应受影响。
 - 每个具体信号一个文件；文件内只放该信号及其非常小的私有辅助逻辑。
 - 各级 `__init__.py` 只负责导出，不承载具体信号实现。
 - 顶层 `sigma2.__init__` 可以 re-export 常用信号，但顶层导出不是源码组织依据。
@@ -138,7 +143,7 @@ sigma2/
 - Python 关键字冲突用后缀处理，例如 `return_.py` 中定义 `rReturn`。
 - 新增输入数据类型时新增根级 family 目录和对应 family 基类，不修改已有 family 的输入契约。
 - 新增具体 pyta2 快捷信号时放在所属数据类型目录下，例如 K 线 pyta2 SMA 位于 `kline/pyta2/sma.py`。
-- `core/` 是唯一核心目录，放稳定基类、输入契约和后续运行时编排，例如 `rSignal`、`rKlineSignal`、`rOrderBookSignal`、`rTradeSignal`、`rPyta2Signal`，未来可加入 engine、registry、batch replay、FeatureSet、minbt adapter。
+- `core/` 是唯一核心目录，放稳定基类和输入契约，例如 `rSignal`、`rKlineSignal`、`rOrderBookSignal`、`rTradeSignal`、`rPyta2Signal`；不放因子分析、训练数据集、minbt adapter 或 RL 环境。
 - `utils/` 只放无状态或低状态辅助能力，例如 pyta2 name resolver、缓存工具选择、导入兼容。
 - 不再新增 `base/` 作为公共一级目录；`base` 和 `core` 同时存在会制造不必要的层级歧义。
 - 不再新增 `signals/` 作为公共一级目录；它会让用户多理解一层空泛概念。
@@ -228,7 +233,7 @@ signal.step(open=..., high=..., low=..., close=..., volume=...)
 - 用户、engine、adapter 只有一个公共入库入口：`step()`。
 - `forward()` 保留为清晰的计算 hook，类似神经网络 forward。
 - 自定义信号、pyta2 适配信号、组合信号可以统一到同一个对象模型。
-- 上层 `FeatureSet`、ML batch、minbt adapter 都能消费同一个信号对象。
+- 上层 signal runner、`make_features()`、`ResearchDataset`、minbt bridge 都能消费同一个信号对象。
 - 不把 orderbook/trades 迫使成历史窗口模型。
 
 缺点：
@@ -624,10 +629,11 @@ class rKlineWindowSignal(rKlineSignal):
 这意味着用户今天继承 `rKlineSignal` 或 `rKlineWindowSignal` 写出的信号，应能长期复用到：
 
 - 手写实时策略
-- `SignalEngine`
-- `FeatureSet`
-- minbt adapter
-- ML batch runner
+- signal runner
+- `make_features()`
+- `ResearchDataset`
+- minbt bridge
+- ML / DL batch runner
 
 ## 内部缓存工具选择
 
@@ -799,135 +805,534 @@ pyta2_signal(
 - 当前阶段只保留 `rPyta2SMA` 作为类式快捷适配样例，不把扩展其它 `rPyta2Xxx` catalog 作为高优先级工作。
 - 未来新增具体 pyta2 快捷信号必须逐个评审输入契约、输出 schema 和测试，不做机械迁移。
 
-## 应用层位置
+## 研究训练层
 
-`FeatureSet` 仍然有价值，但当前尚未实现。后续实现时，它应作为 core 消费者，而不是反向定义 `rSignal`。
+sigma2 的长期目标不是只做传统技术指标，也不是只做传统因子分析，而是支持真实量化研究和训练闭环：
 
-后续推荐位置：
-
-```python
-from sigma2.core import FeatureSet
+```text
+market data -> rSignal -> FeatureData -> TargetData -> ResearchDataset -> model / report / env
 ```
 
-职责：
+因此研究训练层的中心应是通用特征和训练数据，而不是 `FeatureSet` 或 `FactorAnalysis`。
 
-- 管理多个 signal 实例。
-- 做 batch replay 或向量化优化。
-- 生成 DataFrame / numpy 矩阵。
-- 处理 `DataSchema`。
-- 管理多 symbol 对齐。
-- 给 minbt adapter 或训练流程提供便利。
+关键判断：
+
+- `Signal` 是 sigma2 core 中的 `rSignal` 对象，负责把原始行情流转成信号输出。
+- `Feature` 是模型输入，可以来自 sigma2 signal，也可以来自外部表、embedding、基本面、新闻或人工特征。
+- `Factor` 是有金融解释意义、常用于横截面 IC 和分组收益诊断的一类 feature。
+- IC、RankIC、QuantileReturn、Turnover 是分析器，不是 core signal。
+- 深度学习训练需要 `Dataset`、`Split`、`Transform` 和 tensor 输出。
+- 强化学习训练需要 `Observation`、`Action`、`Reward`、`Simulator` 和 `Env`，不能用 IC 分析模型替代。
+
+推荐位置：
+
+```text
+sigma2/research/
+```
+
+但边界按未来独立包设计：
+
+```text
+sigma2-research
+```
+
+设计约束：
+
+- `sigma2.research` 只依赖 sigma2 的公共信号协议，不依赖 `sigma2.core` 的内部状态实现。
+- `sigma2.research` 可以消费外部 feature，不要求所有 feature 都来自 `rSignal`。
+- `sigma2.core` 不导入 `research`，不理解 IC、label、dataset、env、minbt。
+- 将来拆包时，用户代码应主要改 import，不应重写信号或训练流程。
+
+### 研究训练层模块结构
+
+目标结构：
+
+```text
+sigma2/
+  research/
+    __init__.py
+    feature/
+      panel.py
+      runner.py
+      align.py
+      transform.py
+      store.py
+    target/
+      forward_return.py
+      classification.py
+      risk.py
+    analysis/
+      ic.py
+      quantile.py
+      turnover.py
+      correlation.py
+      leakage.py
+      drift.py
+      report.py
+    dataset/
+      supervised.py
+      sequence.py
+      split.py
+      torch.py
+    rl/
+      observation.py
+      action.py
+      reward.py
+      env.py
+      trajectory.py
+    bridge/
+      sigma2.py
+      minbt.py
+```
+
+模块职责：
+
+- `feature`：从 sigma2 signal 或外部数据生成、对齐、转换、存储 `FeatureData`。
+- `target`：生成监督学习标签，例如未来收益、分类标签、风险目标。
+- `analysis`：做特征诊断，例如 IC、RankIC、分组收益、换手、冗余、泄漏检查、分布漂移。
+- `dataset`：生成深度学习和传统机器学习训练数据，处理 split、mask、sample weight、tensor 形态。
+- `rl`：构建强化学习 observation、action、reward、env 和 offline trajectory。
+- `bridge`：连接 sigma2 signal 和 minbt 等外部框架，但不污染 core。
+
+### SignalLike 协议
+
+研究训练层不应要求输入对象一定是 `rSignal` 子类。它只需要一个最小协议：
+
+```python
+class SignalLike:
+    family: str
+    output_keys: list[str]
+    step_input_keys: tuple[str, ...]
+    schema: object
+
+    def reset(self) -> None:
+        ...
+
+    def step(self, **data):
+        ...
+```
 
 约束：
 
-- `FeatureSet` 只能消费 `rSignal`，不能要求 signal 继承应用层类。
-- `FeatureSet` 的变化不能破坏已存在的 `rKlineSignal` 自定义信号。
-- minbt、backtrader、zipline 等名字不能出现在 core。
+- `rSignal` 天然满足该协议。
+- 外部特征生成器也可以实现该协议进入研究训练层。
+- 研究训练层只能调用 `reset()` 和 `step()`，不能调用 `forward()`。
+- 多 symbol、多 venue、多数据源由 runner 为每条输入流创建独立 signal 实例或 clone。
 
-### FeatureSet 与 ML batch
+### FeatureData
 
-`FeatureSet` 是后续应用层便利门面，用于把一组标准信号对象转成训练矩阵或在线特征行。
+`FeatureData` 是研究训练层的核心数据对象。它表达模型输入，不等同于传统因子。
 
-后续推荐形态：
+逻辑结构：
 
-```python
-from sigma2.core import FeatureSet
-
-features = FeatureSet([
-    rReturn(n=1, name="ret_1", return_dict=True),
-    rReturn(n=5, name="ret_5", return_dict=True),
-    rPyta2SMA(20, field="close", name="sma_close_20", return_dict=True),
-])
-
-X = features.batch(df, schema=schema)
-state = features.online()
+```text
+FeatureData
+  time: 时间轴
+  symbol: 标的轴，可选但推荐
+  values: feature values
+  columns: feature names
+  mask: feature 可用性、可交易性或训练可用性
+  meta: family、source、signal full_name、schema、version
 ```
 
-约束：
-
-- `FeatureSet` 接收 `rSignal` 实例或能构造 `rSignal` 的声明。
-- `FeatureSet.batch()` 可以 replay `step()`，也可以后续向量化，但输出语义必须与 step replay 一致。
-- `FeatureSet` 可以默认使用 `return_dict=True` 的信号实例，但不能改变 `rSignal` core 的默认心智模型。
-- warmup 裁剪、标签对齐、样本过滤属于应用层策略，不能隐藏到 core。
-- 多 symbol 场景下，一个 signal 实例只能绑定一个输入流；`FeatureSet` 应通过 factory/clone 为不同 symbol 创建独立状态。
-
-### DataSchema
-
-`DataSchema` 属于应用层数据标准化，不属于 core。
-
-职责：
-
-- 描述用户原始 DataFrame / dict / 框架数据到 family 输入字段的映射。
-- 处理时间字段、symbol 字段和可用时间字段。
-- 为 `FeatureSet.batch()`、adapter 和 online runner 构造 family 子类需要的标准 `step()` 输入。
-
-示意：
+推荐用户入口不强制用户显式构造 `FeatureData`：
 
 ```python
-schema = DataSchema(
+features = make_features(
+    data=klines,
+    signals=[
+        rSMA(20),
+        rReturn(5),
+    ],
     time="dt",
     symbol="symbol",
-    kline={
-        "open": "open",
-        "high": "high",
-        "low": "low",
-        "close": "close",
-        "volume": "volume",
+)
+```
+
+多 family 输入：
+
+```python
+features = make_features(
+    data={
+        "kline": klines,
+        "orderbook": orderbooks,
+        "trade": trades,
     },
+    signals=[
+        rSMA(20),
+        rBookSpread(),
+        rTradeSignedVolume(),
+    ],
+    time="dt",
+    symbol="symbol",
+)
+```
+
+设计原则：
+
+- 普通用户传 `data`、`signals`、`time`、`symbol` 即可，不应被迫理解 `KlineInput`、`OrderBookInput` 等重对象。
+- 内部可以有 normalizer、schema、runner、registry，但这些不进入简单主路径。
+- `FeatureData` 不应锁死 pandas；可以有 DataFrame、numpy、arrow、polars、torch 等后端适配。
+- `mask` 是一等公民。停牌、缺失、涨跌停、不可交易、无标签、warmup 都应通过 mask 或 metadata 表达，而不是简单丢行后破坏 `[time, symbol]` 结构。
+- `feature name` 必须可追溯到 `signal.family`、`signal.full_name`、`output_key` 和可选版本。
+
+### TargetData
+
+`TargetData` 表达监督学习标签。它必须显式解决未来函数问题。
+
+典型入口：
+
+```python
+target = ForwardReturn(
+    horizon=5,
+    price="close",
+    start="next",
+    return_type="simple",
+)
+```
+
+关键语义：
+
+- `horizon`：预测周期。
+- `price`：`close`、`open`、`mid`、`vwap` 等价格来源。
+- `start`：收益从何时开始计算，默认应是 `next`，避免默认未来函数。
+- `return_type`：`simple` 或 `log`。
+- `align`：target 如何与 feature 的时间戳对齐。
+
+扩展目标：
+
+- `ForwardReturn`：K 线未来收益。
+- `ForwardMidReturn`：订单簿中间价未来收益。
+- `ClassificationTarget`：涨跌、分位数或事件分类标签。
+- `RiskTarget`：未来波动率、回撤、尾部风险。
+
+约束：
+
+- 标签生成不进入 `rSignal`。
+- `TargetData` 必须记录 horizon、start、price、return_type 等 metadata，保证训练结果可追溯。
+- 多 horizon target 可以生成多个 target column，但必须保留 horizon metadata。
+
+### AnalysisReport
+
+分析模块负责诊断 feature 是否有预测信息、是否稳定、是否冗余、是否存在明显泄漏。
+
+用户入口：
+
+```python
+report = analyze_features(
+    features=features,
+    target=target,
+    analyses=[
+        IC(method="pearson"),
+        IC(method="spearman"),
+        QuantileReturn(q=5),
+        Turnover(q=5),
+    ],
+)
+```
+
+第一批分析器：
+
+- `IC`：Pearson IC。
+- `RankIC` 或 `IC(method="spearman")`：Spearman 秩 IC。
+- `ICDecay`：不同 horizon 下的信息衰减。
+- `QuantileReturn`：分组收益和单调性。
+- `LongShortReturn`：top-bottom 或 top-minus-bottom 收益。
+- `Turnover`：分位数组合或信号 rank 换手。
+- `Correlation`：feature 冗余和共线性。
+- `MissingReport`：缺失率、warmup 缺失、symbol 覆盖率。
+- `LeakageCheck`：潜在未来函数检查。
+- `DriftReport`：训练集、验证集、测试集分布漂移。
+
+IC 默认语义：
+
+- 默认 `axis="cross_section"`，即同一时间截面对多个 symbol 计算相关性。
+- 单 symbol 或低 symbol 数场景必须显式使用 `axis="time_series"`。
+- `min_count` 控制每个截面最少样本数。
+- 支持 `weights`、`groups`、`neutralize`。
+- 多日 forward return 的 t-stat 后续应支持 Newey-West / HAC，不能只用普通独立样本假设。
+
+`AnalysisReport` 输出：
+
+```text
+AnalysisReport
+  tables
+  summaries
+  diagnostics
+  optional plot data
+  metadata
+```
+
+约束：
+
+- 第一版不应先做复杂图表和 HTML 报告。
+- 报告对象优先返回结构化表格和 summary。
+- 文件写入、图片生成、HTML 导出必须显式调用，不能在 `analyze_features()` 默认产生外部副作用。
+
+### ResearchDataset
+
+`ResearchDataset` 是深度学习和传统机器学习训练的主对象。
+
+用户入口：
+
+```python
+dataset = make_dataset(
+    features=features,
+    target=target,
+    transforms=[
+        Winsorize(3.0),
+        ZScore(scope="cross_section"),
+    ],
+    split=WalkForwardSplit(train="3y", valid="6m"),
+)
+```
+
+也可以从原始数据和 signal 一步构造：
+
+```python
+dataset = make_dataset(
+    data=klines,
+    signals=[
+        rSMA(20),
+        rReturn(5),
+    ],
+    target=ForwardReturn(horizon=5),
+    split="walk_forward",
+)
+```
+
+核心能力：
+
+- `to_tabular()`：输出 `[sample, feature]`。
+- `to_sequence(lookback=60)`：输出 `[sample, lookback, feature]`。
+- `to_cross_section(lookback=20)`：输出 `[time, symbol, lookback, feature]` 或等价稀疏结构。
+- `to_numpy(kind=...)`：输出 numpy。
+- `to_torch(kind=...)`：输出 PyTorch Dataset 或张量适配对象。
+- `analyze(...)`：对 dataset 内 features 和 target 做诊断。
+
+关键约束：
+
+- 默认 split 必须是时间序列友好的，例如 walk-forward；不能默认随机切分。
+- transform 必须区分 `fit()` 和 `transform()`。标准化、去极值、中性化只能在训练集 fit，再应用到验证集和测试集。
+- split、transform、target 必须一起防止未来函数。
+- `sample_weight`、`mask`、`groups`、`universe` 都应是 dataset 的一部分。
+- `ResearchDataset` 不应要求用户必须安装 torch；torch adapter 应是可选能力。
+
+推荐 tensor 形态：
+
+```text
+tabular:
+  X: [sample, feature]
+  y: [sample]
+  sample_weight: [sample]
+
+sequence:
+  X: [sample, lookback, feature]
+  y: [sample]
+  mask: [sample, lookback]
+
+cross_section:
+  X: [time, symbol, feature]
+  y: [time, symbol]
+  mask: [time, symbol]
+
+cross_section_sequence:
+  X: [time, symbol, lookback, feature]
+  y: [time, symbol]
+  mask: [time, symbol, lookback]
+```
+
+### FeaturePipeline 与 online 推理
+
+训练和上线必须使用同一套 feature 与 transform 定义，否则离线和在线会漂移。
+
+推荐形态：
+
+```python
+pipeline = FeaturePipeline(
+    signals=[
+        rSMA(20),
+        rReturn(5),
+    ],
+    transforms=[
+        Winsorize(3.0),
+        ZScore(scope="cross_section"),
+    ],
+)
+
+dataset = pipeline.fit_transform(
+    data=train_klines,
+    target=ForwardReturn(5),
+)
+
+online = pipeline.to_online()
+row = online.step(kline=latest_kline)
+```
+
+约束：
+
+- `FeaturePipeline.fit_transform()` 可以生成研究数据。
+- `FeaturePipeline.to_online()` 只能使用训练期 fit 好的 transform 状态。
+- online runner 只能调用 signal 的 `step()`，不能调用 `forward()`。
+- online 输出应能复用训练时的 feature column 顺序、normalizer、mask 策略和 metadata。
+
+`FeatureSet` 可以作为 `FeaturePipeline` 内部或便捷别名存在，但不应成为 core 对象，也不应定义 `rSignal`。
+
+### 强化学习接口
+
+强化学习不是 IC 分析的扩展，而是单独的训练环境问题。
+
+RL 需要的对象：
+
+```text
+observation = 市场特征 + 当前持仓 + 现金 + 风险状态
+action = 目标权重 / 买卖方向 / order intent
+reward = pnl - cost - risk_penalty
+simulator = 执行、撮合、费用、滑点、持仓
+env = observation/action/reward/simulator 的组合
+```
+
+推荐入口：
+
+```python
+env = make_env(
+    dataset=dataset,
+    simulator=simulator,
+    observation=PortfolioObservation(lookback=60),
+    action=TargetWeight(max_abs=1.0),
+    reward=NetReturn(cost=True, risk_penalty=0.1),
+)
+```
+
+约束：
+
+- `simulator` 是协议，不是硬编码 minbt。
+- minbt 可以作为一个 simulator 实现或 bridge。
+- `research.rl` 不应自己重写 broker、撮合、订单和账户系统。
+- offline RL 需要 `TrajectoryData`，记录 observation、action、reward、done、info。
+- reward 必须明确是否扣费、是否考虑滑点、是否有风险惩罚。
+- action space 必须显式，例如目标权重、离散买卖、订单意图，不能用含糊字符串隐藏交易语义。
+
+### minbt bridge
+
+minbt 是回测和交易执行框架，sigma2 是信号层，research 是训练和诊断层。
+
+正确关系：
+
+```text
+sigma2 core -> signals
+sigma2.research -> features / dataset / analysis / env
+minbt -> simulator / backtest / execution semantics
+```
+
+推荐位置：
+
+```python
+from sigma2.research.bridge.minbt import MinbtSimulator
+```
+
+或未来独立包：
+
+```python
+from sigma2_research.bridge.minbt import MinbtSimulator
+```
+
+禁止：
+
+- `rSignal`、family 子类、research 主流程中出现 `update_minbt_bars(...)` 这类外部框架命名。
+- 在 sigma2 core 中出现 `Broker`、下单、持仓、资金管理概念。
+- 为兼容 minbt 把 sigma2 的 K 线统一叫 `bar`。sigma2 内部仍应使用具体输入类型，例如 `kline`。
+
+### 数据输入与 family 扩展
+
+研究训练层应延续“输入类型决定 family”的原则，但不把重输入对象暴露给简单用户。
+
+用户简单路径：
+
+```python
+make_features(data=klines, signals=[...], time="dt", symbol="symbol")
+```
+
+多源路径：
+
+```python
+make_features(
+    data={
+        "kline": klines,
+        "orderbook": orderbooks,
+        "trade": trades,
+    },
+    signals=[...],
+)
+```
+
+高级扩展路径：
+
+```python
+registry.register_family(
+    family="funding_rate",
+    normalizer=FundingRateNormalizer(),
+    runner=FundingRateRunner(),
 )
 ```
 
 原则：
 
-- 普通信号开发者不需要接触 `DataSchema`。
-- `DataSchema` 不能反向影响 `rSignal` / family 子类的方法签名。
+- 新数据类型通过新增 family、normalizer、runner 进入应用层。
+- 不修改已有 `kline`、`orderbook`、`trade` 输入契约。
+- 普通用户不需要显式创建 `KlineInput`；高级用户可以通过 schema/normalizer 控制字段映射。
+- `FamilyRegistry` 是 research runner 的扩展机制，不是 `rSignal` core 的父抽象。
 
-### FamilyRegistry
+### 第一阶段研究训练 API
 
-`FamilyRegistry` 是应用层和 runner 的扩展机制，不是 core 的父抽象。
-
-用途：
-
-- 根据 `family` 找到对应 family 子类、normalizer 和 runner。
-- 让新增数据类型可以通过注册进入应用层，而不是修改 `FeatureSet` 的核心流程。
-
-示意：
+第一阶段优先稳定这些用户 API：
 
 ```python
-registry.register_family(
-    family="funding_rate",
-    signal_base=rFundingRateSignal,
-    normalizer=FundingRateNormalizer,
+features = make_features(
+    data=klines,
+    signals=[rSMA(20), rReturn(5)],
+    time="dt",
+    symbol="symbol",
 )
+
+target = ForwardReturn(horizon=5, price="close", start="next")
+
+report = analyze_features(
+    features=features,
+    target=target,
+    analyses=["ic", "rank_ic", "quantile"],
+)
+
+dataset = make_dataset(
+    features=features,
+    target=target,
+    split=WalkForwardSplit(train="3y", valid="6m"),
+)
+
+seq = dataset.to_sequence(lookback=60)
 ```
 
-约束：
+第一阶段内部对象：
 
-- 新增 family 的第一步是定义新的 `rSignal` family 子类。
-- registry 只能组织和路由信号，不能改变信号类自身契约。
-- `FeatureSet`、online state、adapter 可以依赖 registry；`rSignal` core 不依赖 registry。
+- `FeatureData`
+- `TargetData`
+- `ResearchDataset`
+- `AnalysisReport`
+- `WalkForwardSplit`
+- `Winsorize`
+- `ZScore`
+- `ForwardReturn`
+- `IC`
+- `QuantileReturn`
 
-### minbt adapter
+第一阶段暂不做：
 
-minbt 是回测和交易执行框架，sigma2 是信号层。
-
-边界：
-
-- sigma2 core 不调用 broker。
-- sigma2 core 不提交订单。
-- minbt 的 `bar/bars` 命名只出现在 `sigma2.core.minbt`。
-- adapter 只负责把 minbt 数据翻译为 sigma2 family `step()` 输入，并把信号输出交还策略。
-
-推荐位置：
-
-```python
-from sigma2.core.minbt import MinbtFeatureAdapter
-```
-
-禁止：
-
-- `rSignal`、family 子类、`FeatureSet` core 流程中出现 `update_minbt_bars(...)`。
-- 在 sigma2 core 中出现 `Broker`、下单、持仓、资金管理概念。
+- 完整 RL 环境。
+- 完整 minbt 深度集成。
+- 自动模型训练框架。
+- 大而全 HTML 报告。
+- 复杂 DAG 和分布式计算。
+- 全量 pyta2 catalog 迁移。
 
 ## 版本与兼容性
 
@@ -938,10 +1343,12 @@ from sigma2.core.minbt import MinbtFeatureAdapter
 | 版本 | 冻结内容 |
 | --- | --- |
 | `0.1.x` | `rSignal.step()`、`rKlineSignal`、`rKlineWindowSignal`、schema/output、基础 K 线自定义信号 |
-| `0.2.x` | pyta2 信号基类、常用 K 线内置信号、最小 `SignalEngine` |
+| `0.2.x` | pyta2 信号基类、常用 K 线内置信号、最小 signal runner |
 | `0.3.x` | `rOrderBookSignal`、`rTradeSignal` 的真实信号和 contract tests |
-| `0.4.x` | `FeatureSet`、DataFrame batch、ML matrix builder |
-| `1.0.0` | 对 core、常用内置信号和应用层主路径做正式语义化版本承诺 |
+| `0.4.x` | `FeatureData`、`ForwardReturn`、`analyze_features()`、IC / RankIC / QuantileReturn |
+| `0.5.x` | `ResearchDataset`、walk-forward split、transform fit/transform、tabular/sequence 输出 |
+| `0.6.x` | 初步 RL env builder、minbt bridge、offline trajectory |
+| `1.0.0` | 对 core、常用内置信号和研究训练层主路径做正式语义化版本承诺 |
 
 破坏性变更规则：
 
@@ -961,7 +1368,14 @@ from sigma2.core.minbt import MinbtFeatureAdapter
 - family 基类不在 `forward()` 中维护输入历史；输入窗口维护只能发生在 `step()` 调用链内的内部 hook。
 - `rKlineWindowSignal.step()` 与手动维护窗口后调用窗口序列版 `forward()` 输出一致。
 - `rKlineWindowSignal` 默认内部窗口实现不引入新的公共环形缓存抽象，优先基于 `DequeTable`。
-- `FeatureSet.batch()` 的 replay 只能调用 `step()`，不能调用 `forward()`。
+- `make_features()`、signal runner 和后续 batch replay 只能调用 `step()`，不能调用 `forward()`。
+- `FeatureData` 必须保留 feature columns、time、symbol、mask 和 metadata 的可追溯契约。
+- `ForwardReturn(start="next")` 默认不产生当前收盘到未来收盘的隐式未来函数。
+- transform 必须有 `fit()` / `transform()` 生命周期，验证集和测试集不能重新 fit。
+- `WalkForwardSplit` 或等价时间序列 split 不能泄漏未来数据。
+- `ResearchDataset.to_sequence()` 的 feature 顺序、lookback 对齐和 mask 输出稳定。
+- analysis 默认无文件写入副作用；导出报告必须显式调用。
+- `make_env()` 依赖 simulator 协议，不直接依赖 minbt。
 - `make_dict_output()` 对标量、tuple、mapping 的行为稳定。
 - `output_keys` 与 dict 输出 key 完全一致。
 - `required_window == window + extra_window`。
@@ -976,33 +1390,40 @@ from sigma2.core.minbt import MinbtFeatureAdapter
 
 ## 推荐实施顺序
 
-当前实现顺序应从“最小 core”转为“稳定信号结构”：
+当前实现顺序应从“稳定信号结构”转为“研究训练最小闭环”：
 
-1. 保持已实现的 `rSignal.step()`、family 子类和最小示例信号契约不变。
-2. 先把当前聚合信号重构为根级 `<family>/<signal>.py`，例如 `kline/sma.py`、`orderbook/book_spread.py`。
-3. 将 `rPyta2Signal` 与 `rPyta2SMA` 分层：通用 pyta2 信号基类放入 `core/pyta2.py`，resolver 放入 `utils/pyta2.py`，具体 `rPyta2SMA` 放入 `kline/pyta2/sma.py`。
-4. 补齐导入路径 contract tests，确保顶层便捷导出和分组导出都稳定。
-5. 更新 README、交接文档和计划索引，移除“优先扩展 pyta2 catalog”的旧表述。
-6. 再实现最小 `SignalEngine`，仅作为 core 消费者，不反向污染 core。
-7. 再实现 `FeatureSet`、DataFrame batch、minbt adapter。
+1. 保持已实现的 `rSignal.step()`、family 子类、根级信号目录和最小示例信号契约不变。
+2. 实现最小 signal runner / `make_features()`，只消费 `SignalLike.reset()` 和 `SignalLike.step()`。
+3. 实现 `FeatureData`，先支持 DataFrame 输入输出，但内部契约不要锁死 pandas。
+4. 实现 `ForwardReturn` 和 `TargetData`，默认 `start="next"` 并记录 label metadata。
+5. 实现 `IC`、`RankIC`、`QuantileReturn` 和 `AnalysisReport`，优先返回结构化表格。
+6. 实现 `WalkForwardSplit`、`Winsorize`、`ZScore` 和 `ResearchDataset.to_tabular()` / `to_sequence()`。
+7. 在上述闭环稳定后，再实现 `FeaturePipeline.to_online()`，确保离线训练和在线推理复用同一套 feature 顺序和 transform 状态。
+8. 最后再做 RL env builder、minbt bridge、torch adapter 和更复杂报告。
 
 暂不优先做：
 
 - 全面迁移 pyta2 指标。
 - 为所有 pyta2 指标生成 `rPyta2Xxx` 快捷类。
 - 复杂 DAG、batch 向量化优化、minbt 深度集成。
+- 自动模型训练框架。
+- 完整 gymnasium 兼容层。
+- HTML 报告和图表渲染系统。
 
 最终判断：
 
 ```text
 core-first:
-    rSignal.step -> root family package -> concrete signal files -> core/app consumers
+    rSignal.step -> root family package -> concrete signal files -> research consumers
 
 not app-first:
-    FeatureSet -> hidden signal objects
+    FeatureSet/FactorAnalysis -> hidden signal objects
 
 not rolling-first:
     rolling/update/forward as parallel user entry points
+
+research-first, but not core-polluting:
+    FeatureData -> TargetData -> ResearchDataset -> AnalysisReport / EnvBuilder
 ```
 
 这样 sigma2 可以立刻写、立刻用；用户只有一个入库入口 `step()`，并且未来高层接口变化不会破坏已经写好的信号类。

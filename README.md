@@ -10,7 +10,7 @@ sigma2 是面向金融时间序列和机器学习特征工程的 rolling signal 
 - 根级 `kline/`、`orderbook/`、`trade/` 是信号分类目录，每个具体信号一个文件。
 - `utils/` 只放 pyta2 resolver、导入兼容等辅助能力。
 - 不保留 `base/`、`families/`、`signals/`、`adapters/` 作为公共源码结构。
-- `FeatureSet`、DataFrame batch、online state、minbt adapter 属于后续应用层能力，应消费 core，不定义 core。
+- `FeatureData`、`ResearchDataset`、IC 分析、深度学习数据集、RL 环境和 minbt bridge 属于后续研究训练层能力，应消费 core，不定义 core。
 
 ## 当前结构
 
