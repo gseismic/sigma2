@@ -3,11 +3,10 @@ from __future__ import annotations
 import math
 
 import pytest
-from pyta2.effect import rBoundTrigger
+from pyta2.effect import rBoundTrigger, rFutureChange as pyta2_rFutureChange
 
 from sigma2.kline.effect import (
     rKlineATRBoundTrigger,
-    rKlineBoundTrigger,
     rKlineFutureChange,
     rKlineFutureHighLowChange,
     rKlineFutureReturn,
@@ -82,30 +81,52 @@ def test_kline_bound_trigger_defaults_to_atr_units():
     assert second == {"trigger": 1, "unit_change": 0.05, "trigger_index": 1}
 
 
-def test_kline_bound_trigger_can_use_close_units():
-    signal = rKlineBoundTrigger(
-        x_unit_ub=0.05,
-        x_unit_lb=0.02,
-        n_forward=2,
-        unit="close",
+def test_kline_atr_bound_trigger_aligns_anchor_after_atr_warmup():
+    signal = rKlineATRBoundTrigger(
+        x_unit_ub=1.0,
+        x_unit_lb=1.0,
+        n_forward=1,
+        atr_n=3,
+        atr_ma_type="SMA",
         return_dict=True,
     )
 
-    first = _step(signal, 100.0, 100.0, 100.0, 100.0)
-    second = _step(signal, 101.0, 106.0, 100.0, 104.0)
-    third = _step(signal, 102.0, 103.0, 99.0, 101.0)
+    outputs = [
+        _step(signal, 100.0, 101.0, 99.0, 100.0),
+        _step(signal, 100.0, 101.0, 99.0, 100.0),
+        _step(signal, 100.0, 101.0, 99.0, 100.0),
+        _step(signal, 100.0, 103.0, 100.0, 100.0),
+    ]
 
-    assert first == {"trigger": 0, "unit_change": 0.0, "trigger_index": -1}
-    assert second == {"trigger": 0, "unit_change": 0.0, "trigger_index": -1}
-    assert third == {"trigger": 1, "unit_change": 0.05, "trigger_index": 1}
+    assert outputs[0] == {"trigger": 0, "unit_change": 0.0, "trigger_index": -1}
+    assert outputs[1] == {"trigger": 0, "unit_change": 0.0, "trigger_index": -1}
+    assert outputs[2] == {"trigger": 0, "unit_change": 0.0, "trigger_index": -1}
+    assert outputs[3] == {"trigger": 1, "unit_change": 1.0, "trigger_index": 1}
+
+
+def test_kline_atr_bound_trigger_validates_constructor_args():
+    with pytest.raises(ValueError, match="x_unit_ub and x_unit_lb"):
+        rKlineATRBoundTrigger(x_unit_ub=0.0, x_unit_lb=1.0, n_forward=1)
+
+    with pytest.raises(ValueError, match="n_forward"):
+        rKlineATRBoundTrigger(x_unit_ub=1.0, x_unit_lb=1.0, n_forward=0)
+
+    with pytest.raises(ValueError, match="atr_n"):
+        rKlineATRBoundTrigger(x_unit_ub=1.0, x_unit_lb=1.0, n_forward=1, atr_n=0)
 
 
 def test_kline_effect_rejects_unknown_field():
     with pytest.raises(ValueError, match="unknown kline input field"):
         rKlineFutureReturn(1, field="amount")
 
-    with pytest.raises(ValueError, match="unit must be one of"):
-        rKlineBoundTrigger(x_unit_ub=0.05, x_unit_lb=0.02, n_forward=1, unit="amount")
+
+def test_kline_effect_base_requires_internal_stateless_confirmation():
+    with pytest.raises(ValueError, match="internal adapter"):
+        rKlineEffectSignal(
+            pyta2_rFutureChange,
+            effect_args=(1,),
+            inputs=("close",),
+        )
 
 
 def test_kline_effect_rejects_unbounded_pyta2_effect():
@@ -114,4 +135,5 @@ def test_kline_effect_rejects_unbounded_pyta2_effect():
             rBoundTrigger,
             effect_args=(0.05, 0.02, None),
             inputs=("close", "open", "high", "low", "close"),
+            _trusted_stateless=True,
         )

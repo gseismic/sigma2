@@ -36,6 +36,7 @@ class rKlineFutureReturn(rKlineEffectSignal):
             schema={output_key: Scalar(low=-np.inf, high=np.inf, dtype=np.float64)},
             output_transform=self._transform_return,
             full_name=f"{self.name}({field},{horizon},return_type={return_type})",
+            _trusted_stateless=True,
             **kwargs,
         )
 

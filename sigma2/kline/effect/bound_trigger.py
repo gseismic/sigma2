@@ -12,9 +12,9 @@ from sigma2.core import rKlineWindowSignal
 
 
 class rKlineATRBoundTrigger(rKlineWindowSignal):
-    """K 线固定上下边界触发 target。"""
+    """基于 ATR 单位的 K 线固定上下边界触发 target。"""
 
-    name = "kline_bound_trigger"
+    name = "kline_atr_bound_trigger"
 
     def __init__(
         self,
@@ -22,34 +22,29 @@ class rKlineATRBoundTrigger(rKlineWindowSignal):
         x_unit_lb: float,
         n_forward: int,
         *,
-        unit: str = "atr",
-        atr_n: int | None = None,
+        atr_n: int = 20,
         atr_ma_type: str = "EMA",
         **kwargs: Any,
     ) -> None:
-        unit = unit.lower()
-        if unit not in {"atr", "open", "high", "low", "close", "volume"}:
+        if x_unit_ub <= 0 or x_unit_lb <= 0:
             raise ValueError(
-                "unit must be one of 'atr', 'open', 'high', 'low', 'close', 'volume', "
-                f"got {unit!r}"
+                "x_unit_ub and x_unit_lb must be greater than 0, "
+                f"got {x_unit_ub!r} and {x_unit_lb!r}"
             )
+        if n_forward < 1:
+            raise ValueError(f"n_forward must be greater than or equal to 1, got {n_forward!r}")
+        if atr_n is None or atr_n < 1:
+            raise ValueError(f"atr_n must be greater than or equal to 1, got {atr_n!r}")
         self.x_unit_ub = x_unit_ub
         self.x_unit_lb = x_unit_lb
         self.n_forward = n_forward
-        self.unit = unit
+        self.atr_n = atr_n
         self.atr_ma_type = atr_ma_type
-        if unit == "atr":
-            self.atr_n = 20 if atr_n is None else atr_n
-            self._atr = rATR(self.atr_n, ma_type=atr_ma_type, buffer_size=1, return_dict=False)
-            window = max(n_forward + 1, self.atr_n)
-            self._units = NumpyDeque(maxlen=window)
-        else:
-            self.atr_n = None
-            self._atr = None
-            window = n_forward + 1
-        self._units = NumpyDeque(maxlen=window)
+        self._trigger_window = n_forward + 1
+        self._atr = rATR(atr_n, ma_type=atr_ma_type, buffer_size=1, return_dict=False)
+        self._units = NumpyDeque(maxlen=self._trigger_window)
         super().__init__(
-            window=window,
+            window=atr_n + n_forward,
             schema={
                 "trigger": Scalar(low=-1, high=1, dtype="int8"),
                 "unit_change": Scalar(low=-float("inf"), high=float("inf"), dtype="float64"),
@@ -59,20 +54,25 @@ class rKlineATRBoundTrigger(rKlineWindowSignal):
         )
 
     def reset_window_extras(self) -> None:
-        if self._atr is not None:
-            self._atr.reset()
+        self._atr.reset()
         self._units.clear()
 
     def forward(self, opens, highs, lows, closes, volumes) -> Any:
-        self._units.append(self._resolve_unit(opens, highs, lows, closes, volumes))
+        self._units.append(self._atr.rolling(highs, lows, closes))
         trigger_effect = self._make_trigger_effect()
-        return trigger_effect.backward(self._units.values, opens, highs, lows, closes)
+        return trigger_effect.backward(
+            self._units.values,
+            opens[-self._trigger_window :],
+            highs[-self._trigger_window :],
+            lows[-self._trigger_window :],
+            closes[-self._trigger_window :],
+        )
 
     @property
     def full_name(self) -> str:
         return (
-            f"{self.name}(unit={self.unit},x_unit_ub={self.x_unit_ub},"
-            f"x_unit_lb={self.x_unit_lb},n_forward={self.n_forward})"
+            f"{self.name}(x_unit_ub={self.x_unit_ub},x_unit_lb={self.x_unit_lb},"
+            f"n_forward={self.n_forward},atr_n={self.atr_n},atr_ma_type={self.atr_ma_type})"
         )
 
     def _make_trigger_effect(self):
@@ -83,19 +83,3 @@ class rKlineATRBoundTrigger(rKlineWindowSignal):
             buffer_size=1,
             return_dict=False,
         )
-
-    def _resolve_unit(self, opens, highs, lows, closes, volumes):
-        if self.unit == "atr":
-            return self._atr.rolling(highs, lows, closes)
-
-        series = {
-            "open": opens,
-            "high": highs,
-            "low": lows,
-            "close": closes,
-            "volume": volumes,
-        }[self.unit]
-        return series[-1]
-
-
-rKlineBoundTrigger = rKlineATRBoundTrigger

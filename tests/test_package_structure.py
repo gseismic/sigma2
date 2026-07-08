@@ -8,7 +8,6 @@ def test_root_package_reexports_core_and_common_signals():
         rBookSpread,
         rGap,
         rKlineATRBoundTrigger,
-        rKlineBoundTrigger,
         rKlineFutureChange,
         rKlineFutureHighLowChange,
         rKlineFutureReturn,
@@ -26,7 +25,6 @@ def test_root_package_reexports_core_and_common_signals():
     assert rKlineFutureChange.__name__ == "rKlineFutureChange"
     assert rKlineFutureHighLowChange.__name__ == "rKlineFutureHighLowChange"
     assert rKlineATRBoundTrigger.__name__ == "rKlineATRBoundTrigger"
-    assert rKlineBoundTrigger is rKlineATRBoundTrigger
     assert rReturn.__name__ == "rReturn"
     assert rGap.__name__ == "rGap"
     assert rSMA.__name__ == "rSMA"
@@ -61,7 +59,6 @@ def test_root_family_packages_export_concrete_signals():
     from sigma2.kline import (
         rGap,
         rKlineATRBoundTrigger,
-        rKlineBoundTrigger,
         rKlineFutureChange,
         rKlineFutureHighLowChange,
         rKlineFutureReturn,
@@ -71,7 +68,6 @@ def test_root_family_packages_export_concrete_signals():
     )
     from sigma2.kline.effect import rKlineATRBoundTrigger as rKlineATRBoundTriggerFromPackage
     from sigma2.kline.effect import rKlineFutureReturn as rKlineFutureReturnFromPackage
-    from sigma2.kline.effect.bound_trigger import rKlineBoundTrigger as rKlineBoundTriggerFromFile
     from sigma2.kline.effect.bound_trigger import (
         rKlineATRBoundTrigger as rKlineATRBoundTriggerFromFile,
     )
@@ -101,7 +97,6 @@ def test_root_family_packages_export_concrete_signals():
     assert rKlineFutureHighLowChange is rKlineFutureHighLowChangeFromFile
     assert rKlineATRBoundTrigger is rKlineATRBoundTriggerFromPackage
     assert rKlineATRBoundTrigger is rKlineATRBoundTriggerFromFile
-    assert rKlineBoundTrigger is rKlineBoundTriggerFromFile
     assert rPyta2SMA is rPyta2SMAFromPackage
     assert rPyta2SMA is rPyta2SMAFromFile
     assert rBookSpread is rBookSpreadFromFile

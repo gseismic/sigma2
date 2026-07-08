@@ -19,7 +19,6 @@ from .core import (
 from .kline import (
     rGap,
     rKlineATRBoundTrigger,
-    rKlineBoundTrigger,
     rKlineFutureChange,
     rKlineFutureHighLowChange,
     rKlineFutureReturn,
@@ -42,7 +41,6 @@ __all__ = [
     "rBookSpread",
     "rGap",
     "rKlineATRBoundTrigger",
-    "rKlineBoundTrigger",
     "rKlineFutureChange",
     "rKlineFutureHighLowChange",
     "rKlineFutureReturn",

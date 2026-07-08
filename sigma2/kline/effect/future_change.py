@@ -20,5 +20,6 @@ class rKlineFutureChange(rKlineEffectSignal):
             effect_args=(horizon,),
             inputs=(field,),
             full_name=f"{self.name}({field},{horizon})",
+            _trusted_stateless=True,
             **kwargs,
         )

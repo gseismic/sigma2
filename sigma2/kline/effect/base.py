@@ -24,8 +24,14 @@ class rKlineEffectSignal(rKlineWindowSignal):
         schema: list[tuple[str, Space]] | dict[str, Space] | Schema | None = None,
         output_transform: Callable[[Any], Any] | None = None,
         full_name: str | None = None,
+        _trusted_stateless: bool = False,
         **kwargs: Any,
     ) -> None:
+        if not _trusted_stateless:
+            raise ValueError(
+                "rKlineEffectSignal is an internal adapter for fixed-window stateless "
+                "pyta2 effects; use a concrete sigma2.kline.effect signal"
+            )
         self.effect_cls = effect_cls
         self.effect_args = tuple(effect_args)
         self.effect_kwargs = dict(effect_kwargs or {})

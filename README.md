@@ -52,7 +52,7 @@ sigma2/
 - `rKlineFutureReturn`
 - `rKlineFutureChange`
 - `rKlineFutureHighLowChange`
-- `rKlineBoundTrigger`
+- `rKlineATRBoundTrigger`
 - `pyta2_signal()`
 - `resolve_pyta2_indicator()`
 - `register_pyta2_indicator()`
@@ -67,8 +67,8 @@ sigma2/
 ```python
 from sigma2 import rPyta2SMA
 from sigma2.core import rSignal, rKlineSignal
-from sigma2.kline import rReturn, rGap, rSMA, rKlineFutureReturn
-from sigma2.kline.effect import rKlineFutureReturn
+from sigma2.kline import rReturn, rGap, rSMA, rKlineFutureReturn, rKlineATRBoundTrigger
+from sigma2.kline.effect import rKlineFutureReturn, rKlineATRBoundTrigger
 from sigma2.kline.sma import rSMA
 from sigma2.kline.pyta2 import rPyta2SMA
 from sigma2.orderbook import rBookSpread

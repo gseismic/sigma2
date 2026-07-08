@@ -1,7 +1,6 @@
 from .gap import rGap
 from .effect import (
     rKlineATRBoundTrigger,
-    rKlineBoundTrigger,
     rKlineFutureChange,
     rKlineFutureHighLowChange,
     rKlineFutureReturn,
@@ -13,7 +12,6 @@ from .sma import rSMA
 __all__ = [
     "rGap",
     "rKlineATRBoundTrigger",
-    "rKlineBoundTrigger",
     "rKlineFutureChange",
     "rKlineFutureHighLowChange",
     "rKlineFutureReturn",
