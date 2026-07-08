@@ -21,6 +21,7 @@
 | 2026-07-05 14:41 CST | `PLAN-009-core-implementation.md` | `PLAN-009-core-implementation-OUTCOME.md` | 实施最小稳定核心：新增 Python 包骨架、`rSignal.step()` 生命周期、K 线 family、窗口型 K 线 family、实验性 orderbook/trade family、最小 pyta2 adapter、`rPyta2SMA` 类式快捷入口、第一批示例信号和 26 个 contract tests。 |
 | 2026-07-07 12:01 CST | `PLAN-010-core-only-package-structure.md` | `PLAN-010-core-only-package-structure-OUTCOME.md` | 根据最新结构反馈完成 core-only 包结构迁移：移除旧 `base/families/signals/adapters` 公共源码结构，保留 `core` 为唯一核心目录，按根级 `kline/orderbook/trade` 分类拆分具体信号为单文件，并新增新导入路径 contract tests。 |
 | 2026-07-08 10:29 CST | `PLAN-011-kline-effect-wrappers.md` | `PLAN-011-kline-effect-wrappers-OUTCOME.md` | 新增 `sigma2.kline.effect` K 线 effect 包装层，提供 `rKlineFutureReturn`、`rKlineFutureChange`、`rKlineFutureHighLowChange`、`rKlineBoundTrigger`，统一标准 OHLCV step 输入，并补充延迟 target 语义测试。 |
+| 2026-07-08 12:35 CST | `PLAN-012-pyta2-effect-parity-adapter.md` | `PLAN-012-pyta2-effect-parity-adapter-OUTCOME.md` | 适配 pyta2 effect primitive 恢复 fintools 原始语义后的 schema 差异：K 线 wrapper 在 family 层继续输出 `return`、`unit_change`、`trigger_index`，并补充通用输出转换钩子。 |
 
 ## 当前设计文档规则
 
