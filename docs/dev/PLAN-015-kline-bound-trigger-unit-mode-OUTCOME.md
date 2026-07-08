@@ -5,7 +5,7 @@
 ## 实施内容
 
 - `rKlineBoundTrigger` 新增 `unit` 参数，默认值为 `atr`。
-- `unit="atr"` 时，内部维护 `rATR` 状态，动态生成单位序列。
+- `unit="atr"` 时，内部维护 `rATR` 状态，动态生成单位序列；`atr_n` / `atr_ma_type` 仅在该模式下生效。
 - `unit="close"` 时，以收盘价作为单位序列，适合按收盘价百分比表达边界。
 - `unit` 只保留单位模式，不再暴露 `unit_field` 这种字段绑定含义。
 

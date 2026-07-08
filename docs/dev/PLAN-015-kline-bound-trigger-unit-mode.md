@@ -14,6 +14,7 @@
 
 - 将 `unit_field` 修正为 `unit`。
 - 默认 `unit="atr"`，内部动态计算 ATR 作为单位序列。
+- `atr_n` / `atr_ma_type` 只在 `unit="atr"` 时生效。
 - 支持 `unit="close"`，用于按收盘价尺度计算边界。
 - 保留 `x_unit_ub/x_unit_lb/n_forward` 与 `pyta2` primitive 同名同序。
 

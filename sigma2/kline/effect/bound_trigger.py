@@ -23,7 +23,7 @@ class rKlineBoundTrigger(rKlineWindowSignal):
         n_forward: int,
         *,
         unit: str = "atr",
-        atr_n: int = 20,
+        atr_n: int | None = None,
         atr_ma_type: str = "EMA",
         **kwargs: Any,
     ) -> None:
@@ -37,12 +37,19 @@ class rKlineBoundTrigger(rKlineWindowSignal):
         self.x_unit_lb = x_unit_lb
         self.n_forward = n_forward
         self.unit = unit
-        self.atr_n = atr_n
         self.atr_ma_type = atr_ma_type
-        self._atr = rATR(atr_n, ma_type=atr_ma_type, buffer_size=1, return_dict=False)
-        self._units = NumpyDeque(maxlen=max(n_forward + 1, atr_n))
+        if unit == "atr":
+            self.atr_n = 20 if atr_n is None else atr_n
+            self._atr = rATR(self.atr_n, ma_type=atr_ma_type, buffer_size=1, return_dict=False)
+            window = max(n_forward + 1, self.atr_n)
+            self._units = NumpyDeque(maxlen=window)
+        else:
+            self.atr_n = None
+            self._atr = None
+            window = n_forward + 1
+            self._units = NumpyDeque(maxlen=window)
         super().__init__(
-            window=max(n_forward + 1, atr_n),
+            window=window,
             schema={
                 "trigger": Scalar(low=-1, high=1, dtype="int8"),
                 "unit_change": Scalar(low=-float("inf"), high=float("inf"), dtype="float64"),
@@ -52,7 +59,8 @@ class rKlineBoundTrigger(rKlineWindowSignal):
         )
 
     def reset_window_extras(self) -> None:
-        self._atr.reset()
+        if self._atr is not None:
+            self._atr.reset()
         self._units.clear()
 
     def forward(self, opens, highs, lows, closes, volumes) -> Any:
