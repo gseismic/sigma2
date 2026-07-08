@@ -6,6 +6,7 @@ import pytest
 from pyta2.effect import rBoundTrigger
 
 from sigma2.kline.effect import (
+    rKlineATRBoundTrigger,
     rKlineBoundTrigger,
     rKlineFutureChange,
     rKlineFutureHighLowChange,
@@ -66,7 +67,7 @@ def test_kline_future_high_low_change_uses_standard_kline_window():
 
 
 def test_kline_bound_trigger_defaults_to_atr_units():
-    signal = rKlineBoundTrigger(
+    signal = rKlineATRBoundTrigger(
         x_unit_ub=0.05,
         x_unit_lb=0.02,
         n_forward=1,

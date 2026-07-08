@@ -25,6 +25,7 @@
 | 2026-07-08 12:50 CST | `PLAN-013-kline-effect-contract-guard.md` | `PLAN-013-kline-effect-contract-guard-OUTCOME.md` | 增加 K 线 effect wrapper 契约防护：online wrapper 构造期拒绝 pyta2 `window=None` effect，并补充 log return 与无界 effect 拒绝测试。 |
 | 2026-07-08 18:38 CST | `PLAN-014-kline-bound-trigger-param-alignment.md` | `PLAN-014-kline-bound-trigger-param-alignment-OUTCOME.md` | 将 `rKlineBoundTrigger` 的构造参数收敛为 `x_unit_ub/x_unit_lb/n_forward`，与 `pyta2.effect.rBoundTrigger` 保持同名同序，只保留 `unit_field` 作为 K 线 family 的字段绑定参数。 |
 | 2026-07-08 18:38 CST | `PLAN-015-kline-bound-trigger-unit-mode.md` | `PLAN-015-kline-bound-trigger-unit-mode-OUTCOME.md` | 将 `rKlineBoundTrigger` 的单位来源改为 `unit` 模式，默认内部动态计算 ATR；`unit="close"` 时按收盘价尺度计算边界，去掉 `unit_field` 伪装字段绑定。 |
+| 2026-07-08 19:05 CST | `PLAN-016-kline-atr-bound-trigger-class-rename.md` | `PLAN-016-kline-atr-bound-trigger-class-rename-OUTCOME.md` | 将公开类名收口为 `rKlineATRBoundTrigger`，保留 `rKlineBoundTrigger` 兼容别名，并同步更新导出与测试。 |
 
 ## 当前设计文档规则
 

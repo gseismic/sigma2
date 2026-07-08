@@ -18,6 +18,7 @@ from .core import (
 )
 from .kline import (
     rGap,
+    rKlineATRBoundTrigger,
     rKlineBoundTrigger,
     rKlineFutureChange,
     rKlineFutureHighLowChange,
@@ -40,6 +41,7 @@ __all__ = [
     "resolve_pyta2_indicator",
     "rBookSpread",
     "rGap",
+    "rKlineATRBoundTrigger",
     "rKlineBoundTrigger",
     "rKlineFutureChange",
     "rKlineFutureHighLowChange",

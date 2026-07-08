@@ -11,7 +11,7 @@ from pyta2.stats.atr import rATR
 from sigma2.core import rKlineWindowSignal
 
 
-class rKlineBoundTrigger(rKlineWindowSignal):
+class rKlineATRBoundTrigger(rKlineWindowSignal):
     """K 线固定上下边界触发 target。"""
 
     name = "kline_bound_trigger"
@@ -47,7 +47,7 @@ class rKlineBoundTrigger(rKlineWindowSignal):
             self.atr_n = None
             self._atr = None
             window = n_forward + 1
-            self._units = NumpyDeque(maxlen=window)
+        self._units = NumpyDeque(maxlen=window)
         super().__init__(
             window=window,
             schema={
@@ -96,3 +96,6 @@ class rKlineBoundTrigger(rKlineWindowSignal):
             "volume": volumes,
         }[self.unit]
         return series[-1]
+
+
+rKlineBoundTrigger = rKlineATRBoundTrigger

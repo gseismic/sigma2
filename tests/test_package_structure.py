@@ -7,6 +7,7 @@ def test_root_package_reexports_core_and_common_signals():
         resolve_pyta2_indicator,
         rBookSpread,
         rGap,
+        rKlineATRBoundTrigger,
         rKlineBoundTrigger,
         rKlineFutureChange,
         rKlineFutureHighLowChange,
@@ -24,7 +25,8 @@ def test_root_package_reexports_core_and_common_signals():
     assert rKlineFutureReturn.__name__ == "rKlineFutureReturn"
     assert rKlineFutureChange.__name__ == "rKlineFutureChange"
     assert rKlineFutureHighLowChange.__name__ == "rKlineFutureHighLowChange"
-    assert rKlineBoundTrigger.__name__ == "rKlineBoundTrigger"
+    assert rKlineATRBoundTrigger.__name__ == "rKlineATRBoundTrigger"
+    assert rKlineBoundTrigger is rKlineATRBoundTrigger
     assert rReturn.__name__ == "rReturn"
     assert rGap.__name__ == "rGap"
     assert rSMA.__name__ == "rSMA"
@@ -58,6 +60,7 @@ def test_core_exports_signal_base_classes_and_pyta2_base():
 def test_root_family_packages_export_concrete_signals():
     from sigma2.kline import (
         rGap,
+        rKlineATRBoundTrigger,
         rKlineBoundTrigger,
         rKlineFutureChange,
         rKlineFutureHighLowChange,
@@ -66,8 +69,12 @@ def test_root_family_packages_export_concrete_signals():
         rReturn,
         rSMA,
     )
+    from sigma2.kline.effect import rKlineATRBoundTrigger as rKlineATRBoundTriggerFromPackage
     from sigma2.kline.effect import rKlineFutureReturn as rKlineFutureReturnFromPackage
     from sigma2.kline.effect.bound_trigger import rKlineBoundTrigger as rKlineBoundTriggerFromFile
+    from sigma2.kline.effect.bound_trigger import (
+        rKlineATRBoundTrigger as rKlineATRBoundTriggerFromFile,
+    )
     from sigma2.kline.effect.future_change import rKlineFutureChange as rKlineFutureChangeFromFile
     from sigma2.kline.effect.future_high_low_change import (
         rKlineFutureHighLowChange as rKlineFutureHighLowChangeFromFile,
@@ -92,6 +99,8 @@ def test_root_family_packages_export_concrete_signals():
     assert rKlineFutureReturn is rKlineFutureReturnFromFile
     assert rKlineFutureChange is rKlineFutureChangeFromFile
     assert rKlineFutureHighLowChange is rKlineFutureHighLowChangeFromFile
+    assert rKlineATRBoundTrigger is rKlineATRBoundTriggerFromPackage
+    assert rKlineATRBoundTrigger is rKlineATRBoundTriggerFromFile
     assert rKlineBoundTrigger is rKlineBoundTriggerFromFile
     assert rPyta2SMA is rPyta2SMAFromPackage
     assert rPyta2SMA is rPyta2SMAFromFile
