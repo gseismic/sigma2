@@ -65,8 +65,30 @@ def test_kline_future_high_low_change_uses_standard_kline_window():
     assert third == {"high_change": 5.0, "low_change": -2.0}
 
 
-def test_kline_bound_trigger_uses_unit_field_and_ohlc_path():
-    signal = rKlineBoundTrigger(x_unit_ub=0.05, x_unit_lb=0.02, n_forward=2, return_dict=True)
+def test_kline_bound_trigger_defaults_to_atr_units():
+    signal = rKlineBoundTrigger(
+        x_unit_ub=0.05,
+        x_unit_lb=0.02,
+        n_forward=1,
+        atr_n=1,
+        return_dict=True,
+    )
+
+    first = _step(signal, 100.0, 104.0, 100.0, 101.0)
+    second = _step(signal, 101.0, 102.0, 99.0, 100.0)
+
+    assert first == {"trigger": 0, "unit_change": 0.0, "trigger_index": -1}
+    assert second == {"trigger": 1, "unit_change": 0.05, "trigger_index": 1}
+
+
+def test_kline_bound_trigger_can_use_close_units():
+    signal = rKlineBoundTrigger(
+        x_unit_ub=0.05,
+        x_unit_lb=0.02,
+        n_forward=2,
+        unit="close",
+        return_dict=True,
+    )
 
     first = _step(signal, 100.0, 100.0, 100.0, 100.0)
     second = _step(signal, 101.0, 106.0, 100.0, 104.0)
@@ -81,8 +103,8 @@ def test_kline_effect_rejects_unknown_field():
     with pytest.raises(ValueError, match="unknown kline input field"):
         rKlineFutureReturn(1, field="amount")
 
-    with pytest.raises(ValueError, match="unknown kline input field"):
-        rKlineBoundTrigger(x_unit_ub=0.05, x_unit_lb=0.02, n_forward=1, unit_field="amount")
+    with pytest.raises(ValueError, match="unit must be one of"):
+        rKlineBoundTrigger(x_unit_ub=0.05, x_unit_lb=0.02, n_forward=1, unit="amount")
 
 
 def test_kline_effect_rejects_unbounded_pyta2_effect():

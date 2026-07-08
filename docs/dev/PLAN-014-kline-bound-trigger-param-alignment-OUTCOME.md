@@ -8,10 +8,14 @@
   - `x_unit_ub`
   - `x_unit_lb`
   - `n_forward`
-  - `unit_field="close"`
+  - `unit="atr"` 或 `unit="close"` 等单位模式
 - 内部 `effect_args` 继续按 pyta2 primitive 原始顺序透传。
-- `full_name` 同步为原始参数命名风格，保留 `unit_field` 以表达 K 线 family 的字段绑定。
+- `full_name` 同步为原始参数命名风格，保留 `unit` 以表达 K 线 family 的单位来源。
 - `tests/test_kline_effect_signals.py` 更新为新参数名。
+
+## 说明
+
+后续在 `PLAN-015` 中进一步修正 `unit_field` 方案，默认单位改为内部动态计算的 ATR。
 
 ## 验证结果
 
