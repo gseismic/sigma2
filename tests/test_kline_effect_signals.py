@@ -66,7 +66,7 @@ def test_kline_future_high_low_change_uses_standard_kline_window():
 
 
 def test_kline_bound_trigger_uses_unit_field_and_ohlc_path():
-    signal = rKlineBoundTrigger(upper=0.05, lower=0.02, horizon=2, return_dict=True)
+    signal = rKlineBoundTrigger(x_unit_ub=0.05, x_unit_lb=0.02, n_forward=2, return_dict=True)
 
     first = _step(signal, 100.0, 100.0, 100.0, 100.0)
     second = _step(signal, 101.0, 106.0, 100.0, 104.0)
@@ -82,7 +82,7 @@ def test_kline_effect_rejects_unknown_field():
         rKlineFutureReturn(1, field="amount")
 
     with pytest.raises(ValueError, match="unknown kline input field"):
-        rKlineBoundTrigger(upper=0.05, lower=0.02, horizon=1, unit_field="amount")
+        rKlineBoundTrigger(x_unit_ub=0.05, x_unit_lb=0.02, n_forward=1, unit_field="amount")
 
 
 def test_kline_effect_rejects_unbounded_pyta2_effect():

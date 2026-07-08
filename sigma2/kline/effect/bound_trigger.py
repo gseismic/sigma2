@@ -16,20 +16,20 @@ class rKlineBoundTrigger(rKlineEffectSignal):
 
     def __init__(
         self,
-        upper: float,
-        lower: float,
-        horizon: int,
+        x_unit_ub: float,
+        x_unit_lb: float,
+        n_forward: int,
         *,
         unit_field: str = "close",
         **kwargs: Any,
     ) -> None:
-        self.upper = upper
-        self.lower = lower
-        self.horizon = horizon
+        self.x_unit_ub = x_unit_ub
+        self.x_unit_lb = x_unit_lb
+        self.n_forward = n_forward
         self.unit_field = unit_field
         super().__init__(
             rBoundTrigger,
-            effect_args=(upper, lower, horizon),
+            effect_args=(x_unit_ub, x_unit_lb, n_forward),
             inputs=(unit_field, "open", "high", "low", "close"),
             schema={
                 "trigger": Scalar(low=-1, high=1, dtype="int8"),
@@ -37,7 +37,10 @@ class rKlineBoundTrigger(rKlineEffectSignal):
                 "trigger_index": Scalar(low=-1, high=np.iinfo(np.int64).max, dtype="int64"),
             },
             output_transform=self._transform_output,
-            full_name=f"{self.name}(unit={unit_field},upper={upper},lower={lower},horizon={horizon})",
+            full_name=(
+                f"{self.name}(unit_field={unit_field},x_unit_ub={x_unit_ub},"
+                f"x_unit_lb={x_unit_lb},n_forward={n_forward})"
+            ),
             **kwargs,
         )
 

@@ -23,6 +23,7 @@
 | 2026-07-08 10:29 CST | `PLAN-011-kline-effect-wrappers.md` | `PLAN-011-kline-effect-wrappers-OUTCOME.md` | 新增 `sigma2.kline.effect` K 线 effect 包装层，提供 `rKlineFutureReturn`、`rKlineFutureChange`、`rKlineFutureHighLowChange`、`rKlineBoundTrigger`，统一标准 OHLCV step 输入，并补充延迟 target 语义测试。 |
 | 2026-07-08 12:35 CST | `PLAN-012-pyta2-effect-parity-adapter.md` | `PLAN-012-pyta2-effect-parity-adapter-OUTCOME.md` | 适配 pyta2 effect primitive 恢复 fintools 原始语义后的 schema 差异：K 线 wrapper 在 family 层继续输出 `return`、`unit_change`、`trigger_index`，并补充通用输出转换钩子。 |
 | 2026-07-08 12:50 CST | `PLAN-013-kline-effect-contract-guard.md` | `PLAN-013-kline-effect-contract-guard-OUTCOME.md` | 增加 K 线 effect wrapper 契约防护：online wrapper 构造期拒绝 pyta2 `window=None` effect，并补充 log return 与无界 effect 拒绝测试。 |
+| 2026-07-08 18:38 CST | `PLAN-014-kline-bound-trigger-param-alignment.md` | `PLAN-014-kline-bound-trigger-param-alignment-OUTCOME.md` | 将 `rKlineBoundTrigger` 的构造参数收敛为 `x_unit_ub/x_unit_lb/n_forward`，与 `pyta2.effect.rBoundTrigger` 保持同名同序，只保留 `unit_field` 作为 K 线 family 的字段绑定参数。 |
 
 ## 当前设计文档规则
 
