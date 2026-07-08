@@ -33,6 +33,11 @@ class rKlineEffectSignal(rKlineWindowSignal):
         self.output_transform = output_transform
         self._full_name = full_name
         effect = self._make_effect()
+        if effect.window is None:
+            raise ValueError(
+                "rKlineEffectSignal requires a fixed-window pyta2 effect; "
+                "window=None effects are not supported by online K-line wrappers"
+            )
         super().__init__(
             window=effect.window,
             schema=effect.schema if schema is None else schema,

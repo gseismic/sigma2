@@ -3,6 +3,7 @@ from __future__ import annotations
 import math
 
 import pytest
+from pyta2.effect import rBoundTrigger
 
 from sigma2.kline.effect import (
     rKlineBoundTrigger,
@@ -10,6 +11,7 @@ from sigma2.kline.effect import (
     rKlineFutureHighLowChange,
     rKlineFutureReturn,
 )
+from sigma2.kline.effect.base import rKlineEffectSignal
 
 
 def _step(signal, open_, high, low, close, volume=1.0):
@@ -32,6 +34,16 @@ def test_kline_future_return_outputs_delayed_anchor_target():
     assert outputs[3]["return"] == pytest.approx(12.0 / 11.0 - 1.0)
     assert signal.family == "kline"
     assert signal.step_input_keys == ("open", "high", "low", "close", "volume")
+
+
+def test_kline_future_log_return_outputs_delayed_anchor_target():
+    signal = rKlineFutureReturn(1, return_type="log", return_dict=True)
+
+    first = _step(signal, 10.0, 10.0, 10.0, 10.0)
+    second = _step(signal, 11.0, 11.0, 11.0, 11.0)
+
+    assert math.isnan(first["log_return"])
+    assert second["log_return"] == pytest.approx(math.log(1.1))
 
 
 def test_kline_future_change_can_bind_to_open_field():
@@ -71,3 +83,12 @@ def test_kline_effect_rejects_unknown_field():
 
     with pytest.raises(ValueError, match="unknown kline input field"):
         rKlineBoundTrigger(upper=0.05, lower=0.02, horizon=1, unit_field="amount")
+
+
+def test_kline_effect_rejects_unbounded_pyta2_effect():
+    with pytest.raises(ValueError, match="fixed-window"):
+        rKlineEffectSignal(
+            rBoundTrigger,
+            effect_args=(0.05, 0.02, None),
+            inputs=("close", "open", "high", "low", "close"),
+        )
