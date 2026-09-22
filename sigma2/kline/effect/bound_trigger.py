@@ -15,6 +15,7 @@ class rKlineATRBoundTrigger(rKlineWindowSignal):
     """基于 ATR 单位的 K 线固定上下边界触发 target。"""
 
     name = "kline_atr_bound_trigger"
+    supports_update_last = False
 
     def __init__(
         self,

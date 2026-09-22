@@ -13,6 +13,9 @@ class rKlineEffectSignal(rKlineWindowSignal):
     """把 stateless pyta2 effect 绑定到标准 K 线输入。"""
 
     name = "kline_effect"
+    # future effect 的输出属于历史 anchor，而不是当前最后一根 K 线；
+    # 因此不能沿用正向因子的“替换最后观测”语义。
+    supports_update_last = False
 
     def __init__(
         self,

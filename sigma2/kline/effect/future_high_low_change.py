@@ -14,6 +14,7 @@ class rKlineFutureHighLowChange(rKlineWindowSignal):
     """未来最高价和最低价相对参考字段的路径变动。"""
 
     name = "kline_future_high_low_change"
+    supports_update_last = False
 
     def __init__(
         self,

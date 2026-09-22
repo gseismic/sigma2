@@ -67,31 +67,14 @@ class rPyta2Signal(rKlineWindowSignal):
         )
 
     def reset_window_extras(self) -> None:
-        self._indicator = self._make_indicator()
-
-    def _step_forward(
-        self,
-        open: float,
-        high: float,
-        low: float,
-        close: float,
-        volume: float,
-    ) -> Any:
-        self._window.append(
-            {
-                "open": open,
-                "high": high,
-                "low": low,
-                "close": close,
-                "volume": volume,
-            }
-        )
-        return self._indicator.rolling(*self._indicator_args_from_window())
+        self._indicator.reset()
 
     def forward(self, opens, highs, lows, closes, volumes) -> Any:
-        temp_indicator = self._make_indicator()
         values = self._indicator_args_from_arrays(opens, highs, lows, closes, volumes)
-        return temp_indicator.rolling(*values)
+        if self._lifecycle_mode is None:
+            # 保留旧契约：直接调用 forward() 不改变适配器持有的子指标状态。
+            return self._make_indicator().rolling(*values)
+        return self._apply_pyta2(self._indicator, *values)
 
     @property
     def full_name(self) -> str:
@@ -101,19 +84,9 @@ class rPyta2Signal(rKlineWindowSignal):
 
     def _make_indicator(self):
         params = dict(self.indicator_params)
-        params.setdefault("buffer_size", 1)
+        params.setdefault("buffer_size", 0)
         params["return_dict"] = False
         return self.indicator_cls(**params)
-
-    def _indicator_args_from_window(self) -> tuple[Any, ...]:
-        arrays = {
-            "open": self._window["open"],
-            "high": self._window["high"],
-            "low": self._window["low"],
-            "close": self._window["close"],
-            "volume": self._window["volume"],
-        }
-        return tuple(arrays[field] for field in self.inputs)
 
     def _indicator_args_from_arrays(
         self,

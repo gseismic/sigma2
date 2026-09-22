@@ -3,11 +3,45 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from collections import OrderedDict
 from collections.abc import Mapping
+from copy import deepcopy
+from dataclasses import dataclass
 from typing import Any
 
+from pyta2.base import rIndicator
 from pyta2.base.schema import Schema
 from pyta2.utils.deque import DequeTable
 from pyta2.utils.space import Space
+
+
+_NO_UPDATE_STATE = object()
+_STEP_MODE = "step"
+_UPDATE_LAST_MODE = "update_last"
+
+
+@dataclass(frozen=True)
+class _ObjectUpdateState:
+    target: Any
+    checkpoint: Any
+
+
+@dataclass(frozen=True)
+class _CopiedUpdateState:
+    value: Any
+
+
+@dataclass(frozen=True)
+class _ComponentReference:
+    target: Any
+
+
+@dataclass(frozen=True)
+class _DeclaredUpdateState:
+    values: dict[str, Any]
+
+
+@dataclass(frozen=True)
+class _FallbackUpdateState:
+    values: dict[str, Any]
 
 
 class rSignal(ABC):
@@ -16,6 +50,9 @@ class rSignal(ABC):
     name: str | None = None
     family: str | None = None
     step_input_keys: tuple[str, ...] = ()
+    supports_update_last = True
+    # 内置信号应显式声明；None 仅作为第三方/旧子类的兼容兜底。
+    _update_state_fields: tuple[str, ...] | None = None
 
     def __init__(
         self,
@@ -47,6 +84,9 @@ class rSignal(ABC):
         self.return_dict = return_dict
         self.g_index = -1
         self._outputs: DequeTable | None = None
+        self._pre_observation_state: Any = _NO_UPDATE_STATE
+        self._lifecycle_mode: str | None = None
+        self._faulted = False
 
         self.resize_buffer(buffer_size)
         self.reset()
@@ -84,30 +124,173 @@ class rSignal(ABC):
             self.extra_window = extra_window
 
     def step(self, *args: Any, **kwargs: Any) -> Any:
-        """用一个已确定观测点或事件推进 signal 状态。"""
+        """输入一个新的逻辑观测并推进 signal 状态。"""
 
-        self.g_index += 1
-        output = self._step_forward(*args, **kwargs)
-
-        dict_output = None
-        if self._outputs is not None:
+        self._ensure_healthy()
+        previous_index = self.g_index
+        self._pre_observation_state = self._snapshot_update_state()
+        self.g_index = previous_index + 1
+        previous_mode = self._lifecycle_mode
+        self._lifecycle_mode = _STEP_MODE
+        try:
+            output = self._step_forward(*args, **kwargs)
             dict_output = self.make_dict_output(output)
-            self._outputs.append(dict_output)
+            if self._outputs is not None:
+                self._outputs.append(dict_output)
+        except Exception:
+            self.g_index = previous_index
+            self._faulted = True
+            raise
+        finally:
+            self._lifecycle_mode = previous_mode
 
-        if self.return_dict:
-            if dict_output is None:
-                return self.make_dict_output(output)
-            return dict_output
-        return output
+        return dict_output if self.return_dict else output
+
+    def update_last(self, *args: Any, **kwargs: Any) -> Any:
+        """修订最后一个逻辑观测，不推进时间索引。"""
+
+        self._ensure_healthy()
+        if not self.supports_update_last:
+            raise NotImplementedError(
+                f"{self.full_name} does not support update_last(); reset and replay instead"
+            )
+        if self.g_index < 0 or self._pre_observation_state is _NO_UPDATE_STATE:
+            raise IndexError(
+                f"{self.full_name} update_last() requires a preceding step() call"
+            )
+
+        previous_mode = self._lifecycle_mode
+        try:
+            self._restore_update_state(self._pre_observation_state)
+            self._lifecycle_mode = _UPDATE_LAST_MODE
+            output = self._update_last_forward(*args, **kwargs)
+            dict_output = self.make_dict_output(output)
+            if self._outputs is not None:
+                if len(self._outputs) == 0:
+                    raise RuntimeError(
+                        f"{self.full_name} cannot replace an empty output cache"
+                    )
+                self._outputs.update_row(-1, dict_output)
+        except Exception:
+            self._faulted = True
+            raise
+        finally:
+            self._lifecycle_mode = previous_mode
+
+        return dict_output if self.return_dict else output
 
     def _step_forward(self, *args: Any, **kwargs: Any) -> Any:
         return self.forward(*args, **kwargs)
 
+    def _update_last_forward(self, *args: Any, **kwargs: Any) -> Any:
+        return self.forward(*args, **kwargs)
+
+    def _apply_pyta2(self, indicator: rIndicator, *args: Any, **kwargs: Any) -> Any:
+        """按当前 Signal 生命周期调用 pyta2 子指标。"""
+
+        if not isinstance(indicator, rIndicator):
+            raise TypeError(
+                f"indicator must be a pyta2 rIndicator instance, got {type(indicator)}"
+            )
+        if self._lifecycle_mode == _UPDATE_LAST_MODE:
+            return indicator.update_last(*args, **kwargs)
+        return indicator.rolling(*args, **kwargs)
+
     def reset(self) -> None:
         self.g_index = -1
+        self._pre_observation_state = _NO_UPDATE_STATE
+        self._lifecycle_mode = None
+        self._faulted = False
         if self._outputs is not None:
             self._outputs.clear()
         self.reset_extras()
+
+    def _ensure_healthy(self) -> None:
+        if self._faulted:
+            raise RuntimeError(
+                f"{self.full_name} is faulted after a failed state calculation; "
+                "call reset() and replay committed observations"
+            )
+
+    def _snapshot_update_state(self) -> Any:
+        fields = self._update_state_fields
+        if fields is None:
+            excluded = self._core_update_state_fields()
+            values = {
+                key: (
+                    _ComponentReference(value)
+                    if isinstance(value, (rIndicator, rSignal))
+                    else self._snapshot_update_value(value)
+                )
+                for key, value in self.__dict__.items()
+                if key not in excluded
+            }
+            return _FallbackUpdateState(values)
+
+        values: dict[str, Any] = {}
+        for field in fields:
+            if not hasattr(self, field):
+                raise AttributeError(
+                    f"{self.full_name} update state field {field!r} does not exist"
+                )
+            value = getattr(self, field)
+            if isinstance(value, (rIndicator, rSignal)):
+                raise TypeError(
+                    f"{self.full_name} update state field {field!r} is a lifecycle "
+                    "component and must not be checkpointed by its parent"
+                )
+            values[field] = self._snapshot_update_value(value)
+        return _DeclaredUpdateState(values)
+
+    def _restore_update_state(self, state: Any) -> None:
+        if isinstance(state, _FallbackUpdateState):
+            excluded = self._core_update_state_fields()
+            for key in tuple(self.__dict__):
+                if key not in excluded:
+                    del self.__dict__[key]
+            for key, saved in state.values.items():
+                if isinstance(saved, _ComponentReference):
+                    value = saved.target
+                else:
+                    value = self._restore_update_value(saved)
+                setattr(self, key, value)
+            return
+
+        if not isinstance(state, _DeclaredUpdateState):
+            raise TypeError(f"{self.full_name} has an invalid update checkpoint")
+        for field, saved in state.values.items():
+            setattr(self, field, self._restore_update_value(saved))
+
+    @staticmethod
+    def _snapshot_update_value(value: Any) -> Any:
+        if isinstance(value, (type(None), bool, int, float, complex, str, bytes)):
+            return value
+        make_checkpoint = getattr(value, "_make_update_checkpoint", None)
+        if callable(make_checkpoint):
+            return _ObjectUpdateState(value, make_checkpoint())
+        return _CopiedUpdateState(deepcopy(value))
+
+    @staticmethod
+    def _restore_update_value(state: Any) -> Any:
+        if isinstance(state, _ObjectUpdateState):
+            restore = getattr(state.target, "_restore_update_checkpoint", None)
+            if not callable(restore):
+                raise TypeError("checkpoint target does not support restore")
+            restore(state.checkpoint)
+            return state.target
+        if isinstance(state, _CopiedUpdateState):
+            return deepcopy(state.value)
+        return state
+
+    @staticmethod
+    def _core_update_state_fields() -> set[str]:
+        return {
+            "g_index",
+            "_outputs",
+            "_pre_observation_state",
+            "_lifecycle_mode",
+            "_faulted",
+        }
 
     @abstractmethod
     def reset_extras(self) -> None:
@@ -181,6 +364,16 @@ class rSignal(ABC):
         return self.window + self.extra_window
 
     @property
+    def factor_names(self) -> list[str]:
+        if len(self.output_keys) == 1:
+            return [self.full_name]
+        return [f"{self.full_name}.{key}" for key in self.output_keys]
+
+    @property
+    def is_faulted(self) -> bool:
+        return self._faulted
+
+    @property
     def meta_info(self) -> dict[str, Any]:
         return {
             "name": self.name,
@@ -192,8 +385,11 @@ class rSignal(ABC):
             "window": self.window,
             "extra_window": self.extra_window,
             "required_window": self.required_window,
+            "factor_names": self.factor_names,
             "buffer_size": self.buffer_size,
             "buffer_factor": self.buffer_factor,
             "return_dict": self.return_dict,
             "g_index": self.g_index,
+            "supports_update_last": self.supports_update_last,
+            "is_faulted": self.is_faulted,
         }

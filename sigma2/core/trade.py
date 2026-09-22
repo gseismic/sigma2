@@ -17,6 +17,15 @@ class rTradeSignal(rSignal):
     def step(self, *, price: float, volume: float, side: TradeSide = None) -> Any:
         return super().step(price, volume, side)
 
+    def update_last(
+        self,
+        *,
+        price: float,
+        volume: float,
+        side: TradeSide = None,
+    ) -> Any:
+        return super().update_last(price, volume, side)
+
     @abstractmethod
     def forward(self, price: float, volume: float, side: TradeSide = None) -> Any:
         raise NotImplementedError

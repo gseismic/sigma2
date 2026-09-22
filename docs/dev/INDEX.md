@@ -1,6 +1,6 @@
 # 计划执行索引
 
-更新时间：2026-09-22 18:06 CST
+更新时间：2026-09-22 22:36 CST
 
 ## 历史说明
 
@@ -27,10 +27,11 @@
 | 2026-07-08 18:38 CST | `PLAN-015-kline-bound-trigger-unit-mode.md` | `PLAN-015-kline-bound-trigger-unit-mode-OUTCOME.md` | 将 `rKlineBoundTrigger` 的单位来源改为 `unit` 模式，默认内部动态计算 ATR；`unit="close"` 时按收盘价尺度计算边界，去掉 `unit_field` 伪装字段绑定。 |
 | 2026-07-08 19:05 CST | `PLAN-016-kline-atr-bound-trigger-class-rename.md` | `PLAN-016-kline-atr-bound-trigger-class-rename-OUTCOME.md` | 将公开类名收口为 `rKlineATRBoundTrigger`，保留 `rKlineBoundTrigger` 兼容别名，并同步更新导出与测试。 |
 | 2026-07-08 19:24 CST | `PLAN-017-kline-atr-bound-trigger-contract-fix.md` | `PLAN-017-kline-atr-bound-trigger-contract-fix-OUTCOME.md` | 确认并修复 ATR bound trigger 的窗口对齐错误；将 `rKlineATRBoundTrigger` 收口为 ATR-only，移除 `unit` 分支和旧 `rKlineBoundTrigger` 导出；补充构造期校验、内部 effect adapter 契约和对齐测试。 |
+| 2026-09-22 22:36 CST | `PLAN-018-kline-factor-library.md` | `PLAN-018-kline-factor-library-OUTCOME.md` | 实施 v5.1 因子库：新增 `update_last()` 检查点生命周期、finalized batch replay、自动 factor names，以及 `rMA/MA`、RSI、MACD、Boll、KDJ、ATR 六组独立 rolling/batch API；78 项测试通过。 |
 
 ## 当前设计文档规则
 
-- `docs/design/sigma2-20260922-v5.md` 是当前总设计依据，状态为设计完成、待按独立计划实施。
+- `docs/design/sigma2-20260922-v5.md` 是当前总设计依据；v5.1 的生命周期与 K 线因子部分已由 PLAN-018 实施，其余阶段继续按独立计划推进。
 - `docs/design/factor-research-20260707-overview.md` 是研究训练层专题，与 v5 冲突时以 v5 为准。
 - `docs/design/operator-family-layering-20260708-overview.md` 是历史专题，其中 family 分层结论保留，平行 primitive catalogue 方向已被 v5 替代。
 - `docs/design/sigma2-20260704-overview.md` 是当前 v0.1 代码的历史设计依据，不再指导后续新实施。
