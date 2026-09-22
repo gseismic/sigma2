@@ -2,6 +2,8 @@
 
 sigma2 是面向金融时间序列和机器学习特征工程的 rolling signal 库。它不是 pyta2 的薄封装，也不是以 `FeatureSet` 为中心的应用框架；当前稳定核心是一套类似 `pyta2.base.rIndicator` 的轻量有状态 signal 基类体系。
 
+> 实现状态：当前源码仍是 v0.1 基线。最新的 v5 总设计已经确定 `step()` / `update_last()` 双生命周期、单一 pyta2 薄桥接器以及“独立复杂 Signal 类优先”的方向，但这些变化尚未实施；详见 `docs/design/sigma2-20260922-v5.md`。
+
 ## 项目定位
 
 - `rSignal.step()` 是唯一公共状态推进入口，调用一次表示输入流推进一个新观测点或事件。
@@ -122,7 +124,8 @@ print(row)  # {"return": 0.3}
 
 ## 设计依据
 
-- `docs/design/sigma2-20260704-overview.md`
+- `docs/design/sigma2-20260922-v5.md`（当前总设计，待实施）
+- `docs/design/sigma2-20260704-overview.md`（历史实现依据）
 - `pyta2/docs/design/pyta2-sigma-20260627-v3.md`
 - `pyta2/pyta2/base/indicator.py`
 

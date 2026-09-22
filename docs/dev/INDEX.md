@@ -1,6 +1,6 @@
 # 计划执行索引
 
-更新时间：2026-07-08 19:24 CST
+更新时间：2026-09-22 18:06 CST
 
 ## 历史说明
 
@@ -30,5 +30,8 @@
 
 ## 当前设计文档规则
 
-- `docs/design/sigma2-20260704-overview.md` 是唯一当前设计依据。
+- `docs/design/sigma2-20260922-v5.md` 是当前总设计依据，状态为设计完成、待按独立计划实施。
+- `docs/design/factor-research-20260707-overview.md` 是研究训练层专题，与 v5 冲突时以 v5 为准。
+- `docs/design/operator-family-layering-20260708-overview.md` 是历史专题，其中 family 分层结论保留，平行 primitive catalogue 方向已被 v5 替代。
+- `docs/design/sigma2-20260704-overview.md` 是当前 v0.1 代码的历史设计依据，不再指导后续新实施。
 - `docs/design/backup/` 中的文档仅用于历史追溯，不作为实现依据。

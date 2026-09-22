@@ -4,9 +4,9 @@
 
 ## 状态
 
-本文是 `sigma2` 的专题设计文档，用于固定“pyta2-like 通用算子层”和“sigma2 数据 family 绑定层”的关系。
+本文是 `sigma2` 的历史专题设计文档，用于追溯“通用算子层”和“数据 family 层”的分层讨论。
 
-本文不替代 `docs/design/sigma2-20260704-overview.md`。总设计仍是项目级依据；本文只补充 signal / effect / target 在输入抽象上的分层逻辑。
+当前总设计已更新为 `docs/design/sigma2-20260922-v5.md`。本文关于 family 作为用户数据模型的结论继续有效；在 sigma2 内建设与 pyta2 平行 primitive catalogue 的方向已由 v5 修正为“pyta2 提供计算积木，sigma2 通过单一 bridge 和独立 Signal 类进行组合”。与 v5 冲突时以 v5 为准。
 
 核心结论：
 
