@@ -1,54 +1,5 @@
-from __future__ import annotations
+"""0.3.x 兼容入口；计划在 0.4.0 删除。"""
 
-from typing import Any
-
-from pyta2.momentum import rRSI as _rPytaRSI
-from pyta2.utils.validation import ensure_integer
-
-from sigma2.core import forward_signal_apply
-
-from ._factor import _rKlineIndicatorFactor
-
-
-class rRSI(_rKlineIndicatorFactor):
-    """绑定到一个 K 线字段的相对强弱指标。"""
-
-    name = "RSI"
-
-    def __init__(
-        self,
-        n: int = 14,
-        *,
-        field: str = "close",
-        **kwargs: Any,
-    ) -> None:
-        self.n = ensure_integer(n, "n", min_value=1)
-        self.field = field
-        super().__init__(
-            _rPytaRSI(self.n, buffer_size=0, return_dict=False),
-            fields=(field,),
-            **kwargs,
-        )
-
-
-def RSI(
-    data: Any,
-    n: int = 14,
-    *,
-    field: str = "close",
-    return_type: str = "dict",
-    return_meta_info: bool = False,
-) -> Any:
-    """批量 replay :class:`rRSI`。"""
-
-    return forward_signal_apply(
-        data,
-        rRSI,
-        param_args=(n,),
-        param_kwargs={"field": field},
-        return_type=return_type,
-        return_meta_info=return_meta_info,
-    )
-
+from .compat.rsi import RSI, rRSI
 
 __all__ = ["RSI", "rRSI"]

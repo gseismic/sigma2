@@ -7,7 +7,7 @@ import pytest
 from pyta2.utils.space import Scalar
 
 from sigma2.core import rKlineSignal
-from sigma2.kline import rGap, rReturn, rSMA
+from sigma2.kline import rKlineGap, rKlineMA, rKlineReturn
 
 
 class rCloseEcho(rKlineSignal):
@@ -53,7 +53,7 @@ def test_forward_direct_call_on_kline_signal_does_not_advance_state():
 
 
 def test_return_signal_uses_close_to_close_window():
-    signal = rReturn(n=1)
+    signal = rKlineReturn(n=1)
 
     assert math.isnan(signal.step(open=10.0, high=11.0, low=9.0, close=10.0, volume=1.0))
     assert signal.step(open=11.0, high=12.0, low=10.0, close=11.0, volume=1.0) == pytest.approx(
@@ -65,7 +65,7 @@ def test_return_signal_uses_close_to_close_window():
 
 
 def test_gap_signal_uses_open_against_previous_close():
-    signal = rGap(return_dict=True)
+    signal = rKlineGap(return_dict=True)
 
     first = signal.step(open=10.0, high=11.0, low=9.0, close=10.0, volume=1.0)
     second = signal.step(open=10.5, high=11.0, low=10.0, close=10.8, volume=1.0)
@@ -75,7 +75,7 @@ def test_gap_signal_uses_open_against_previous_close():
 
 
 def test_kline_window_signal_keeps_required_window_only():
-    signal = rSMA(n=3, field="close")
+    signal = rKlineMA(n=3, ma_type="SMA", field="close")
     closes = [1.0, 2.0, 3.0, 4.0, 5.0]
     outputs = [
         signal.step(open=x, high=x, low=x, close=x, volume=1.0)
@@ -90,7 +90,7 @@ def test_kline_window_signal_keeps_required_window_only():
 
 
 def test_forward_direct_call_on_window_signal_does_not_mutate_internal_window():
-    signal = rSMA(n=2)
+    signal = rKlineMA(n=2, ma_type="SMA")
     values = np.asarray([1.0, 2.0])
 
     assert signal.forward(values, values, values, values, values) == 1.5
@@ -99,11 +99,11 @@ def test_forward_direct_call_on_window_signal_does_not_mutate_internal_window():
     assert len(signal._window) == 0
 
 
-def test_sma_can_bind_to_supported_kline_fields():
-    volume_sma = rSMA(n=2, field="volume")
+def test_ma_can_bind_to_supported_kline_fields():
+    volume_sma = rKlineMA(n=2, ma_type="SMA", field="volume")
 
     assert math.isnan(volume_sma.step(open=1.0, high=1.0, low=1.0, close=1.0, volume=10.0))
     assert volume_sma.step(open=1.0, high=1.0, low=1.0, close=1.0, volume=20.0) == 15.0
 
-    with pytest.raises(ValueError, match="field must be one of"):
-        rSMA(n=2, field="amount")
+    with pytest.raises(ValueError, match="unknown kline input field"):
+        rKlineMA(n=2, ma_type="SMA", field="amount")

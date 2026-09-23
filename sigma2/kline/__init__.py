@@ -1,39 +1,54 @@
-from .atr import ATR, rATR
-from .boll import Boll, rBoll
-from .gap import rGap
-from .effect import (
+"""K 线 Signal 公共 API。"""
+
+from . import compat as _compat
+from .momentum import KlineKDJ, KlineRSI, rKlineKDJ, rKlineRSI
+from .price import KlineGap, KlineReturn, rKlineGap, rKlineReturn
+from .target import (
     rKlineATRBoundTrigger,
     rKlineFutureChange,
     rKlineFutureHighLowChange,
     rKlineFutureReturn,
 )
-from .kdj import KDJ, rKDJ
-from .ma import MA, rMA
-from .macd import MACD, rMACD
-from .pyta2 import rPyta2SMA
-from .return_ import rReturn
-from .rsi import RSI, rRSI
-from .sma import rSMA
+from .trend import KlineMA, KlineMACD, rKlineMA, rKlineMACD
+from .volatility import KlineATR, KlineBoll, rKlineATR, rKlineBoll
+
+# 旧短名称仍可显式导入一个兼容周期，但不再参与星号导入或 API 发现。
+ATR = _compat.ATR
+Boll = _compat.Boll
+KDJ = _compat.KDJ
+MA = _compat.MA
+MACD = _compat.MACD
+RSI = _compat.RSI
+rATR = _compat.rATR
+rBoll = _compat.rBoll
+rGap = _compat.rGap
+rKDJ = _compat.rKDJ
+rMA = _compat.rMA
+rMACD = _compat.rMACD
+rPyta2SMA = _compat.rPyta2SMA
+rReturn = _compat.rReturn
+rRSI = _compat.rRSI
+rSMA = _compat.rSMA
 
 __all__ = [
-    "ATR",
-    "Boll",
-    "KDJ",
-    "MA",
-    "MACD",
-    "RSI",
-    "rATR",
-    "rBoll",
-    "rGap",
-    "rKDJ",
+    "KlineATR",
+    "KlineBoll",
+    "KlineGap",
+    "KlineKDJ",
+    "KlineMA",
+    "KlineMACD",
+    "KlineRSI",
+    "KlineReturn",
+    "rKlineATR",
     "rKlineATRBoundTrigger",
+    "rKlineBoll",
     "rKlineFutureChange",
     "rKlineFutureHighLowChange",
     "rKlineFutureReturn",
-    "rMA",
-    "rMACD",
-    "rPyta2SMA",
-    "rRSI",
-    "rReturn",
-    "rSMA",
+    "rKlineGap",
+    "rKlineKDJ",
+    "rKlineMA",
+    "rKlineMACD",
+    "rKlineRSI",
+    "rKlineReturn",
 ]

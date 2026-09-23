@@ -8,15 +8,14 @@ from pyta2 import rSMA as _rPytaSMA
 from pyta2.utils.deque import NumpyDeque
 from pyta2.utils.space import Scalar
 
-from sigma2 import rSignal
-from sigma2.kline import rSMA
-from sigma2.kline.effect import (
+from sigma2 import rPyta2Signal, rSignal
+from sigma2.kline import rKlineMA
+from sigma2.kline.target import (
     rKlineATRBoundTrigger,
     rKlineFutureChange,
     rKlineFutureHighLowChange,
     rKlineFutureReturn,
 )
-from sigma2.kline.pyta2 import rPyta2SMA
 from sigma2.orderbook import rBookSpread
 from sigma2.trade import rTradeSignedVolume
 from sigma2.core import rOrderBookSignal
@@ -33,7 +32,7 @@ def _kline(value: float) -> dict[str, float]:
 
 
 def test_kline_update_last_is_idempotent_and_matches_finalized_replay():
-    signal = rSMA(3)
+    signal = rKlineMA(3, ma_type="SMA")
     for value in (1.0, 2.0, 3.0):
         signal.step(**_kline(value))
 
@@ -43,11 +42,11 @@ def test_kline_update_last_is_idempotent_and_matches_finalized_replay():
     assert first == second == pytest.approx(11.0)
     assert signal.g_index == 2
     assert len(signal.outputs) == 3
-    assert signal.latest == {"sma": pytest.approx(11.0)}
+    assert signal.latest == {"ma": pytest.approx(11.0)}
     assert signal._window["close"].tolist() == [1.0, 2.0, 30.0]
 
     continued = signal.step(**_kline(4.0))
-    replay = rSMA(3)
+    replay = rKlineMA(3, ma_type="SMA")
     for value in (1.0, 2.0, 30.0, 4.0):
         expected = replay.step(**_kline(value))
 
@@ -55,7 +54,7 @@ def test_kline_update_last_is_idempotent_and_matches_finalized_replay():
 
 
 def test_update_last_requires_a_committed_observation_again_after_reset():
-    signal = rSMA(2)
+    signal = rKlineMA(2, ma_type="SMA")
 
     with pytest.raises(IndexError, match="requires a preceding step"):
         signal.update_last(**_kline(1.0))
@@ -68,7 +67,7 @@ def test_update_last_requires_a_committed_observation_again_after_reset():
 
 
 def test_pyta2_adapter_routes_update_last_to_child_indicator():
-    signal = rPyta2SMA(2)
+    signal = rPyta2Signal("SMA", params={"n": 2}, field="close")
     signal.step(**_kline(1.0))
     signal.step(**_kline(3.0))
 

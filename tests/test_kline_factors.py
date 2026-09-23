@@ -12,8 +12,8 @@ from pyta2.stats.atr import ATR as pyta_ATR
 from pyta2.structure.channel import Boll as pyta_Boll
 from pyta2.trend.ma.api import get_ma_function
 
-from sigma2 import ATR, Boll, KDJ, MA, MACD, RSI
-from sigma2 import rATR, rBoll, rKDJ, rMA, rMACD, rRSI
+from sigma2 import KlineATR, KlineBoll, KlineKDJ, KlineMA, KlineMACD, KlineRSI
+from sigma2 import rKlineATR, rKlineBoll, rKlineKDJ, rKlineMA, rKlineMACD, rKlineRSI
 from sigma2.core import forward_signal_apply
 
 
@@ -60,7 +60,7 @@ def _assert_columns_equal(actual: Any, expected: Any) -> None:
 def test_ma_supports_every_public_pyta2_ma_type(ma_type: str):
     data = _kline_data()
 
-    actual = MA(data, 5, ma_type=ma_type, return_type="tuple")
+    actual = KlineMA(data, 5, ma_type=ma_type, return_type="tuple")
     expected = get_ma_function(ma_type)(data["close"], 5)
 
     _assert_columns_equal(actual, expected)
@@ -69,14 +69,14 @@ def test_ma_supports_every_public_pyta2_ma_type(ma_type: str):
 def test_ma_field_binding_and_advanced_kwargs_are_part_of_identity():
     data = _kline_data()
     ma_kwargs = {"n2": 3, "n3": 12, "stride": 2}
-    signal = rMA(
+    signal = rKlineMA(
         5,
         ma_type="kama",
         field="volume",
         ma_kwargs=ma_kwargs,
     )
 
-    actual = MA(
+    actual = KlineMA(
         data,
         5,
         ma_type="kama",
@@ -95,18 +95,18 @@ def test_ma_field_binding_and_advanced_kwargs_are_part_of_identity():
     ("factory", "batch", "pyta_batch"),
     [
         (
-            lambda: rMA(5, ma_type="EMA"),
-            lambda data: MA(data, 5, ma_type="EMA", return_type="tuple"),
+            lambda: rKlineMA(5, ma_type="EMA"),
+            lambda data: KlineMA(data, 5, ma_type="EMA", return_type="tuple"),
             lambda data: get_ma_function("EMA")(data["close"], 5),
         ),
         (
-            lambda: rRSI(5),
-            lambda data: RSI(data, 5, return_type="tuple"),
+            lambda: rKlineRSI(5),
+            lambda data: KlineRSI(data, 5, return_type="tuple"),
             lambda data: pyta_RSI(data["close"], 5),
         ),
         (
-            lambda: rMACD(3, 6, 3),
-            lambda data: MACD(
+            lambda: rKlineMACD(3, 6, 3),
+            lambda data: KlineMACD(
                 data,
                 fast=3,
                 slow=6,
@@ -116,13 +116,13 @@ def test_ma_field_binding_and_advanced_kwargs_are_part_of_identity():
             lambda data: pyta_MACD(data["close"], 3, 6, 3),
         ),
         (
-            lambda: rBoll(5, 2),
-            lambda data: Boll(data, 5, 2, return_type="tuple"),
+            lambda: rKlineBoll(5, 2),
+            lambda data: KlineBoll(data, 5, 2, return_type="tuple"),
             lambda data: pyta_Boll(data["close"], 5, 2),
         ),
         (
-            lambda: rKDJ(6, 3, 3),
-            lambda data: KDJ(data, 6, 3, 3, return_type="tuple"),
+            lambda: rKlineKDJ(6, 3, 3),
+            lambda data: KlineKDJ(data, 6, 3, 3, return_type="tuple"),
             lambda data: pyta_KDJ(
                 data["high"],
                 data["low"],
@@ -133,8 +133,8 @@ def test_ma_field_binding_and_advanced_kwargs_are_part_of_identity():
             ),
         ),
         (
-            lambda: rATR(5),
-            lambda data: ATR(data, 5, return_type="tuple"),
+            lambda: rKlineATR(5),
+            lambda data: KlineATR(data, 5, return_type="tuple"),
             lambda data: pyta_ATR(
                 data["high"],
                 data["low"],
@@ -169,12 +169,12 @@ def test_factor_batch_matches_signal_replay_and_pyta2(
 @pytest.mark.parametrize(
     "factory",
     [
-        lambda: rMA(5, ma_type="EMA"),
-        lambda: rRSI(5),
-        lambda: rMACD(3, 6, 3),
-        lambda: rBoll(5),
-        lambda: rKDJ(6, 3, 3),
-        lambda: rATR(5),
+        lambda: rKlineMA(5, ma_type="EMA"),
+        lambda: rKlineRSI(5),
+        lambda: rKlineMACD(3, 6, 3),
+        lambda: rKlineBoll(5),
+        lambda: rKlineKDJ(6, 3, 3),
+        lambda: rKlineATR(5),
     ],
     ids=["ma", "rsi", "macd", "boll", "kdj", "atr"],
 )
@@ -205,10 +205,10 @@ def test_every_factor_update_last_is_idempotent_and_matches_replay(factory):
 
 
 def test_factor_names_use_full_name_and_output_component():
-    ma = rMA(20, ma_type="ema", field="volume")
-    macd = rMACD(field="close")
-    boll = rBoll()
-    atr = rATR(ma_type="ema")
+    ma = rKlineMA(20, ma_type="ema", field="volume")
+    macd = rKlineMACD(field="close")
+    boll = rKlineBoll()
+    atr = rKlineATR(ma_type="ema")
 
     assert ma.full_name == "EMA(20)[volume]"
     assert ma.factor_names == ["EMA(20)[volume]"]
@@ -227,9 +227,9 @@ def test_factor_names_use_full_name_and_output_component():
 def test_batch_result_formats_and_metadata_use_factor_names():
     data = _kline_data(8)
 
-    as_dict, meta = RSI(data, 3, return_meta_info=True)
-    as_tuple = RSI(data, 3, return_type="tuple")
-    as_list = RSI(data, 3, return_type="list")
+    as_dict, meta = KlineRSI(data, 3, return_meta_info=True)
+    as_tuple = KlineRSI(data, 3, return_type="tuple")
+    as_list = KlineRSI(data, 3, return_type="list")
 
     assert list(as_dict) == ["RSI(3)[close]"]
     np.testing.assert_allclose(
@@ -249,8 +249,8 @@ def test_batch_optional_dataframe_formats():
     polars = pytest.importorskip("polars")
     data = _kline_data(8)
 
-    pandas_frame = RSI(data, 3, return_type="dataframe")
-    polars_frame = RSI(data, 3, return_type="pl.dataframe")
+    pandas_frame = KlineRSI(data, 3, return_type="dataframe")
+    polars_frame = KlineRSI(data, 3, return_type="pl.dataframe")
 
     assert isinstance(pandas_frame, pandas.DataFrame)
     assert isinstance(polars_frame, polars.DataFrame)
@@ -267,31 +267,31 @@ def test_atr_n_one_keeps_previous_close_for_true_range():
         "volume": np.ones(3),
     }
 
-    actual = ATR(data, 1, return_type="tuple")
+    actual = KlineATR(data, 1, return_type="tuple")
     expected = pyta_ATR(data["high"], data["low"], data["close"], 1)
 
     _assert_columns_equal(actual, expected)
-    assert rATR(1).history_window == 2
+    assert rKlineATR(1).history_window == 2
 
 
 def test_batch_validates_columnar_contract_and_result_type():
     data = _kline_data(4)
 
     with pytest.raises(KeyError, match="missing required columns"):
-        RSI({key: value for key, value in data.items() if key != "volume"}, 2)
+        KlineRSI({key: value for key, value in data.items() if key != "volume"}, 2)
 
     uneven = dict(data)
     uneven["volume"] = uneven["volume"][:-1]
     with pytest.raises(ValueError, match="same length"):
-        RSI(uneven, 2)
+        KlineRSI(uneven, 2)
 
     two_dimensional = dict(data)
     two_dimensional["close"] = two_dimensional["close"][:, None]
     with pytest.raises(ValueError, match="one-dimensional"):
-        RSI(two_dimensional, 2)
+        KlineRSI(two_dimensional, 2)
 
     with pytest.raises(ValueError, match="return_type must be one of"):
-        RSI(data, 2, return_type="records")
+        KlineRSI(data, 2, return_type="records")
 
     with pytest.raises(TypeError, match="rSignal subclass"):
         forward_signal_apply(data, object)
@@ -300,7 +300,7 @@ def test_batch_validates_columnar_contract_and_result_type():
 def test_batch_accepts_empty_finalized_table():
     data = {key: values[:0] for key, values in _kline_data(2).items()}
 
-    result, meta = RSI(data, 2, return_meta_info=True)
+    result, meta = KlineRSI(data, 2, return_meta_info=True)
 
     assert result["RSI(2)[close]"].shape == (0,)
     assert meta["g_index"] == -1
@@ -308,16 +308,16 @@ def test_batch_accepts_empty_finalized_table():
 
 def test_factor_constructor_validation_is_clear():
     with pytest.raises(ValueError, match="primary window"):
-        rMA(5, ma_kwargs={"buffer_size": 10})
+        rKlineMA(5, ma_kwargs={"buffer_size": 10})
 
     with pytest.raises(TypeError, match="ma_kwargs must be a mapping"):
-        rMA(5, ma_kwargs=[("stride", 1)])
+        rKlineMA(5, ma_kwargs=[("stride", 1)])
 
     with pytest.raises(ValueError, match="slow must be greater"):
-        rMACD(fast=12, slow=12)
+        rKlineMACD(fast=12, slow=12)
 
     with pytest.raises(ValueError, match="finite number"):
-        rBoll(F=float("nan"))
+        rKlineBoll(F=float("nan"))
 
     with pytest.raises(ValueError, match="n1 must be greater"):
-        rKDJ(n1=3, n2=3, n3=2)
+        rKlineKDJ(n1=3, n2=3, n3=2)

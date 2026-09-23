@@ -1,6 +1,6 @@
 # 计划执行索引
 
-更新时间：2026-09-22 22:36 CST
+更新时间：2026-09-23 04:49 CST
 
 ## 历史说明
 
@@ -28,10 +28,11 @@
 | 2026-07-08 19:05 CST | `PLAN-016-kline-atr-bound-trigger-class-rename.md` | `PLAN-016-kline-atr-bound-trigger-class-rename-OUTCOME.md` | 将公开类名收口为 `rKlineATRBoundTrigger`，保留 `rKlineBoundTrigger` 兼容别名，并同步更新导出与测试。 |
 | 2026-07-08 19:24 CST | `PLAN-017-kline-atr-bound-trigger-contract-fix.md` | `PLAN-017-kline-atr-bound-trigger-contract-fix-OUTCOME.md` | 确认并修复 ATR bound trigger 的窗口对齐错误；将 `rKlineATRBoundTrigger` 收口为 ATR-only，移除 `unit` 分支和旧 `rKlineBoundTrigger` 导出；补充构造期校验、内部 effect adapter 契约和对齐测试。 |
 | 2026-09-22 22:36 CST | `PLAN-018-kline-factor-library.md` | `PLAN-018-kline-factor-library-OUTCOME.md` | 实施 v5.1 因子库：新增 `update_last()` 检查点生命周期、finalized batch replay、自动 factor names，以及 `rMA/MA`、RSI、MACD、Boll、KDJ、ATR 六组独立 rolling/batch API；78 项测试通过。 |
+| 2026-09-23 04:49 CST | `PLAN-019-kline-api-layout.md` | `PLAN-019-kline-api-layout-OUTCOME.md` | 实施 v5.2 与 0.3.0：K 线 API 迁为 `rKlineX/KlineX`，真实实现进入 price/trend/momentum/volatility/target 浅层目录；旧入口集中兼容并计划 0.4.0 删除，123 项测试通过。 |
 
 ## 当前设计文档规则
 
-- `docs/design/sigma2-20260922-v5.md` 是当前总设计依据；v5.1 的生命周期与 K 线因子部分已由 PLAN-018 实施，其余阶段继续按独立计划推进。
+- `docs/design/sigma2-20260922-v5.md` 是当前总设计依据；v5.1 生命周期与因子库、v5.2 命名与目录已分别由 PLAN-018、PLAN-019 实施，其余阶段继续按独立计划推进。
 - `docs/design/factor-research-20260707-overview.md` 是研究训练层专题，与 v5 冲突时以 v5 为准。
 - `docs/design/operator-family-layering-20260708-overview.md` 是历史专题，其中 family 分层结论保留，平行 primitive catalogue 方向已被 v5 替代。
 - `docs/design/sigma2-20260704-overview.md` 是当前 v0.1 代码的历史设计依据，不再指导后续新实施。

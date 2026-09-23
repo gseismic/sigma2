@@ -20,40 +20,61 @@ from .core import (
     rSignal,
     rTradeSignal,
 )
+from . import kline as _kline
 from .kline import (
-    ATR,
-    Boll,
-    KDJ,
-    MA,
-    MACD,
-    RSI,
-    rATR,
-    rBoll,
-    rGap,
-    rKDJ,
+    KlineATR,
+    KlineBoll,
+    KlineGap,
+    KlineKDJ,
+    KlineMA,
+    KlineMACD,
+    KlineRSI,
+    KlineReturn,
+    rKlineATR,
     rKlineATRBoundTrigger,
+    rKlineBoll,
     rKlineFutureChange,
     rKlineFutureHighLowChange,
     rKlineFutureReturn,
-    rMA,
-    rMACD,
-    rPyta2SMA,
-    rRSI,
-    rReturn,
-    rSMA,
+    rKlineGap,
+    rKlineKDJ,
+    rKlineMA,
+    rKlineMACD,
+    rKlineRSI,
+    rKlineReturn,
 )
 from .orderbook import rBookSpread
 from .trade import rTradeSignedVolume
 from .utils import register_pyta2_indicator, resolve_pyta2_indicator
 
+# 旧短名称保留为显式兼容属性，但不再进入 ``__all__``。
+ATR = _kline.ATR
+Boll = _kline.Boll
+KDJ = _kline.KDJ
+MA = _kline.MA
+MACD = _kline.MACD
+RSI = _kline.RSI
+rATR = _kline.rATR
+rBoll = _kline.rBoll
+rGap = _kline.rGap
+rKDJ = _kline.rKDJ
+rMA = _kline.rMA
+rMACD = _kline.rMACD
+rPyta2SMA = _kline.rPyta2SMA
+rReturn = _kline.rReturn
+rRSI = _kline.rRSI
+rSMA = _kline.rSMA
+
 __all__ = [
-    "ATR",
-    "Boll",
     "Box",
-    "KDJ",
-    "MA",
-    "MACD",
-    "RSI",
+    "KlineATR",
+    "KlineBoll",
+    "KlineGap",
+    "KlineKDJ",
+    "KlineMA",
+    "KlineMACD",
+    "KlineRSI",
+    "KlineReturn",
     "Scalar",
     "Schema",
     "Space",
@@ -62,24 +83,22 @@ __all__ = [
     "register_pyta2_indicator",
     "resolve_pyta2_indicator",
     "rBookSpread",
-    "rATR",
-    "rBoll",
-    "rGap",
-    "rKDJ",
+    "rKlineATR",
     "rKlineATRBoundTrigger",
+    "rKlineBoll",
     "rKlineFutureChange",
     "rKlineFutureHighLowChange",
     "rKlineFutureReturn",
+    "rKlineGap",
+    "rKlineKDJ",
+    "rKlineMA",
+    "rKlineMACD",
+    "rKlineRSI",
+    "rKlineReturn",
     "rKlineSignal",
     "rKlineWindowSignal",
-    "rMA",
-    "rMACD",
     "rOrderBookSignal",
     "rPyta2Signal",
-    "rPyta2SMA",
-    "rReturn",
-    "rRSI",
-    "rSMA",
     "rSignal",
     "rTradeSignal",
     "rTradeSignedVolume",

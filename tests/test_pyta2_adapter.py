@@ -6,7 +6,6 @@ import numpy as np
 import pytest
 
 from sigma2.core import pyta2_signal, rPyta2Signal
-from sigma2.kline.pyta2 import rPyta2SMA
 from sigma2.utils.pyta2 import resolve_pyta2_indicator
 
 
@@ -16,11 +15,15 @@ def test_resolve_pyta2_indicator_name_to_rolling_class():
     assert cls.__name__ == "rSMA"
 
 
-def test_sma_shortcut_returns_pyta2_step_signal():
-    signal = rPyta2SMA(3, field="close", return_dict=True)
+def test_generic_adapter_returns_pyta2_step_signal():
+    signal = rPyta2Signal(
+        "SMA",
+        params={"n": 3},
+        field="close",
+        return_dict=True,
+    )
 
     assert isinstance(signal, rPyta2Signal)
-    assert isinstance(signal, rPyta2SMA)
     assert signal.family == "kline"
     assert signal.inputs == ("close",)
     assert signal.output_keys == ["ma"]
@@ -47,7 +50,7 @@ def test_pyta2_signal_can_bind_to_kline_field_by_name():
 
 
 def test_pyta2_forward_direct_call_does_not_mutate_adapter_state():
-    signal = rPyta2SMA(2)
+    signal = rPyta2Signal("SMA", params={"n": 2}, field="close")
     values = np.asarray([1.0, 2.0])
 
     assert signal.forward(values, values, values, values, values) == 1.5
@@ -62,7 +65,7 @@ def test_pyta2_adapter_rejects_unknown_indicator_or_input_field():
         pyta2_signal("NOT_A_SIGNAL")
 
     with pytest.raises(ValueError, match="unknown kline input field"):
-        rPyta2SMA(2, field="amount")
+        rPyta2Signal("SMA", params={"n": 2}, field="amount")
 
     with pytest.raises(ValueError, match="cannot both be provided"):
         rPyta2Signal("SMA", params={"n": 2}, field="close", inputs=("close",))

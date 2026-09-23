@@ -5,13 +5,13 @@ import math
 import pytest
 from pyta2.effect import rBoundTrigger, rFutureChange as pyta2_rFutureChange
 
-from sigma2.kline.effect import (
+from sigma2.kline.target import (
     rKlineATRBoundTrigger,
     rKlineFutureChange,
     rKlineFutureHighLowChange,
     rKlineFutureReturn,
 )
-from sigma2.kline.effect.base import rKlineEffectSignal
+from sigma2.kline.target.base import rKlineEffectSignal
 
 
 def _step(signal, open_, high, low, close, volume=1.0):
