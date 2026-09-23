@@ -30,17 +30,7 @@ class _CopiedUpdateState:
 
 
 @dataclass(frozen=True)
-class _ComponentReference:
-    target: Any
-
-
-@dataclass(frozen=True)
 class _DeclaredUpdateState:
-    values: dict[str, Any]
-
-
-@dataclass(frozen=True)
-class _FallbackUpdateState:
     values: dict[str, Any]
 
 
@@ -51,8 +41,8 @@ class rSignal(ABC):
     family: str | None = None
     step_input_keys: tuple[str, ...] = ()
     supports_update_last = True
-    # 内置信号应显式声明；None 仅作为第三方/旧子类的兼容兜底。
-    _update_state_fields: tuple[str, ...] | None = None
+    # 有额外递推状态的子类应显式列出需要修订的字段。
+    _update_state_fields: tuple[str, ...] = ()
 
     def __init__(
         self,
@@ -213,22 +203,8 @@ class rSignal(ABC):
             )
 
     def _snapshot_update_state(self) -> Any:
-        fields = self._update_state_fields
-        if fields is None:
-            excluded = self._core_update_state_fields()
-            values = {
-                key: (
-                    _ComponentReference(value)
-                    if isinstance(value, (rIndicator, rSignal))
-                    else self._snapshot_update_value(value)
-                )
-                for key, value in self.__dict__.items()
-                if key not in excluded
-            }
-            return _FallbackUpdateState(values)
-
         values: dict[str, Any] = {}
-        for field in fields:
+        for field in self._update_state_fields:
             if not hasattr(self, field):
                 raise AttributeError(
                     f"{self.full_name} update state field {field!r} does not exist"
@@ -243,19 +219,6 @@ class rSignal(ABC):
         return _DeclaredUpdateState(values)
 
     def _restore_update_state(self, state: Any) -> None:
-        if isinstance(state, _FallbackUpdateState):
-            excluded = self._core_update_state_fields()
-            for key in tuple(self.__dict__):
-                if key not in excluded:
-                    del self.__dict__[key]
-            for key, saved in state.values.items():
-                if isinstance(saved, _ComponentReference):
-                    value = saved.target
-                else:
-                    value = self._restore_update_value(saved)
-                setattr(self, key, value)
-            return
-
         if not isinstance(state, _DeclaredUpdateState):
             raise TypeError(f"{self.full_name} has an invalid update checkpoint")
         for field, saved in state.values.items():
@@ -281,16 +244,6 @@ class rSignal(ABC):
         if isinstance(state, _CopiedUpdateState):
             return deepcopy(state.value)
         return state
-
-    @staticmethod
-    def _core_update_state_fields() -> set[str]:
-        return {
-            "g_index",
-            "_outputs",
-            "_pre_observation_state",
-            "_lifecycle_mode",
-            "_faulted",
-        }
 
     @abstractmethod
     def reset_extras(self) -> None:

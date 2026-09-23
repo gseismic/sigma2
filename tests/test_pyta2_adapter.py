@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import math
 
-import numpy as np
 import pytest
 
 from sigma2.core import pyta2_signal, rPyta2Signal
@@ -47,17 +46,6 @@ def test_pyta2_signal_can_bind_to_kline_field_by_name():
     assert math.isnan(signal.step(open=1.0, high=10.0, low=1.0, close=1.0, volume=1.0))
     assert signal.step(open=1.0, high=20.0, low=1.0, close=1.0, volume=1.0) == 15.0
     assert signal.inputs == ("high",)
-
-
-def test_pyta2_forward_direct_call_does_not_mutate_adapter_state():
-    signal = rPyta2Signal("SMA", params={"n": 2}, field="close")
-    values = np.asarray([1.0, 2.0])
-
-    assert signal.forward(values, values, values, values, values) == 1.5
-    assert signal.g_index == -1
-    assert len(signal.outputs) == 0
-    assert len(signal._window) == 0
-    assert signal._indicator.g_index == -1
 
 
 def test_pyta2_adapter_rejects_unknown_indicator_or_input_field():

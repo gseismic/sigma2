@@ -4,15 +4,12 @@ from collections.abc import Sequence
 from typing import Any
 
 from sigma2.utils.pyta2 import (
-    ensure_pyta2_importable,
     normalize_pyta2_inputs,
     resolve_pyta2_default_inputs,
     resolve_pyta2_indicator,
 )
 
 from .kline import rKlineWindowSignal
-
-ensure_pyta2_importable()
 
 
 def pyta2_signal(
@@ -71,9 +68,6 @@ class rPyta2Signal(rKlineWindowSignal):
 
     def forward(self, opens, highs, lows, closes, volumes) -> Any:
         values = self._indicator_args_from_arrays(opens, highs, lows, closes, volumes)
-        if self._lifecycle_mode is None:
-            # 保留旧契约：直接调用 forward() 不改变适配器持有的子指标状态。
-            return self._make_indicator().rolling(*values)
         return self._apply_pyta2(self._indicator, *values)
 
     @property

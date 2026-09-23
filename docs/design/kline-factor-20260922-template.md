@@ -1,8 +1,8 @@
 # K 线因子文件模板
 
-更新时间：2026-09-23 04:49 CST
+更新时间：2026-09-23 10:34 CST
 
-状态：已随 `PLAN-019` 更新，配套 `docs/design/sigma2-20260922-v5.md` v5.2
+状态：配套 `docs/design/sigma2-20260922-v5.md` v5.3
 
 目标：新增一个由单个 pyta2 rolling 指标支撑的 K 线因子时，保持“按市场语义浅分类、一个因子一个文件、rolling/batch 同文件、计算公式只有一份”。
 
@@ -82,7 +82,7 @@ __all__ = ["KlineExample", "rKlineExample"]
 5. 测试 rolling 与 pyta2、batch 与 rolling、`update_last()` 与最终数据重放三组等价性。
 6. 多输出因子的 `factor_names` 必须逐项对应 `output_keys`。
 7. 新文件加入所属领域包的 `__init__.py` 和 `sigma2/kline/__init__.py`；稳定高频入口再加入顶层 `sigma2/__init__.py`。
-8. canonical 类的 `__module__` 必须指向领域目录；兼容路径只能导入转发，不能复制公式。
-9. 新 API 不得使用与 pyta2 冲突的短名称，也不得把新功能加入 `compat/`。
+8. 类的 `__module__` 必须指向领域实现目录，不再创建旧路径转发文件。
+9. 新 API 不得使用与 pyta2 冲突的短名称。
 
 复杂因子如果组合多个 pyta2 指标或有市场结构状态，应直接继承 family 基类并显式实现 `forward()`；自身 deque 等额外递推状态必须声明在 `_update_state_fields`，并验证 `update_last()` 重放等价性。

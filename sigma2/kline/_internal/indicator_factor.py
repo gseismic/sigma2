@@ -4,8 +4,6 @@ from collections.abc import Sequence
 from typing import Any
 
 from pyta2.base import rIndicator
-from pyta2.base.schema import Schema
-from pyta2.utils.space import Space
 
 from sigma2.core import rKlineWindowSignal
 from sigma2.utils.pyta2 import normalize_pyta2_inputs
@@ -22,7 +20,6 @@ class _rKlineIndicatorFactor(rKlineWindowSignal):
         *,
         fields: Sequence[str],
         history_window: int | None = None,
-        schema: list[tuple[str, Space]] | dict[str, Space] | Schema | None = None,
         **kwargs: Any,
     ) -> None:
         if not isinstance(indicator, rIndicator):
@@ -46,7 +43,7 @@ class _rKlineIndicatorFactor(rKlineWindowSignal):
             )
         super().__init__(
             window=indicator.window,
-            schema=indicator.schema if schema is None else schema,
+            schema=indicator.schema,
             extra_window=indicator.extra_window,
             history_window=history_window,
             **kwargs,

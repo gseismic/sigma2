@@ -2,7 +2,6 @@ from __future__ import annotations
 
 
 def test_root_package_reexports_canonical_signals():
-    import sigma2
     from sigma2 import (
         KlineATR,
         KlineBoll,
@@ -65,27 +64,6 @@ def test_root_package_reexports_canonical_signals():
         )
     )
     assert callable(resolve_pyta2_indicator)
-
-    deprecated = {
-        "ATR",
-        "Boll",
-        "KDJ",
-        "MA",
-        "MACD",
-        "RSI",
-        "rATR",
-        "rBoll",
-        "rGap",
-        "rKDJ",
-        "rMA",
-        "rMACD",
-        "rPyta2SMA",
-        "rRSI",
-        "rReturn",
-        "rSMA",
-    }
-    assert deprecated.isdisjoint(sigma2.__all__)
-
 
 def test_core_exports_signal_base_classes_and_pyta2_base():
     from sigma2.core import (
@@ -186,11 +164,7 @@ def test_kline_categories_export_single_canonical_implementation():
     assert rKlineReturn.__module__ == "sigma2.kline.price.return_"
 
 
-def test_target_package_is_canonical_and_effect_paths_forward():
-    from sigma2.kline.effect import (
-        rKlineATRBoundTrigger as old_rKlineATRBoundTrigger,
-    )
-    from sigma2.kline.effect import rKlineFutureReturn as old_rKlineFutureReturn
+def test_target_package_is_canonical():
     from sigma2.kline.target import (
         rKlineATRBoundTrigger,
         rKlineFutureChange,
@@ -214,8 +188,6 @@ def test_target_package_is_canonical_and_effect_paths_forward():
     assert rKlineFutureChange is rKlineFutureChangeFromFile
     assert rKlineFutureHighLowChange is rKlineFutureHighLowChangeFromFile
     assert rKlineFutureReturn is rKlineFutureReturnFromFile
-    assert old_rKlineATRBoundTrigger is rKlineATRBoundTrigger
-    assert old_rKlineFutureReturn is rKlineFutureReturn
     assert rKlineATRBoundTrigger.__module__ == "sigma2.kline.target.bound_trigger"
     assert rKlineFutureChange.__module__ == "sigma2.kline.target.future_change"
     assert (
@@ -237,13 +209,11 @@ def test_market_family_packages_export_concrete_signals():
     assert rTradeSignedVolume is rTradeSignedVolumeFromFile
 
 
-def test_pyta2_utils_expose_resolver_registry_and_import_helper():
+def test_pyta2_utils_expose_resolver_registry():
     from sigma2.utils.pyta2 import (
-        ensure_pyta2_importable,
         register_pyta2_indicator,
         resolve_pyta2_indicator,
     )
 
-    assert callable(ensure_pyta2_importable)
     assert callable(register_pyta2_indicator)
     assert resolve_pyta2_indicator("SMA").__name__ == "rSMA"
