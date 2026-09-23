@@ -1,6 +1,6 @@
 # sigma2 交接文档
 
-更新时间：2026-09-23 04:49 CST
+更新时间：2026-09-23 09:41 CST
 
 ## 项目背景
 
@@ -20,6 +20,13 @@ pyta2 提供 rolling 指标、schema、窗口、full name 和递推状态；sigm
 - K 线因子模板：`docs/design/kline-factor-20260922-template.md`。
 - `pyta2`、`minbt`、`fintools` 是本地未跟踪软链接，只用于参考或验证，不得提交。
 - `docs/ref/` 是用户未跟踪资料，`AGENTS.md` 有用户修改；均不得擅自清理、回退或混入提交。
+
+## 最新交接点
+
+- 最新提交：`73ff574`（`实现：迁移K线公共API与浅层目录`）；当前 `HEAD` 与 `origin/main` 一致。
+- 本次交接前，工作区没有 sigma2 代码或文档改动；仅有用户自己的 `AGENTS.md` 修改、`docs/ref/` 资料和 `fintools`、`minbt`、`pyta2` 本地软链接。
+- PLAN-019 的实现和验证结论见 `docs/dev/PLAN-019-kline-api-layout-OUTCOME.md`。最近一次记录为 123 项测试通过、Ruff 和 compileall 通过。
+- 上一项用户请求是评审最新提交；评审启动后被中断在读取规范阶段，尚未检查提交差异，也没有评审结论。若该请求仍需继续，评审范围为 `9f34099..73ff574`，从只读差异审阅开始。
 
 ## 已完成的核心生命周期
 
@@ -122,10 +129,11 @@ python -m compileall -q sigma2 tests
 
 ## 后续高价值工作
 
-1. 按 v5 第 10 节分别实现公开的 `mean_of_mean`、`smoothed_depth_imbalance`、`rolling_trade_imbalance`，验证三个 family 的复杂组合开发体验。
-2. 为正式发布明确 pyta2 的安装依赖和版本下界，替代当前本地软链接兜底。
-3. 在 `0.4.0` 按迁移数据删除 compat、旧根模块与 `effect/` 路径，并同步删除旧入口测试。
-4. 有真实性能数据后再评估 batch replay 优化；优化必须保留与 `step()` 的一致性 oracle。
-5. 核心稳定后再做多 symbol online runner、FeatureData/TargetData 与研究训练层。
+1. 如继续上一项用户请求，先评审提交 `73ff574`，审阅记录应区分具体缺陷、风险和建议，不因测试通过而跳过代码检查。
+2. 按 v5 第 10 节分别实现公开的 `mean_of_mean`、`smoothed_depth_imbalance`、`rolling_trade_imbalance`，验证三个 family 的复杂组合开发体验。
+3. 为正式发布明确 pyta2 的安装依赖和版本下界，替代当前本地软链接兜底。
+4. 在 `0.4.0` 按迁移数据删除 compat、旧根模块与 `effect/` 路径，并同步删除旧入口测试。
+5. 有真实性能数据后再评估 batch replay 优化；优化必须保留与 `step()` 的一致性 oracle。
+6. 核心稳定后再做多 symbol online runner、FeatureData/TargetData 与研究训练层。
 
 不要先做全面 pyta2 wrapper catalogue、通用表达式 DAG、任意位置回滚、完整 RL 环境或自动训练框架。
