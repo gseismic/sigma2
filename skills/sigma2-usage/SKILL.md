@@ -15,12 +15,12 @@ description: 当用户询问如何安装或使用 sigma2、计算 K 线/盘口/�
 
 | 用户需求 | 先看示例 |
 | --- | --- |
-| 离线计算 MA、MACD 或理解返回列 | [K 线批量](../../examples/kline_batch.py) |
-| 实时推进、最后一根修订、继续输入 | [K 线在线](../../examples/kline_stream.py) |
-| 盘口快照或逐笔成交 | [市场事件](../../examples/market_events.py) |
-| 未来收益等监督目标 | [未来目标](../../examples/future_target.py) |
-| 临时复用 pyta2 rolling 指标 | [pyta2 桥接](../../examples/pyta2_bridge.py) |
-| 自定义带递推状态的 Signal | [自定义 Signal](../../examples/custom_signal.py) |
+| 离线计算 MA、MACD 或理解返回列 | [K 线批量](../../examples/01_kline_batch.py) |
+| 实时推进、最后一根修订、继续输入 | [K 线在线](../../examples/02_kline_stream.py) |
+| 盘口快照或逐笔成交 | [市场事件](../../examples/03_market_events.py) |
+| 未来收益等监督目标 | [未来目标](../../examples/04_future_target.py) |
+| 临时复用 pyta2 rolling 指标 | [pyta2 桥接](../../examples/05_pyta2_bridge.py) |
+| 自定义带递推状态的 Signal | [自定义 Signal](../../examples/06_custom_signal.py) |
 
 ## 回答使用问题
 

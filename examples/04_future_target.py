@@ -1,4 +1,4 @@
-"""未来收益目标按历史 anchor 对齐：运行 python -m examples.future_target。"""
+"""未来收益目标按历史 anchor 对齐：运行 python -m examples.04_future_target。"""
 
 from sigma2.kline.target import rKlineFutureReturn
 

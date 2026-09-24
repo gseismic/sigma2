@@ -1,4 +1,4 @@
-"""批量计算 K 线因子：从仓库根目录运行 python -m examples.kline_batch。"""
+"""批量计算 K 线因子：从仓库根目录运行 python -m examples.01_kline_batch。"""
 
 from sigma2 import KlineMA, KlineMACD
 

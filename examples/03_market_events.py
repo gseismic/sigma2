@@ -1,4 +1,4 @@
-"""盘口快照与逐笔成交的独立输入：运行 python -m examples.market_events。"""
+"""盘口快照与逐笔成交的独立输入：运行 python -m examples.03_market_events。"""
 
 from sigma2 import rBookSpread, rTradeSignedVolume
 

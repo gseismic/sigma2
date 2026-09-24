@@ -1,4 +1,4 @@
-"""自定义有状态成交 Signal：运行 python -m examples.custom_signal。"""
+"""自定义有状态成交 Signal：运行 python -m examples.06_custom_signal。"""
 
 import numpy as np
 from pyta2.utils.space import Scalar

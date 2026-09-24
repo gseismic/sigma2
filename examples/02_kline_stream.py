@@ -1,4 +1,4 @@
-"""在线推进与修订最后一根 K 线：运行 python -m examples.kline_stream。"""
+"""在线推进与修订最后一根 K 线：运行 python -m examples.02_kline_stream。"""
 
 from sigma2 import KlineMA, rKlineMA
 

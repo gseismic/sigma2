@@ -1,4 +1,4 @@
-"""把 pyta2 rolling 指标绑定 K 线字段：运行 python -m examples.pyta2_bridge。"""
+"""把 pyta2 rolling 指标绑定 K 线字段：运行 python -m examples.05_pyta2_bridge。"""
 
 from pyta2.momentum import rROC
 
