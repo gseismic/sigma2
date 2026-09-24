@@ -19,6 +19,7 @@ from sigma2.kline.target import (
 from sigma2.orderbook import rBookSpread
 from sigma2.trade import rTradeSignedVolume
 from sigma2.core import rOrderBookSignal
+from sigma2.utils.pyta2 import Pyta2Component
 
 
 def _kline(value: float) -> dict[str, float]:
@@ -111,6 +112,7 @@ class _rSmoothedDepthImbalance(rOrderBookSignal):
         self.levels = levels
         self._imbalances = NumpyDeque(maxlen=n)
         self._sma = _rPytaSMA(n, buffer_size=0)
+        self._sma_component = Pyta2Component(self._sma)
         super().__init__(
             window=n,
             schema={
@@ -125,7 +127,7 @@ class _rSmoothedDepthImbalance(rOrderBookSignal):
 
     def reset_extras(self):
         self._imbalances.clear()
-        self._sma.reset()
+        self._sma_component.reset()
 
     def forward(self, bids, asks):
         bid_depth = sum(size for _, size in bids[: self.levels])
@@ -133,7 +135,7 @@ class _rSmoothedDepthImbalance(rOrderBookSignal):
         total = bid_depth + ask_depth
         imbalance = math.nan if total <= 0 else (bid_depth - ask_depth) / total
         self._imbalances.append(imbalance)
-        return self._apply_pyta2(self._sma, self._imbalances.values)
+        return self.apply_component(self._sma_component, self._imbalances.values)
 
     @property
     def full_name(self):
@@ -187,9 +189,7 @@ class _rFailingAccumulator(rSignal):
         self.total = 0.0
         super().__init__(
             window=1,
-            schema={
-                "total": Scalar(low=-np.inf, high=np.inf, dtype=np.float64)
-            },
+            schema={"total": Scalar(low=-np.inf, high=np.inf, dtype=np.float64)},
         )
 
     def reset_extras(self):

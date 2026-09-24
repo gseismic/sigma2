@@ -4,6 +4,7 @@ from collections.abc import Sequence
 from typing import Any
 
 from sigma2.utils.pyta2 import (
+    Pyta2Component,
     normalize_pyta2_inputs,
     resolve_pyta2_default_inputs,
     resolve_pyta2_indicator,
@@ -49,12 +50,15 @@ class rPyta2Signal(rKlineWindowSignal):
         if field is not None and inputs is not None:
             raise ValueError("field and inputs cannot both be provided")
 
-        self.indicator_name = indicator if isinstance(indicator, str) else indicator.__name__
+        self.indicator_name = (
+            indicator if isinstance(indicator, str) else indicator.__name__
+        )
         self.indicator_cls = resolve_pyta2_indicator(indicator)
         self.indicator_params = dict(params or {})
         self.inputs = self._resolve_inputs(indicator, field=field, inputs=inputs)
         self._full_name = full_name
         self._indicator = self._make_indicator()
+        self._component = Pyta2Component(self._indicator)
 
         super().__init__(
             window=self._indicator.window,
@@ -64,11 +68,13 @@ class rPyta2Signal(rKlineWindowSignal):
         )
 
     def reset_window_extras(self) -> None:
-        self._indicator.reset()
+        self._component.reset()
 
     def forward(self, opens, highs, lows, closes, volumes) -> Any:
         values = self._indicator_args_from_arrays(opens, highs, lows, closes, volumes)
-        return self._apply_pyta2(self._indicator, *values)
+        if self._lifecycle_mode is None:
+            return self._component.step(*values)
+        return self.apply_component(self._component, *values)
 
     @property
     def full_name(self) -> str:

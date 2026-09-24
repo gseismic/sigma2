@@ -6,7 +6,7 @@ from typing import Any
 from pyta2.base import rIndicator
 
 from sigma2.core import rKlineWindowSignal
-from sigma2.utils.pyta2 import normalize_pyta2_inputs
+from sigma2.utils.pyta2 import Pyta2Component, normalize_pyta2_inputs
 
 
 class _rKlineIndicatorFactor(rKlineWindowSignal):
@@ -22,16 +22,13 @@ class _rKlineIndicatorFactor(rKlineWindowSignal):
         history_window: int | None = None,
         **kwargs: Any,
     ) -> None:
-        if not isinstance(indicator, rIndicator):
-            raise TypeError(
-                "indicator must be a pyta2 rIndicator instance, "
-                f"got {type(indicator)}"
-            )
+        component = Pyta2Component(indicator)
         if not fields:
             raise ValueError("fields must contain at least one K-line field")
 
         self.fields = normalize_pyta2_inputs(fields)
         self._indicator = indicator
+        self._component = component
         self._indicator.resize_buffer(0)
         self._indicator.return_dict = False
 
@@ -50,7 +47,7 @@ class _rKlineIndicatorFactor(rKlineWindowSignal):
         )
 
     def reset_window_extras(self) -> None:
-        self._indicator.reset()
+        self._component.reset()
 
     def forward(self, opens, highs, lows, closes, volumes) -> Any:
         arrays = {
@@ -61,7 +58,9 @@ class _rKlineIndicatorFactor(rKlineWindowSignal):
             "volume": volumes,
         }
         values = tuple(arrays[field] for field in self.fields)
-        return self._apply_pyta2(self._indicator, *values)
+        if self._lifecycle_mode is None:
+            return self._component.step(*values)
+        return self.apply_component(self._component, *values)
 
     @property
     def full_name(self) -> str:

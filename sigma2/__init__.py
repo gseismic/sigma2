@@ -37,7 +37,7 @@ from .kline import (
 )
 from .orderbook import rBookSpread
 from .trade import rTradeSignedVolume
-from .utils import register_pyta2_indicator, resolve_pyta2_indicator
+from .utils import Pyta2Component, register_pyta2_indicator, resolve_pyta2_indicator
 
 __all__ = [
     "Box",
@@ -49,6 +49,7 @@ __all__ = [
     "KlineMACD",
     "KlineRSI",
     "KlineReturn",
+    "Pyta2Component",
     "Scalar",
     "Schema",
     "Space",

@@ -9,7 +9,6 @@ from typing import Any
 
 import numpy as np
 from numpy.typing import DTypeLike
-from pyta2.base import rIndicator
 from pyta2.base.schema import Schema
 from pyta2.utils.deque import DequeTable
 from pyta2.utils.space import Space
@@ -117,6 +116,8 @@ class rSignal(ABC):
     family: str | None = None
     step_input_keys: tuple[str, ...] = ()
     supports_update_last = True
+    # 新子类声明需要在 update_last 前恢复的自有字段；None 沿用旧入口。
+    checkpoint_fields: tuple[str, ...] | None = None
     # 有额外递推状态的子类应显式列出需要修订的字段。
     _update_state_fields: tuple[str, ...] = ()
 
@@ -250,16 +251,24 @@ class rSignal(ABC):
     def _update_last_forward(self, *args: Any, **kwargs: Any) -> Any:
         return self.forward(*args, **kwargs)
 
-    def _apply_pyta2(self, indicator: rIndicator, *args: Any, **kwargs: Any) -> Any:
-        """按当前 Signal 生命周期调用 pyta2 子指标。"""
+    def apply_component(self, component: Any, *args: Any, **kwargs: Any) -> Any:
+        """按当前生命周期调用子组件的 step() 或 update_last()。"""
 
-        if not isinstance(indicator, rIndicator):
+        self._ensure_healthy()
+        if self._lifecycle_mode not in {_STEP_MODE, _UPDATE_LAST_MODE}:
+            raise RuntimeError(
+                "apply_component() requires an active step() or update_last() call"
+            )
+        step = getattr(component, "step", None)
+        update_last = getattr(component, "update_last", None)
+        if not callable(step) or not callable(update_last):
             raise TypeError(
-                f"indicator must be a pyta2 rIndicator instance, got {type(indicator)}"
+                "component must implement callable step() and update_last() methods, "
+                f"got {type(component)}"
             )
         if self._lifecycle_mode == _UPDATE_LAST_MODE:
-            return indicator.update_last(*args, **kwargs)
-        return indicator.rolling(*args, **kwargs)
+            return update_last(*args, **kwargs)
+        return step(*args, **kwargs)
 
     def reset(self) -> None:
         self.g_index = -1
@@ -278,14 +287,28 @@ class rSignal(ABC):
             )
 
     def _snapshot_update_state(self) -> Any:
+        fields = (
+            self._update_state_fields
+            if self.checkpoint_fields is None
+            else self.checkpoint_fields
+        )
+        if not isinstance(fields, tuple) or any(
+            not isinstance(field, str) for field in fields
+        ):
+            raise TypeError(
+                f"{self.full_name} checkpoint_fields must be a tuple of field names"
+            )
         values: dict[str, Any] = {}
-        for field in self._update_state_fields:
+        for field in fields:
             if not hasattr(self, field):
                 raise AttributeError(
                     f"{self.full_name} update state field {field!r} does not exist"
                 )
             value = getattr(self, field)
-            if isinstance(value, (rIndicator, rSignal)):
+            if isinstance(value, rSignal) or (
+                callable(getattr(value, "update_last", None))
+                and callable(getattr(value, "reset", None))
+            ):
                 raise TypeError(
                     f"{self.full_name} update state field {field!r} is a lifecycle "
                     "component and must not be checkpointed by its parent"

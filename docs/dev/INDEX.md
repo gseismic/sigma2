@@ -1,6 +1,6 @@
 # 计划执行索引
 
-更新时间：2026-09-24 16:26 CST
+更新时间：2026-09-24 16:56 CST
 
 ## 历史说明
 
@@ -33,6 +33,7 @@
 | 2026-09-24 11:59 CST | `PLAN-021-usage-examples-docs.md` | `PLAN-021-usage-examples-docs-OUTCOME.md` | 新增六个可运行使用示例，重整 README 快速开始与关键语义，并优化 sigma2 使用 skill 的任务路由；六个示例和 README 三个代码块均运行通过。 |
 | 2026-09-24 12:04 CST | `PLAN-022-numbered-examples.md` | `PLAN-022-numbered-examples-OUTCOME.md` | 将六个示例按展示顺序重命名为 `01_` 至 `06_`，同步 README、skill 与运行命令；编号模块、文档链接及格式检查通过。 |
 | 2026-09-24 16:26 CST | `PLAN-023-mean-of-mean-template.md` | `PLAN-023-mean-of-mean-template-OUTCOME.md` | 实现无 pyta2 指标的 K 线两级均值 Signal 模板，core 支持 dtype 输出 schema；验证连续修订、重放与 batch，一共 93 项测试通过，并记录 core 仍依赖 pyta2 的运行时边界。 |
+| 2026-09-24 16:56 CST | `PLAN-024-mean-of-mean-v2.md` | `PLAN-024-mean-of-mean-v2-OUTCOME.md` | 保留 V1，新增可选八种 pyta2 MA 的两级均值 V2；core 改为通用 `apply_component()`，pyta2 调用移至适配对象，公开 `checkpoint_fields`；119 项测试通过，1 项因可选依赖跳过。 |
 
 ## 当前设计文档规则
 

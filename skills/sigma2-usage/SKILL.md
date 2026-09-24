@@ -22,6 +22,7 @@ description: 当用户询问如何安装或使用 sigma2、计算 K 线/盘口/�
 | 临时复用 pyta2 rolling 指标 | [pyta2 桥接](../../examples/05_pyta2_bridge.py) |
 | 自定义带递推状态的 Signal | [自定义 Signal](../../examples/06_custom_signal.py) |
 | 无 pyta2 指标的 K 线两级均值模板 | [两级均值](../../examples/07_mean_of_mean.py) |
+| 组合两个 pyta2 MA 并选择类型 | [两级均值 V2](../../examples/08_mean_of_mean_v2.py) |
 
 ## 回答使用问题
 

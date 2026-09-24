@@ -12,9 +12,11 @@ from .trend import (
     KlineMA,
     KlineMACD,
     KlineMeanOfMean,
+    KlineMeanOfMeanV2,
     rKlineMA,
     rKlineMACD,
     rKlineMeanOfMean,
+    rKlineMeanOfMeanV2,
 )
 from .volatility import KlineATR, KlineBoll, rKlineATR, rKlineBoll
 
@@ -26,6 +28,7 @@ __all__ = [
     "KlineMA",
     "KlineMACD",
     "KlineMeanOfMean",
+    "KlineMeanOfMeanV2",
     "KlineRSI",
     "KlineReturn",
     "rKlineATR",
@@ -39,6 +42,7 @@ __all__ = [
     "rKlineMA",
     "rKlineMACD",
     "rKlineMeanOfMean",
+    "rKlineMeanOfMeanV2",
     "rKlineRSI",
     "rKlineReturn",
 ]

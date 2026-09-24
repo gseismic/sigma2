@@ -1,6 +1,6 @@
 # 新增 sigma2 Signal
 
-本指南适用于在 sigma2 仓库增加因子或 family Signal。先读根目录 `AGENTS.md` 的计划、代码和文档约定，以及当前 `sigma2/__init__.py` 和目标 family 的实现。公共 API 取舍不清楚时先做设计，不要直接把实现选择写成新契约。最小有状态扩展示例见 [`examples/06_custom_signal.py`](../../../examples/06_custom_signal.py)；不调用 pyta2 指标的 K 线组合模板见 [`rKlineMeanOfMean`](../../../sigma2/kline/trend/mean_of_mean.py)。
+本指南适用于在 sigma2 仓库增加因子或 family Signal。先读根目录 `AGENTS.md` 的计划、代码和文档约定，以及当前 `sigma2/__init__.py` 和目标 family 的实现。公共 API 取舍不清楚时先做设计，不要直接把实现选择写成新契约。最小有状态扩展示例见 [`examples/06_custom_signal.py`](../../../examples/06_custom_signal.py)；不调用 pyta2 指标的 K 线组合模板见 [`rKlineMeanOfMean`](../../../sigma2/kline/trend/mean_of_mean.py)，组合两个 pyta2 MA 的模板见 [`rKlineMeanOfMeanV2`](../../../sigma2/kline/trend/mean_of_mean_v2.py)。
 
 ## 1. 判断数据时点和 family
 
@@ -32,19 +32,19 @@
 
 ### 自有公式或有状态组合，不调用 pyta2 指标
 
-参考 [`rKlineMeanOfMean`](../../../sigma2/kline/trend/mean_of_mean.py) 及其[设计说明](../../../docs/design/mean-of-mean-20260924-template.md)。直接继承 `rKlineSignal`，把每次观测需要的状态放在子类，并将修订时必须恢复的字段列入 `_update_state_fields`；`reset_extras()` 重新建立这些状态。`forward()` 只处理当前一根观测，预热不足时自行返回 `NaN`。
+参考 [`rKlineMeanOfMean`](../../../sigma2/kline/trend/mean_of_mean.py) 及其[设计说明](../../../docs/design/mean-of-mean-20260924-template.md)。直接继承 `rKlineSignal`，把每次观测需要的状态放在子类，并将修订时必须恢复的字段列入公开的 `checkpoint_fields`；`reset_extras()` 重新建立这些状态。V1 仍使用兼容的 `_update_state_fields`，新 Signal 应使用 `checkpoint_fields`。`forward()` 只处理当前一根观测，预热不足时自行返回 `NaN`。
 
 纯数值输出可以用 `schema={"mean_of_mean": np.float64}` 声明 dtype，不必在因子文件导入 pyta2 的 `Space`。这只消除因子源码对 pyta2 指标和类型的依赖；sigma2 core 当前仍使用 pyta2 的 schema/缓存工具，安装依赖不变。
 
 ### 市场结构派生或组合 Signal
 
-从正确的 family 基类继承，自己定义 schema、`full_name` 和真实输入派生。例如盘口深度失衡先由 sigma2 处理 bids/asks，再通过 `_apply_pyta2()` 调用 pyta2 rolling 指标；详见总设计第 10.6 节。
+从正确的 family 基类继承，自己定义 schema、`full_name` 和真实输入派生。例如盘口深度失衡先由 sigma2 处理 bids/asks，再用 `Pyta2Component` 适配 pyta2 rolling 指标，并通过通用的 `apply_component()` 调用；详见[组合接口设计](../../../docs/design/pyta2-composition-api-20260924-overview.md)与 [`rKlineMeanOfMeanV2`](../../../sigma2/kline/trend/mean_of_mean_v2.py)。
 
 实现时遵守这些边界：
 
 - `forward()` 只实现算法，不手动推进 `g_index`、追加/替换 `outputs`，也不判断 append 或 revise。
-- 保持 `step()` 和 `update_last()` 的输入结构一致。对 pyta2 子指标使用 `_apply_pyta2()`，由 core 在新观测和修订时分派到 `rolling()` / `update_last()`。
-- 覆盖 `reset_extras()`，清空 Signal 自有状态和子组件。自有可变递推字段列入 `_update_state_fields`，以便最后观测修订能恢复观测前状态；不要把生命周期子组件列入父 Signal 的 checkpoint 字段。
+- 保持 `step()` 和 `update_last()` 的输入结构一致。用 `Pyta2Component(indicator)` 创建适配对象，在 `forward()` 中调用 `self.apply_component(component, ...)`；core 分派组件的 `step()` / `update_last()`，适配对象再映射到 pyta2 的 `rolling()` / `update_last()`。`apply_component()` 只能在父 Signal 的这两个生命周期中使用。
+- 覆盖 `reset_extras()`，清空 Signal 自有状态并调用子组件的 `reset()`。自有可变递推字段列入 `checkpoint_fields`，以便最后观测修订能恢复观测前状态；不要把生命周期子组件列入父 Signal 的检查点字段。旧 `_update_state_fields` 仍兼容既有子类。
 - 修订计算失败后 Signal 进入 faulted 状态；只有 `reset()` 并重放已确认观测才能继续。不要直接改 `g_index` 或输出缓存。
 - 明确 `window` / `extra_window`，使 `required_window` 反映输出需要的观测数量；schema 的输出 key、dtype 与实际结果保持一致。
 
@@ -77,4 +77,4 @@ batch 函数用 `forward_signal_apply(data, rKlineExample, ...)`；不要维护�
 - 检查 `schema`、`output_keys`、`full_name`、`factor_names`、必需列校验和 family 包导出。
 - target 应验证数据时点与 `update_last()` 的拒绝行为，避免未来数据被误用为当前特征。
 
-使用 `_update_state_fields` 的组合 Signal，尤其要验证“派生状态 + pyta2 子指标”同时恢复时的 replay 等价性。扩展完成后按仓库 `AGENTS.md` 执行实施计划、review、结果记录和提交约定。
+使用 `checkpoint_fields` 的组合 Signal，尤其要验证“派生状态 + pyta2 子指标”同时恢复时的 replay 等价性。扩展完成后按仓库 `AGENTS.md` 执行实施计划、review、结果记录和提交约定。
