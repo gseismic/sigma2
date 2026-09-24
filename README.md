@@ -150,6 +150,14 @@ sigma2/kline/
 
 由单个 pyta2 component 支撑的新 K 线因子可参考 `docs/design/kline-factor-20260922-template.md`。orderbook 的“多档深度失衡 + pyta2 SMA”组合例见总设计第 10.6 节，它展示了 sigma2 的核心定位：组合结构化市场派生与 rolling component，而不是复刻 pyta2 名称。
 
+### 新增信号
+
+新增 Signal 前先判断输出是否依赖未来数据：依赖未来 K 线的输出属于 `sigma2.kline.target`，不能作为当下可用的 causal feature。其它信号按市场输入选择 K 线、orderbook 或 trade family，并按主要市场含义放入对应目录。
+
+由单个 pyta2 rolling 指标支撑的 K 线因子，沿用 K 线因子模板：一个因子一个 canonical 文件，在线 `rKlineX` 与 batch `KlineX` 同文件，batch 通过 `forward_signal_apply()` replay 同一个 Signal。结构化或组合信号从对应 family 基类实现；自有递推状态需声明 `_update_state_fields`，并通过 `_apply_pyta2()` 驱动 pyta2 子指标的修订生命周期。
+
+新增实现应更新领域包导出，并按公共 API 稳定程度更新 `sigma2.kline` 与顶层 `sigma2` 导出。保持 `full_name` 包含所有影响结果的参数；多输出 `factor_names` 按 schema key 生成。补充 batch/replay、`update_last()`、输出身份和导出契约测试。详细步骤见 [`skills/sigma2-usage/SKILL.md`](skills/sigma2-usage/SKILL.md) 及其[新增信号指南](skills/sigma2-usage/references/add-signals.md)。
+
 ## 安装依赖
 
 sigma2 声明 `pyta2>=0.0.1` 为安装依赖。K 线旧短名称与旧模块路径已在 `0.4.0` 删除；当前入口使用 `rKlineX/KlineX` 与 `sigma2.kline.target`。自定义有额外递推状态的 Signal 应通过 `_update_state_fields` 声明修订时需要恢复的字段。
