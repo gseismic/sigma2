@@ -8,7 +8,14 @@ from .target import (
     rKlineFutureHighLowChange,
     rKlineFutureReturn,
 )
-from .trend import KlineMA, KlineMACD, rKlineMA, rKlineMACD
+from .trend import (
+    KlineMA,
+    KlineMACD,
+    KlineMeanOfMean,
+    rKlineMA,
+    rKlineMACD,
+    rKlineMeanOfMean,
+)
 from .volatility import KlineATR, KlineBoll, rKlineATR, rKlineBoll
 
 __all__ = [
@@ -18,6 +25,7 @@ __all__ = [
     "KlineKDJ",
     "KlineMA",
     "KlineMACD",
+    "KlineMeanOfMean",
     "KlineRSI",
     "KlineReturn",
     "rKlineATR",
@@ -30,6 +38,7 @@ __all__ = [
     "rKlineKDJ",
     "rKlineMA",
     "rKlineMACD",
+    "rKlineMeanOfMean",
     "rKlineRSI",
     "rKlineReturn",
 ]

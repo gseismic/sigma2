@@ -1,6 +1,6 @@
 # 新增 sigma2 Signal
 
-本指南适用于在 sigma2 仓库增加因子或 family Signal。先读根目录 `AGENTS.md` 的计划、代码和文档约定，以及当前 `sigma2/__init__.py` 和目标 family 的实现。公共 API 取舍不清楚时先做设计，不要直接把实现选择写成新契约。最小有状态扩展示例见 [`examples/06_custom_signal.py`](../../../examples/06_custom_signal.py)。
+本指南适用于在 sigma2 仓库增加因子或 family Signal。先读根目录 `AGENTS.md` 的计划、代码和文档约定，以及当前 `sigma2/__init__.py` 和目标 family 的实现。公共 API 取舍不清楚时先做设计，不要直接把实现选择写成新契约。最小有状态扩展示例见 [`examples/06_custom_signal.py`](../../../examples/06_custom_signal.py)；不调用 pyta2 指标的 K 线组合模板见 [`rKlineMeanOfMean`](../../../sigma2/kline/trend/mean_of_mean.py)。
 
 ## 1. 判断数据时点和 family
 
@@ -29,6 +29,12 @@
 - 继承内部 `_rKlineIndicatorFactor`，复用 pyta2 指标的 schema、窗口、数值和名称，不复制公式或元信息。
 - 使用真实输入字段绑定。多输入指标传完整 `fields`，例如 HLC 输入不能伪装成只绑定 `close`。
 - `Kline` 只用于 Python API 避免与 pyta2 重名；不要把它加入训练列 `full_name`。
+
+### 自有公式或有状态组合，不调用 pyta2 指标
+
+参考 [`rKlineMeanOfMean`](../../../sigma2/kline/trend/mean_of_mean.py) 及其[设计说明](../../../docs/design/mean-of-mean-20260924-template.md)。直接继承 `rKlineSignal`，把每次观测需要的状态放在子类，并将修订时必须恢复的字段列入 `_update_state_fields`；`reset_extras()` 重新建立这些状态。`forward()` 只处理当前一根观测，预热不足时自行返回 `NaN`。
+
+纯数值输出可以用 `schema={"mean_of_mean": np.float64}` 声明 dtype，不必在因子文件导入 pyta2 的 `Space`。这只消除因子源码对 pyta2 指标和类型的依赖；sigma2 core 当前仍使用 pyta2 的 schema/缓存工具，安装依赖不变。
 
 ### 市场结构派生或组合 Signal
 

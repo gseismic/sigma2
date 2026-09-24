@@ -2,11 +2,13 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from collections import OrderedDict
-from collections.abc import Mapping
+from collections.abc import Iterator, Mapping
 from copy import deepcopy
 from dataclasses import dataclass
 from typing import Any
 
+import numpy as np
+from numpy.typing import DTypeLike
 from pyta2.base import rIndicator
 from pyta2.base.schema import Schema
 from pyta2.utils.deque import DequeTable
@@ -34,8 +36,82 @@ class _DeclaredUpdateState:
     values: dict[str, Any]
 
 
+@dataclass(frozen=True)
+class _DTypeField:
+    dtype: np.dtype[Any]
+
+
+class _DTypeSchema(Mapping[str, Space | _DTypeField]):
+    """只声明 dtype 的输出 schema；保留 pyta2 Space 的兼容入口。"""
+
+    def __init__(self, entries: list[tuple[str, Any]]) -> None:
+        fields: OrderedDict[str, Space | _DTypeField] = OrderedDict()
+        if not entries:
+            raise ValueError("schema must contain at least one field")
+        for entry in entries:
+            if not isinstance(entry, (list, tuple)) or len(entry) != 2:
+                raise TypeError(
+                    f"schema entries must be (key, dtype) pairs, got {entry!r}"
+                )
+            key, spec = entry
+            if not isinstance(key, str):
+                raise ValueError(f"schema key must be str, got {type(key)}")
+            if key in fields:
+                raise ValueError(
+                    f"schema key must be unique, got duplicate key {key!r}"
+                )
+            if isinstance(spec, Space):
+                fields[key] = spec
+                continue
+            if spec is None:
+                raise TypeError(f"schema dtype for {key!r} must not be None")
+            try:
+                fields[key] = _DTypeField(np.dtype(spec))
+            except (TypeError, ValueError) as exc:
+                raise TypeError(
+                    f"schema dtype for {key!r} is invalid: {spec!r}"
+                ) from exc
+        self._fields = fields
+
+    def __getitem__(self, key: str) -> Space | _DTypeField:
+        return self._fields[key]
+
+    def __iter__(self) -> Iterator[str]:
+        return iter(self._fields)
+
+    def __len__(self) -> int:
+        return len(self._fields)
+
+    def get_dtypes(self) -> dict[str, DTypeLike]:
+        return {key: field.dtype for key, field in self._fields.items()}
+
+
+def _normalize_schema(
+    schema: list[tuple[str, Space | DTypeLike]]
+    | Mapping[str, Space | DTypeLike]
+    | Schema
+    | _DTypeSchema,
+) -> Schema | _DTypeSchema:
+    if isinstance(schema, (Schema, _DTypeSchema)):
+        return schema
+    if isinstance(schema, Mapping):
+        entries = list(schema.items())
+    elif isinstance(schema, list):
+        entries = list(schema)
+    else:
+        raise TypeError(f"schema must be list, Mapping or Schema, got {type(schema)}")
+    if entries and all(
+        isinstance(entry, (list, tuple))
+        and len(entry) == 2
+        and isinstance(entry[1], Space)
+        for entry in entries
+    ):
+        return Schema(schema)
+    return _DTypeSchema(entries)
+
+
 class rSignal(ABC):
-    """轻量有状态 rolling signal 基类。"""
+    """轻量有状态 rolling signal 基类；schema 可用 Space 或 NumPy dtype。"""
 
     name: str | None = None
     family: str | None = None
@@ -47,7 +123,9 @@ class rSignal(ABC):
     def __init__(
         self,
         window: int,
-        schema: list[tuple[str, Space]] | OrderedDict[str, Space] | dict[str, Space] | Schema,
+        schema: list[tuple[str, Space | DTypeLike]]
+        | Mapping[str, Space | DTypeLike]
+        | Schema,
         *,
         buffer_size: int | None = None,
         extra_window: int = 0,
@@ -55,11 +133,6 @@ class rSignal(ABC):
         return_dict: bool = False,
         name: str | None = None,
     ) -> None:
-        if not isinstance(schema, (list, dict, OrderedDict, Schema)):
-            raise TypeError(
-                "schema must be list, dict, OrderedDict or Schema, "
-                f"got {type(schema)}"
-            )
         if buffer_size is not None and buffer_size <= 0:
             raise ValueError(f"buffer_size must be greater than 0, got {buffer_size}")
         if buffer_factor < 1:
@@ -68,7 +141,7 @@ class rSignal(ABC):
             self.name = name
 
         self.set_window(window, extra_window)
-        self.schema = Schema(schema) if isinstance(schema, (list, dict, OrderedDict)) else schema
+        self.schema = _normalize_schema(schema)
         self.buffer_factor = buffer_factor
         self.output_keys = list(self.schema.keys())
         self.return_dict = return_dict
@@ -98,7 +171,9 @@ class rSignal(ABC):
 
         self._outputs.resize(buffer_size)
 
-    def set_window(self, window: int | None = None, extra_window: int | None = None) -> None:
+    def set_window(
+        self, window: int | None = None, extra_window: int | None = None
+    ) -> None:
         """设置 warmup 窗口配置。"""
 
         if window is not None:
