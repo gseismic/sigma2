@@ -1,6 +1,7 @@
 # 基于 pyta2 MA 的两级均值 Signal V2
 
 创建时间：2026-09-24 16:30 CST
+修订时间：2026-09-24 21:25 CST
 
 ## 目标
 
@@ -23,6 +24,8 @@ V2 的输出 schema key 仍为 `mean_of_mean`，训练列名与 V1 区分，例�
 V2 继承 `rKlineWindowSignal`，原始 K 线窗口长度为 `inner.required_window + outer.required_window - 1`。构造时用 `Pyta2Component` 分别适配两个 MA。每根调用通用的 `apply_component(inner_adapter, selected_field_array)`；内层达到自身所需观测数后，才把输出加入长度为 `outer.required_window` 的中间 deque 并调用 `apply_component(outer_adapter, middle_array)`。未到最终窗口前输出 `NaN`。内层已达到窗口却因输入缺失返回 `NaN` 时，仍把该值传给外层，交给 pyta2 MA 处理缺失值。
 
 中间 deque 是 Signal 自有状态，列入公开的 `checkpoint_fields`；两个 pyta2 子指标由适配层调用各自的 `update_last()` 恢复，不列入父 Signal 检查点。`reset_window_extras()` 清空中间队列并重置两个组件。batch 只调用 `forward_signal_apply()` replay V2，不复制公式。公开扩展接口的取舍和错误语义见 `docs/design/pyta2-composition-api-20260924-overview.md`。
+
+两级 MA 的其它内部调用写法、优缺点及未来取舍见 [组合写法对比](ma-of-ma-20260924-composition-options.md)。该文档是设计备忘，不改变本设计采用的适配对象方案。
 
 ## 三轮审阅
 
