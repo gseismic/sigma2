@@ -1,6 +1,6 @@
 # 计划执行索引
 
-更新时间：2026-09-23 10:34 CST
+更新时间：2026-09-24 11:59 CST
 
 ## 历史说明
 
@@ -30,6 +30,7 @@
 | 2026-09-22 22:36 CST | `PLAN-018-kline-factor-library.md` | `PLAN-018-kline-factor-library-OUTCOME.md` | 实施 v5.1 因子库：新增 `update_last()` 检查点生命周期、finalized batch replay、自动 factor names，以及 `rMA/MA`、RSI、MACD、Boll、KDJ、ATR 六组独立 rolling/batch API；78 项测试通过。 |
 | 2026-09-23 04:49 CST | `PLAN-019-kline-api-layout.md` | `PLAN-019-kline-api-layout-OUTCOME.md` | 实施 v5.2 与 0.3.0：K 线 API 迁为 `rKlineX/KlineX`，真实实现进入 price/trend/momentum/volatility/target 浅层目录；旧入口集中兼容并计划 0.4.0 删除，123 项测试通过。 |
 | 2026-09-23 10:34 CST | `PLAN-020-remove-compatibility.md` | `PLAN-020-remove-compatibility-OUTCOME.md` | 实施 v5.3 与 0.4.0：删除旧 K 线名称和转发路径、旧子类状态兜底及本地 pyta2 导入兜底，声明 pyta2 安装依赖；静态审查、Ruff 与语法检查通过，未运行测试。 |
+| 2026-09-24 11:59 CST | `PLAN-021-usage-examples-docs.md` | `PLAN-021-usage-examples-docs-OUTCOME.md` | 新增六个可运行使用示例，重整 README 快速开始与关键语义，并优化 sigma2 使用 skill 的任务路由；六个示例和 README 三个代码块均运行通过。 |
 
 ## 当前设计文档规则
 

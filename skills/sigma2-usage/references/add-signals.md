@@ -1,6 +1,6 @@
 # 新增 sigma2 Signal
 
-本指南适用于在 sigma2 仓库增加因子或 family Signal。先读根目录 `AGENTS.md` 的计划、代码和文档约定；公共 API 取舍不清楚时先做设计，不要直接把实现选择写成新契约。
+本指南适用于在 sigma2 仓库增加因子或 family Signal。先读根目录 `AGENTS.md` 的计划、代码和文档约定，以及当前 `sigma2/__init__.py` 和目标 family 的实现。公共 API 取舍不清楚时先做设计，不要直接把实现选择写成新契约。最小有状态扩展示例见 [`examples/custom_signal.py`](../../../examples/custom_signal.py)。
 
 ## 1. 判断数据时点和 family
 
@@ -39,6 +39,7 @@
 - `forward()` 只实现算法，不手动推进 `g_index`、追加/替换 `outputs`，也不判断 append 或 revise。
 - 保持 `step()` 和 `update_last()` 的输入结构一致。对 pyta2 子指标使用 `_apply_pyta2()`，由 core 在新观测和修订时分派到 `rolling()` / `update_last()`。
 - 覆盖 `reset_extras()`，清空 Signal 自有状态和子组件。自有可变递推字段列入 `_update_state_fields`，以便最后观测修订能恢复观测前状态；不要把生命周期子组件列入父 Signal 的 checkpoint 字段。
+- 修订计算失败后 Signal 进入 faulted 状态；只有 `reset()` 并重放已确认观测才能继续。不要直接改 `g_index` 或输出缓存。
 - 明确 `window` / `extra_window`，使 `required_window` 反映输出需要的观测数量；schema 的输出 key、dtype 与实际结果保持一致。
 
 ## 3. 提供配对 batch API

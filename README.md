@@ -1,176 +1,100 @@
 # sigma2
 
-sigma2 是面向金融市场事件的有状态 Signal 与机器学习因子库。当前版本为 `0.4.0`：在线接口按单条事件调用 `step()` / `update_last()`，离线接口按列式数据 replay 同一个 Signal，不维护第二套批量公式。
+sigma2 是面向金融市场事件的有状态 Signal 与机器学习因子库，当前版本为 `0.4.0`。同一个 Signal 既能逐条处理事件，也能由批量接口逐行重放。pyta2 提供 rolling 指标；sigma2 负责 K 线、盘口、成交的输入语义、字段绑定、修订生命周期和最终因子名。
 
-sigma2 不是 pyta2 的镜像包装器。pyta2 提供 rolling 计算积木、schema、窗口和 full name；sigma2 负责 kline、orderbook、trade 等 family 输入、字段绑定、市场结构派生、组合逻辑、最终因子身份和运行生命周期。pyta2 直接转 Signal 只使用通用桥接器 `rPyta2Signal` / `pyta2_signal()`。
+## 安装与运行
 
-## 当前公共能力
+需要 Python 3.10+。在仓库根目录安装本包及 `numpy`、`pyta2` 依赖，然后运行示例：
 
-- 核心：`rSignal`、`rKlineSignal`、`rKlineWindowSignal`、`rOrderBookSignal`、`rTradeSignal`。
-- 生命周期：`step()` 推进新观测，`update_last()` 修订最后观测，`reset()` 清空状态。
-- K 线 rolling/batch 配对：
-  - `rKlineMA` / `KlineMA`
-  - `rKlineRSI` / `KlineRSI`
-  - `rKlineMACD` / `KlineMACD`
-  - `rKlineBoll` / `KlineBoll`
-  - `rKlineKDJ` / `KlineKDJ`
-  - `rKlineATR` / `KlineATR`
-  - `rKlineReturn` / `KlineReturn`
-  - `rKlineGap` / `KlineGap`
-- batch core：`forward_signal_apply()`。
-- 训练列身份：`full_name` 与 `factor_names`。
-- future target：`rKlineFutureReturn` 等，统一放在 `sigma2.kline.target`，并明确不支持当前 bar 的 `update_last()` 语义。
-- orderbook/trade 示例：`rBookSpread`、`rTradeSignedVolume`。
+```bash
+python -m pip install -e .
+python -m examples.kline_batch
+```
 
-## 与 pyta2 同时使用
+### 第一次批量计算
 
-公共名称带 `Kline` family，pyta2 primitive 和 sigma2 Signal 可以直接并列导入：
+下面的代码可以直接运行。批量接口接收带有 `open/high/low/close/volume` 五列的对象；普通 `dict`、pandas DataFrame 都可以。五列必须是一维、等长。
 
 ```python
-from pyta2 import RSI, rRSI
-from sigma2 import KlineRSI, rKlineRSI
+from sigma2 import KlineMA
+
+closes = [10.0, 11.0, 12.0, 13.0]
+bars = {
+    "open": closes,
+    "high": closes,
+    "low": closes,
+    "close": closes,
+    "volume": [1.0] * len(closes),
+}
+
+columns, meta = KlineMA(bars, 2, ma_type="SMA", return_meta_info=True)
+name = meta["factor_names"][0]
+print(name, columns[name][-1])  # SMA(2)[close] 12.5
+```
+
+默认结果为 `dict[str, numpy.ndarray]`。不足计算窗口的位置一般为 `NaN`。需要其它格式时传 `return_type="tuple"`、`"list"`、`"dataframe"` / `"pd.dataframe"` 或 `"pl.dataframe"`；DataFrame 格式分别需要 pandas 或 polars。
+
+`rKlineMA` / `KlineMA` 可选择 SMA、EMA、WMA、HMA、DEMA、TEMA、KAMA、ZLEMA，并通过 `field` 绑定 `open/high/low/close/volume`。例如 [批量示例](examples/kline_batch.py) 同时计算收盘价均线和成交量均线。
+
+### 在线推进与修订
+
+一条 `step()` 输入是一根完整 K 线。行情源修订最后一根时，用相同字段调用 `update_last()`：
+
+```python
+from sigma2 import rKlineMA
+
+signal = rKlineMA(2, ma_type="SMA", return_dict=True)
+for close in (10.0, 11.0):
+    signal.step(open=close, high=close, low=close, close=close, volume=1.0)
+
+revised = signal.update_last(
+    open=12.0, high=12.0, low=12.0, close=12.0, volume=1.0
+)
+print(float(revised["ma"]), signal.g_index)  # 11.0 1
+```
+
+`update_last()` 从该观测之前的检查点重算，不增加 `g_index`，也不追加输出行；连续修订只以最近一次 `step()` 为基准。每个实例只服务一条输入流。计算失败后实例会进入 faulted 状态，需要 `reset()` 并重放已确认数据。`forward()` 是子类计算钩子，不用于推进公共生命周期。
+
+## 可运行示例
+
+从仓库根目录使用 `python -m examples.<模块名>` 运行：
+
+| 场景 | 示例 | 内容 |
+| --- | --- | --- |
+| K 线批量 | [kline_batch.py](examples/kline_batch.py) | MA、MACD 多输出和元信息 |
+| 在线修订 | [kline_stream.py](examples/kline_stream.py) | `step()`、重复 `update_last()`、批量重放 |
+| 盘口与成交 | [market_events.py](examples/market_events.py) | 完整盘口快照与逐笔成交的不同输入签名 |
+| 未来目标 | [future_target.py](examples/future_target.py) | 目标值对应历史 anchor 的位置 |
+| pyta2 桥接 | [pyta2_bridge.py](examples/pyta2_bridge.py) | 将通用 ROC 绑定到 K 线并批量重放 |
+| 自定义 Signal | [custom_signal.py](examples/custom_signal.py) | 自有递推状态、最后观测修订和批量重放 |
+
+## 公共入口与输出身份
+
+| 输入 family | 在线入口 | 批量入口或示例 |
+| --- | --- | --- |
+| K 线 | `rKlineMA`、`rKlineRSI`、`rKlineMACD`、`rKlineBoll`、`rKlineKDJ`、`rKlineATR`、`rKlineReturn`、`rKlineGap` | 同名去掉前缀 `r`，如 `KlineMA`、`KlineMACD` |
+| 盘口快照 | `rBookSpread`，`step(bids=..., asks=...)` | [market_events.py](examples/market_events.py) |
+| 逐笔成交 | `rTradeSignedVolume`，`step(price=..., volume=..., side=...)` | [market_events.py](examples/market_events.py) |
+| 通用 pyta2 桥接 | `pyta2_signal()` / `rPyta2Signal` | `forward_signal_apply()` |
+
+`bids`、`asks` 是已按价格排序的完整档位快照，档位形如 `(price, size)`；成交 `side` 为 `"buy"`、`"sell"` 或 `None`。K 线、盘口和成交 family 的 `update_last()` 与各自的 `step()` 使用同样的输入签名。
+
+批量结果用 `factor_names` 作为列名：单输出是 `full_name`，多输出按 `full_name.output_key` 展开。例如 `rKlineMACD()` 的列名包括 `MACD(26,12,9)[close].dif`；逐条调用时 `return_dict=True` 则返回 `dif`、`dea`、`macd` 这些 schema key。`Kline` 只区分 Python API，不进入数据列身份。
+
+pyta2 primitive 与 sigma2 Signal 可以并列导入：
+
+```python
+from pyta2.momentum import rRSI
+from sigma2 import rKlineRSI
 
 primitive = rRSI(14)
 signal = rKlineRSI(14, field="close")
-
-primitive_values = RSI(closes, 14)
-factor_columns = KlineRSI(kline, 14)
 ```
 
-`Kline` 只区分 Python API，不进入数据列身份。`rKlineRSI(14).full_name` 仍为 `RSI(14)[close]`，已有训练列无需改名。
+前者处理指标本身；后者处理 K 线字段绑定和 Signal 生命周期。通用桥接适合临时复用 pyta2 指标；稳定的公共 K 线因子优先使用具名 `rKlineX` / `KlineX` 入口。
 
-## 在线因子
+## 未来目标与扩展
 
-```python
-from sigma2 import rKlineMA
+`sigma2.kline.target` 中的 `rKlineFutureReturn` 等目标依赖未来 K 线。以 horizon 为 2 的 future return 为例，在索引 2 收到第三根 K 线时，输出才确定索引 0 的目标值。它属于历史 anchor，不能作为索引 2 当下可用的特征；这些 target 也不支持普通正向 Signal 的 `update_last()` 语义。
 
-ema = rKlineMA(20, ma_type="EMA", field="close")
-
-value = ema.step(
-    open=100.0,
-    high=103.0,
-    low=99.0,
-    close=102.0,
-    volume=1200.0,
-)
-
-# 交易所随后修订同一根 K 线：索引不增加，最后输出被替换。
-revised = ema.update_last(
-    open=100.0,
-    high=104.0,
-    low=99.0,
-    close=103.0,
-    volume=1250.0,
-)
-```
-
-连续调用 `update_last()` 总是从最近一次普通 `step()` 之前的状态重算，因此不会重复消费当前 bar。计算异常后 Signal 进入 faulted 状态，应 `reset()` 并重放已确认数据。
-
-`rKlineMA` 支持 pyta2 当前公开的 SMA、EMA、WMA、HMA、DEMA、TEMA、KAMA、ZLEMA，可绑定 `open/high/low/close/volume`：
-
-```python
-from sigma2 import rKlineMA
-
-volume_kama = rKlineMA(
-    10,
-    ma_type="KAMA",
-    field="volume",
-    ma_kwargs={"n2": 2, "n3": 30, "stride": 2},
-)
-
-print(volume_kama.full_name)
-# KAMA(10,2,30,stride=2)[volume]
-```
-
-## 批量因子
-
-batch 函数接收提供 `keys()` 和 `__getitem__()` 的列式对象；普通 dict 和 pandas DataFrame 均可作为输入。K 线 family 的稳定输入列为 `open/high/low/close/volume`，额外列会被忽略。
-
-```python
-from sigma2 import KlineMA, KlineMACD
-
-kline = {
-    "open": opens,
-    "high": highs,
-    "low": lows,
-    "close": closes,
-    "volume": volumes,
-}
-
-ma_columns = KlineMA(kline, 20, ma_type="EMA", field="close")
-macd_columns = KlineMACD(kline, fast=12, slow=26, signal=9)
-
-print(ma_columns.keys())
-# dict_keys(["EMA(20)[close]"])
-```
-
-默认返回 `dict[str, np.ndarray]`。`return_type` 还支持：
-
-- `"tuple"`：单输出为数组，多输出为数组 tuple。
-- `"list"`：逐行 factor 字典。
-- `"dataframe"` / `"pd.dataframe"`：pandas DataFrame。
-- `"pl.dataframe"`：polars DataFrame。
-
-传入 `return_meta_info=True` 可获得 `(result, meta_info)`。
-
-## 因子名规则
-
-- 单输出：`factor_names == [full_name]`。
-- 多输出：`factor_names == [f"{full_name}.{output_key}", ...]`。
-
-例如：
-
-```text
-EMA(20)[close]
-RSI(14)[close]
-MACD(26,12,9)[close].dif
-MACD(26,12,9)[close].dea
-MACD(26,12,9)[close].macd
-KDJ(9,3,3)[high,low,close].k
-ATR(20,EMA)[high,low,close]
-```
-
-逐条调用时，`return_dict=True` 仍使用稳定 schema key（如 `dif/dea/macd`）；`factor_names` 负责跨因子的唯一列身份。
-
-## 文件结构与扩展
-
-K 线实现按市场含义使用一层浅分类：
-
-```text
-sigma2/kline/
-  price/         # Return、Gap
-  trend/         # MA、MACD
-  momentum/      # RSI、KDJ
-  volatility/    # ATR、Boll
-  target/        # 依赖未来 K 线的监督目标
-  _internal/     # 非公共复用模板
-```
-
-放置规则只有两步：任何依赖未来 K 线的输出先进入 `target/`；其余 Signal 按主要市场含义分类。一个 Signal 只有一个 canonical 实现文件，rolling 类与 batch 函数放在同一文件；不按 `simple/composite` 或 `rolling/batch` 再分目录。
-
-由单个 pyta2 component 支撑的新 K 线因子可参考 `docs/design/kline-factor-20260922-template.md`。orderbook 的“多档深度失衡 + pyta2 SMA”组合例见总设计第 10.6 节，它展示了 sigma2 的核心定位：组合结构化市场派生与 rolling component，而不是复刻 pyta2 名称。
-
-### 新增信号
-
-新增 Signal 前先判断输出是否依赖未来数据：依赖未来 K 线的输出属于 `sigma2.kline.target`，不能作为当下可用的 causal feature。其它信号按市场输入选择 K 线、orderbook 或 trade family，并按主要市场含义放入对应目录。
-
-由单个 pyta2 rolling 指标支撑的 K 线因子，沿用 K 线因子模板：一个因子一个 canonical 文件，在线 `rKlineX` 与 batch `KlineX` 同文件，batch 通过 `forward_signal_apply()` replay 同一个 Signal。结构化或组合信号从对应 family 基类实现；自有递推状态需声明 `_update_state_fields`，并通过 `_apply_pyta2()` 驱动 pyta2 子指标的修订生命周期。
-
-新增实现应更新领域包导出，并按公共 API 稳定程度更新 `sigma2.kline` 与顶层 `sigma2` 导出。保持 `full_name` 包含所有影响结果的参数；多输出 `factor_names` 按 schema key 生成。补充 batch/replay、`update_last()`、输出身份和导出契约测试。详细步骤见 [`skills/sigma2-usage/SKILL.md`](skills/sigma2-usage/SKILL.md) 及其[新增信号指南](skills/sigma2-usage/references/add-signals.md)。
-
-## 安装依赖
-
-sigma2 声明 `pyta2>=0.0.1` 为安装依赖。K 线旧短名称与旧模块路径已在 `0.4.0` 删除；当前入口使用 `rKlineX/KlineX` 与 `sigma2.kline.target`。自定义有额外递推状态的 Signal 应通过 `_update_state_fields` 声明修订时需要恢复的字段。
-
-## 设计与验证
-
-- 总设计：`docs/design/sigma2-20260922-v5.md`（v5.3）
-- 兼容层清理：`docs/design/compatibility-removal-20260923-overview.md`
-- K 线因子模板：`docs/design/kline-factor-20260922-template.md`
-- 当前实施计划：`docs/dev/PLAN-020-remove-compatibility.md`
-
-```bash
-pytest -q
-ruff check sigma2 tests
-python -m compileall -q sigma2 tests
-```
+扩展单个 pyta2 指标支撑的 K 线因子，参考 [K 线因子模板](docs/design/kline-factor-20260922-template.md)；扩展结构化或有状态 Signal，参考 [新增信号指南](skills/sigma2-usage/references/add-signals.md) 与 [custom_signal.py](examples/custom_signal.py)。当前总设计见 [sigma2 v5](docs/design/sigma2-20260922-v5.md)，最新计划执行记录见 [docs/dev/INDEX.md](docs/dev/INDEX.md)。

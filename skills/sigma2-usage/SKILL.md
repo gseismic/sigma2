@@ -1,65 +1,36 @@
 ---
 name: sigma2-usage
-description: 在本仓库使用或扩展 sigma2 信号与因子时使用，涵盖在线 step/update_last、批量 replay、因子身份和新增 Signal 的实现约定。
+description: 当用户询问如何安装或使用 sigma2、计算 K 线/盘口/成交因子、处理在线 step/update_last 与批量结果、理解因子列名和未来 target，或要在本仓库新增 Signal/因子时使用。给出与当前源码一致的可运行示例及扩展步骤。
 ---
 
 # sigma2 使用与扩展
 
-帮助用户正确调用 sigma2 的在线、批量和 family API；用户要新增信号或因子时，按本仓库当前实现约定扩展。
+帮助用户正确调用现有公共 API；需要扩展时，遵循当前 family、生命周期和因子身份契约。
 
-## 先确认当前 API
+## 先定位任务和当前实现
 
-- 先看仓库根目录 `README.md` 和 `sigma2/__init__.py`。需要新增 K 线因子时，再读 `docs/design/kline-factor-20260922-template.md`；需要组合状态或自定义 family 时，读 `docs/design/sigma2-20260922-v5.md` 的相关章节。
-- 以当前源码和导出为准。仓库设计文档包含历史版本章节；当前 K 线名称是 `rKlineX` / `KlineX`，不要从旧章节复制已移除的 `rMA` / `MA` 等名称。
-- sigma2 管理市场 family 输入、字段绑定和 Signal 生命周期；pyta2 提供可复用的 rolling 指标。避免为 sigma2 创建 pyta2 指标名称的镜像目录或短名称。
+1. 先读仓库根目录 `README.md`、`sigma2/__init__.py`，再读对应示例和目标类源码。源码与导出优先于历史设计文档。
+2. 如果是新增 K 线因子，读 `docs/design/kline-factor-20260922-template.md`；如果是自定义状态、组合或新 family，读 [新增信号指南](references/add-signals.md) 和总设计中相关章节。
+3. 当前版本为 0.4.0。K 线公共名称是 `rKlineX` / `KlineX`；不要引用已删除的 `rMA` / `MA` 等短名称或旧模块路径。
 
-## 在线调用
+| 用户需求 | 先看示例 |
+| --- | --- |
+| 离线计算 MA、MACD 或理解返回列 | [K 线批量](../../examples/kline_batch.py) |
+| 实时推进、最后一根修订、继续输入 | [K 线在线](../../examples/kline_stream.py) |
+| 盘口快照或逐笔成交 | [市场事件](../../examples/market_events.py) |
+| 未来收益等监督目标 | [未来目标](../../examples/future_target.py) |
+| 临时复用 pyta2 rolling 指标 | [pyta2 桥接](../../examples/pyta2_bridge.py) |
+| 自定义带递推状态的 Signal | [自定义 Signal](../../examples/custom_signal.py) |
 
-在线每次输入一条观测，使用 `step()` 推进：
+## 回答使用问题
 
-```python
-from sigma2 import rKlineRSI
-
-signal = rKlineRSI(14, field="close")
-value = signal.step(
-    open=100.0,
-    high=103.0,
-    low=99.0,
-    close=102.0,
-    volume=1200.0,
-)
-```
-
-如果同一条最新观测被行情源修订，使用与 `step()` 相同字段调用 `update_last()`。它会从当前观测之前的检查点重算，不增加 `g_index` 或输出行；连续修订也是安全的。`update_last()` 只改最后一条观测，不支持修改历史任意位置。
-
-每个 Signal 实例只服务一条输入流，不要跨 symbol、周期或线程共享。计算失败后实例进入 faulted 状态；调用 `reset()` 并重放已确认的观测后再继续。不要直接调用 `forward()` 推进生命周期。
-
-## 批量调用
-
-`KlineX` 接受以 OHLCV 列为基础的列式对象，例如普通 dict 或 pandas DataFrame。必需列必须是一维且长度一致；默认输出 `dict[str, numpy.ndarray]`，键是训练用的因子名。
-
-```python
-from sigma2 import KlineMA
-
-data = {
-    "open": opens,
-    "high": highs,
-    "low": lows,
-    "close": closes,
-    "volume": volumes,
-}
-features = KlineMA(data, 20, ma_type="EMA", field="close")
-```
-
-`return_type` 可选 `"dict"`、`"tuple"`、`"list"`、`"dataframe"` / `"pd.dataframe"`、`"pl.dataframe"`；后两类分别需要 pandas 或 polars。需要元信息时传 `return_meta_info=True`，返回 `(result, meta_info)`。batch 接口会逐行调用同一个 Signal 的 `step()`；用户需要在线和离线一致性时，应复用配对的 `rKlineX` / `KlineX`，不要另写批量公式。
-
-## 因子身份与 pyta2
-
-- `full_name` 是人可读、可复现的因子身份；单输出的 `factor_names` 等于 `[full_name]`，多输出按 `full_name.output_key` 展开。
-- `output_keys` / schema key 是逐条输出结构，不替代训练列名。多输出 Signal 在 `return_dict=True` 时仍按 schema key 返回字典。
-- 同时使用两个库时分别按 family 名导入，例如 `from pyta2 import rRSI, RSI` 与 `from sigma2 import rKlineRSI, KlineRSI`。pyta2 primitive 处理指标本身；sigma2 Signal 绑定市场输入并管理生命周期。需要将通用 pyta2 rolling 指标接入 K 线时，查看 `pyta2_signal()`；独立、稳定的公开因子优先使用具名 `rKlineX` / `KlineX` API。
-- 依赖未来 K 线的数据是 target，不是可用于当下决策的 causal feature。现有未来目标放在 `sigma2.kline.target`，并不支持 `update_last()`；不要把它们混入正向特征 Signal。
+- 给用户能直接运行的代码：定义全部输入变量，使用当前导出的名称，K 线传完整 `open/high/low/close/volume`。说明窗口未满时可能返回 `NaN`。
+- 在线用 `step()` 处理新观测；`update_last()` 只修订最近一次 `step()` 的观测，不能任意改历史。重复修订不推进 `g_index`。计算失败后 `reset()` 并重放已确认输入；每条 symbol/周期输入流使用独立实例。
+- 批量调用具名 `KlineX(data, ...)`，或对自定义 Signal 使用 `forward_signal_apply(data, SignalClass, ...)`。列式输入的必需键由 `step_input_keys` 决定，必需列须一维且等长。默认得到以 `factor_names` 为键的 numpy 数组字典；`return_type` 控制批量格式，`return_meta_info=True` 返回 `(result, meta_info)`。
+- 区分在线 `return_dict=True` 的 schema key 与批量训练列名：如 MACD 的在线 key 是 `dif/dea/macd`，批量列名是 `MACD(26,12,9)[close].dif` 等。单输出的 `factor_names` 是 `[full_name]`。
+- pyta2 负责 rolling 指标；sigma2 负责市场输入和 Signal 生命周期。通用 `pyta2_signal()` 可绑定 pyta2 指标；已有稳定因子优先使用具名 `rKlineX` / `KlineX`。
+- future target 的输出对应较早的 anchor，不是当前时点可用特征；`sigma2.kline.target` 的现有类不支持 `update_last()`。解释结果时给出当前索引和 anchor 索引。
 
 ## 新增 Signal
 
-当用户要新增 Signal/因子时，先阅读 [新增信号指南](references/add-signals.md)。该指南覆盖目录选择、pyta2 指标复用、结构化 family Signal、自有状态、导出、身份命名和契约测试。若任务是在重新设计公共接口而非沿用既有契约，另按仓库说明使用 `api-design-zh` skill。
+按 [新增信号指南](references/add-signals.md) 判断因果时点、family、状态、身份、导出和验证范围。用户要求重新设计公共接口时，按仓库 `AGENTS.md` 先使用 `api-design-zh`；沿用现有接口时直接按当前契约实现。
