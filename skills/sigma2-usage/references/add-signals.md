@@ -38,13 +38,13 @@
 
 ### 市场结构派生或组合 Signal
 
-从正确的 family 基类继承，自己定义 schema、`full_name` 和真实输入派生。例如盘口深度失衡先由 sigma2 处理 bids/asks，再用 `Pyta2Component` 适配 pyta2 rolling 指标，并通过通用的 `apply_component()` 调用；详见[组合接口设计](../../../docs/design/pyta2-composition-api-20260924-overview.md)与 [`rKlineMeanOfMeanV2`](../../../sigma2/kline/trend/mean_of_mean_v2.py)。
+从正确的 family 基类继承，自己定义 schema、`full_name` 和真实输入派生。例如盘口深度失衡先由 sigma2 处理 bids/asks，再直接调用所持 pyta2 rolling 指标；详见[直接调用设计](../../../docs/design/direct-pyta2-20260926-overview.md)与 [`rKlineMeanOfMeanV2`](../../../sigma2/kline/trend/mean_of_mean_v2.py)。
 
 实现时遵守这些边界：
 
-- `forward()` 只实现算法，不手动推进 `g_index`、追加/替换 `outputs`，也不判断 append 或 revise。
-- 保持 `step()` 和 `update_last()` 的输入结构一致。用 `Pyta2Component(indicator)` 创建适配对象，在 `forward()` 中调用 `self.apply_component(component, ...)`；core 分派组件的 `step()` / `update_last()`，适配对象再映射到 pyta2 的 `rolling()` / `update_last()`。`apply_component()` 只能在父 Signal 的这两个生命周期中使用。
-- 覆盖 `reset_extras()`，清空 Signal 自有状态并调用子组件的 `reset()`。自有可变递推字段列入 `checkpoint_fields`，以便最后观测修订能恢复观测前状态；不要把生命周期子组件列入父 Signal 的检查点字段。旧 `_update_state_fields` 仍兼容既有子类。
+- `forward()` 只实现算法，不手动推进父 Signal 的 `g_index`，也不追加或替换父 Signal 的 `outputs`。若持有有状态子指标，只为选择其 `rolling()` / `update_last()` 而判断父 Signal 当前的生命周期。
+- 保持 `step()` 和 `update_last()` 的输入结构一致。直接持有 pyta2 指标：`self._lifecycle_mode == "update_last"` 时调用 `indicator.update_last(...)`，否则在 `step()` 中调用 `indicator.rolling(...)`。需要禁止直接调用 `forward()` 的因子应先检查 `_lifecycle_mode` 是否为 `"step"` 或 `"update_last"`。不使用额外适配对象。
+- 覆盖 `reset_extras()`，清空 Signal 自有状态并直接调用子指标的 `reset()`。自有可变递推字段列入 `checkpoint_fields`，以便最后观测修订能恢复观测前状态；不要把有独立修订生命周期的子指标列入父 Signal 的检查点字段。旧 `_update_state_fields` 仍兼容既有子类。
 - 修订计算失败后 Signal 进入 faulted 状态；只有 `reset()` 并重放已确认观测才能继续。不要直接改 `g_index` 或输出缓存。
 - 明确 `window` / `extra_window`，使 `required_window` 反映输出需要的观测数量；schema 的输出 key、dtype 与实际结果保持一致。
 
@@ -66,7 +66,7 @@ batch 函数用 `forward_signal_apply(data, rKlineExample, ...)`；不要维护�
 - K 线公开类用 `rKlineExample`，batch 函数用 `KlineExample`。订单簿、成交信号使用对应 family 的明确名称，例如 `rBookSpread`、`rTradeSignedVolume`。
 - 不新增与 pyta2 冲突的 `rRSI`、`rMA` 一类短名称或旧式镜像目录。
 - 新实现只保留一个 canonical 文件，不新建转发兼容文件。K 线新文件还应导出到所属领域 `__init__.py` 和 `sigma2/kline/__init__.py`；确认属于稳定高频入口后再加到 `sigma2/__init__.py`。其他 family 同样更新其 family 包导出。
-- 所有影响结果的参数必须出现在可复现身份中：复用 pyta2 时沿用 component 名称及字段绑定；sigma2 自有参数应明确进入 `full_name`。多输出 `factor_names` 必须逐项对应 `output_keys`。
+- 所有影响结果的参数必须出现在可复现身份中：复用 pyta2 时沿用子指标名称及字段绑定；sigma2 自有参数应明确进入 `full_name`。多输出 `factor_names` 必须逐项对应 `output_keys`。
 
 ## 5. 建立契约验证
 

@@ -57,3 +57,6 @@ def test_pyta2_adapter_rejects_unknown_indicator_or_input_field():
 
     with pytest.raises(ValueError, match="cannot both be provided"):
         rPyta2Signal("SMA", params={"n": 2}, field="close", inputs=("close",))
+
+    with pytest.raises(TypeError, match="pyta2 rIndicator"):
+        rPyta2Signal(object)

@@ -1,9 +1,6 @@
 from __future__ import annotations
 
 from collections.abc import Callable, Sequence
-from typing import Any
-
-from pyta2.base import rIndicator
 
 IndicatorResolver = type | Callable[[], type]
 
@@ -21,26 +18,6 @@ _FIELD_ALIASES = {
 }
 
 _PYTA2_REGISTRY: dict[str, tuple[IndicatorResolver, tuple[str, ...]]] = {}
-
-
-class Pyta2Component:
-    """把 pyta2 指标适配成 Signal 的 step/update_last 子组件。"""
-
-    def __init__(self, indicator: rIndicator) -> None:
-        if not isinstance(indicator, rIndicator):
-            raise TypeError(
-                f"indicator must be a pyta2 rIndicator instance, got {type(indicator)}"
-            )
-        self.indicator = indicator
-
-    def step(self, *args: Any, **kwargs: Any) -> Any:
-        return self.indicator.rolling(*args, **kwargs)
-
-    def update_last(self, *args: Any, **kwargs: Any) -> Any:
-        return self.indicator.update_last(*args, **kwargs)
-
-    def reset(self) -> None:
-        self.indicator.reset()
 
 
 def register_pyta2_indicator(

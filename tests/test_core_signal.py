@@ -175,7 +175,7 @@ def test_nan_output_is_cached_as_nan():
     assert math.isnan(signal.latest["value"])
 
 
-def test_non_pyta2_component_revisions_match_replay():
+def test_non_pyta2_child_revisions_match_replay():
     class RunningSum:
         def __init__(self):
             self.reset()
@@ -204,7 +204,9 @@ def test_non_pyta2_component_revisions_match_replay():
             self.component.reset()
 
         def forward(self, value):
-            return self.apply_component(self.component, value)
+            if self._lifecycle_mode == "update_last":
+                return self.component.update_last(value)
+            return self.component.step(value)
 
         @property
         def full_name(self):

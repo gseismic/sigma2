@@ -6,7 +6,6 @@ import numpy as np
 import pytest
 from pyta2.trend.ma.api import get_ma_class, get_ma_function
 
-from sigma2 import Pyta2Component
 from sigma2.kline import (
     KlineMeanOfMean,
     KlineMeanOfMeanV2,
@@ -135,43 +134,24 @@ def test_kama_advanced_params_field_and_identity() -> None:
     assert meta["ma_type"] == "KAMA"
 
 
-def test_v2_rejects_overriding_component_lifecycle_params() -> None:
+def test_v2_rejects_overriding_ma_lifecycle_params() -> None:
     with pytest.raises(ValueError, match="must not override"):
         rKlineMeanOfMeanV2(3, 3, ma_kwargs={"buffer_size": 2})
     with pytest.raises(TypeError, match="must be a mapping"):
         rKlineMeanOfMeanV2(3, 3, ma_kwargs=[("n2", 2)])
 
 
-def test_public_component_call_rejects_lifecycle_outside_step() -> None:
+def test_direct_forward_rejects_lifecycle_outside_step() -> None:
     signal = rKlineMeanOfMeanV2(2, 2)
-    indicator = get_ma_class("SMA")(2, buffer_size=0)
-    component = Pyta2Component(indicator)
+    values = np.asarray([1.0])
 
-    with pytest.raises(RuntimeError, match=r"active step\(\) or update_last\(\)"):
-        signal.apply_component(component, np.asarray([1.0]))
+    with pytest.raises(RuntimeError, match=r"requires step\(\) or update_last\(\)"):
+        signal.forward(values, values, values, values, values)
 
-    assert indicator.g_index == -1
+    assert signal._inner.g_index == -1
+    assert signal._outer.g_index == -1
     assert not signal.is_faulted
     assert math.isnan(signal.step(**_bar(1.0)))
-
-
-def test_public_component_call_checks_type_and_faults_parent_on_failure() -> None:
-    class BadComponent(rKlineMeanOfMeanV2):
-        def forward(self, opens, highs, lows, closes, volumes):
-            return self.apply_component(object(), closes)
-
-    signal = BadComponent(2, 2)
-    with pytest.raises(TypeError, match=r"step\(\) and update_last\(\)"):
-        signal.step(**_bar(1.0))
-
-    assert signal.is_faulted
-    with pytest.raises(RuntimeError, match="call reset"):
-        signal.step(**_bar(2.0))
-
-
-def test_pyta2_adapter_rejects_other_objects() -> None:
-    with pytest.raises(TypeError, match="pyta2 rIndicator"):
-        Pyta2Component(object())
 
 
 def test_checkpoint_fields_cannot_include_child_indicator() -> None:

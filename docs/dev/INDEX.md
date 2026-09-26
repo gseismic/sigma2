@@ -1,6 +1,6 @@
 # 计划执行索引
 
-更新时间：2026-09-24 16:56 CST
+更新时间：2026-09-26 16:02 CST
 
 ## 历史说明
 
@@ -34,9 +34,11 @@
 | 2026-09-24 12:04 CST | `PLAN-022-numbered-examples.md` | `PLAN-022-numbered-examples-OUTCOME.md` | 将六个示例按展示顺序重命名为 `01_` 至 `06_`，同步 README、skill 与运行命令；编号模块、文档链接及格式检查通过。 |
 | 2026-09-24 16:26 CST | `PLAN-023-mean-of-mean-template.md` | `PLAN-023-mean-of-mean-template-OUTCOME.md` | 实现无 pyta2 指标的 K 线两级均值 Signal 模板，core 支持 dtype 输出 schema；验证连续修订、重放与 batch，一共 93 项测试通过，并记录 core 仍依赖 pyta2 的运行时边界。 |
 | 2026-09-24 16:56 CST | `PLAN-024-mean-of-mean-v2.md` | `PLAN-024-mean-of-mean-v2-OUTCOME.md` | 保留 V1，新增可选八种 pyta2 MA 的两级均值 V2；core 改为通用 `apply_component()`，pyta2 调用移至适配对象，公开 `checkpoint_fields`；119 项测试通过，1 项因可选依赖跳过。 |
+| 2026-09-26 16:02 CST | `PLAN-025-direct-pyta2-calls.md` | `PLAN-025-direct-pyta2-calls-OUTCOME.md` | 按新的直接调用设计删除 `Pyta2Component` 与 `rSignal.apply_component()`，所有当前调用方直接使用原指标或子对象的新增/修订/重置方法；版本升至 0.5.0，118 项测试通过。 |
 
 ## 当前设计文档规则
 
+- `docs/design/direct-pyta2-20260926-overview.md` 是当前 pyta2 子指标调用依据；2026-09-24 的 `pyta2-composition-api` 和 `ma-of-ma-composition-options` 保留为历史方案与取舍记录。
 - `docs/design/sigma2-20260922-v5.md` 是当前总设计依据；v5.1 生命周期与因子库、v5.2 命名与目录、v5.3 兼容层清理已分别由 PLAN-018、PLAN-019、PLAN-020 实施，其余阶段继续按独立计划推进。
 - `docs/design/compatibility-removal-20260923-overview.md` 是当前兼容层清理设计；取代 v5 历史章节中尚处于 0.3.x 兼容期的决策。
 - `docs/design/factor-research-20260707-overview.md` 是研究训练层专题，与 v5 冲突时以 v5 为准。

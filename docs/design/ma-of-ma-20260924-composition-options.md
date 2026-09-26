@@ -1,10 +1,11 @@
 # 两级 MA 组合的子指标调用方式对比
 
 创建时间：2026-09-24 21:25 CST
+修订时间：2026-09-26 16:02 CST
 
-状态：供后续设计参考；当前实现仍采用方案 A。这里比较的是内部调用方式，不改变 `rKlineMeanOfMeanV2` / `KlineMeanOfMeanV2` 的用户接口或计算定义。
+状态：历史方案比较。2026-09-24 的实现采用方案 A；2026-09-26 按用户要求改为方案 C，并同时删除 `rSignal.apply_component()`，详见[直接调用设计](direct-pyta2-20260926-overview.md)。这里比较的是内部调用方式，不改变 `rKlineMeanOfMeanV2` / `KlineMeanOfMeanV2` 的用户接口或计算定义。
 
-相关实现：`sigma2/kline/trend/mean_of_mean_v2.py`。现行接口依据见 [两级均值 V2 设计](mean-of-mean-v2-20260924-template.md)和 [组件组合接口设计](pyta2-composition-api-20260924-overview.md)。
+相关实现：`sigma2/kline/trend/mean_of_mean_v2.py`。当时接口依据见 [两级均值 V2 设计](mean-of-mean-v2-20260924-template.md)和 [组件组合接口设计](pyta2-composition-api-20260924-overview.md)；现行依据见[直接调用设计](direct-pyta2-20260926-overview.md)。
 
 ## 共同约束
 
@@ -14,7 +15,7 @@
 - 真实预热长度来自两个子指标的 `required_window`，即二者之和减一。SMA 以外的 MA 不能直接按 `inner_n + outer_n - 1` 计算。batch 继续重放同一个 Signal。
 - 以下片段只展示生命周期分派。字段校验、MA 构造、输出身份、元信息与批量入口在各方案中相同。若保留当前 `forward()` 只能在父 Signal 生命周期内调用的契约，直接调用方案也必须检查调用时机。
 
-## 方案 A：通用组件接口与 pyta2 适配对象（当前实现）
+## 方案 A：通用组件接口与 pyta2 适配对象（2026-09-24 实现）
 
 ```python
 self._inner = ma_cls(self.inner_n, buffer_size=0, return_dict=False, **component_kwargs)
@@ -103,7 +104,9 @@ outer_value = self.apply_component_calls(
 | 多种子组件复用 | 已支持 | 需复制或另写分派 | 需复制 | 可支持，需新增接口 |
 | 对现有公共接口的影响 | 无 | 无 | 无 | 新增或迁移接口 |
 
-当前库已有单指标桥接、K 线指标模板和非 pyta2 组件使用 `apply_component()`，因此维持方案 A。若只看一个独立因子的代码量，方案 C 最短；方案 B 不推荐作为新的通用模板，因为它重复了适配层职责。只有在更多真实组合场景表明适配对象持续造成负担时，才考虑方案 D 并单独设计兼容路径。
+2026-09-24 的判断：当时单指标桥接、K 线指标模板和非 pyta2 组件已使用 `apply_component()`，因此建议维持方案 A。若只看一个独立因子的代码量，方案 C 最短；方案 B 不推荐作为新的通用模板，因为它重复了适配层职责。方案 D 需要另行设计接口兼容路径。
+
+2026-09-26 的定稿：用户明确要求不引入 `Pyta2Component` 与 `apply_component()` 两层概念，因此采用方案 C；相关调用方均直接使用原始子指标。上述比较继续保留，供以后评估局部代码量与全库抽象成本时参考。
 
 ## 三次核对
 

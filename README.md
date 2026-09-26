@@ -1,6 +1,6 @@
 # sigma2
 
-sigma2 是面向金融市场事件的有状态 Signal 与机器学习因子库，当前版本为 `0.4.0`。同一个 Signal 既能逐条处理事件，也能由批量接口逐行重放。pyta2 提供 rolling 指标；sigma2 负责 K 线、盘口、成交的输入语义、字段绑定、修订生命周期和最终因子名。
+sigma2 是面向金融市场事件的有状态 Signal 与机器学习因子库，当前版本为 `0.5.0`。同一个 Signal 既能逐条处理事件，也能由批量接口逐行重放。pyta2 提供 rolling 指标；sigma2 负责 K 线、盘口、成交的输入语义、字段绑定、修订生命周期和最终因子名。
 
 ## 安装与运行
 
@@ -103,4 +103,4 @@ signal = rKlineRSI(14, field="close")
 
 不调用 pyta2 指标、直接在 K 线 Signal 中维护两层均值的实现，见 [rKlineMeanOfMean](sigma2/kline/trend/mean_of_mean.py) 和 [设计说明](docs/design/mean-of-mean-20260924-template.md)。`rSignal` 现在接受 `schema={"mean_of_mean": np.float64}` 这样的 dtype 声明，便于扩展自有公式。sigma2 core 的 schema 与缓存实现仍使用 pyta2 工具，因此安装依赖未改变。
 
-需要复用 pyta2 的 MA 类型时，用 [rKlineMeanOfMeanV2](sigma2/kline/trend/mean_of_mean_v2.py)：`rKlineMeanOfMeanV2(3, 3, ma_type="EMA")`。`ma_type` 同时选择内外两层，支持与 `rKlineMA` 相同的八种 MA。自定义组合 Signal 可用 `Pyta2Component` 包住 pyta2 指标，再在 `forward()` 中调用通用的 `apply_component(component, ...)`；`checkpoint_fields` 声明需要修订的自有状态。[接口设计](docs/design/pyta2-composition-api-20260924-overview.md)说明生命周期和状态所有权。
+需要复用 pyta2 的 MA 类型时，用 [rKlineMeanOfMeanV2](sigma2/kline/trend/mean_of_mean_v2.py)：`rKlineMeanOfMeanV2(3, 3, ma_type="EMA")`。`ma_type` 同时选择内外两层，支持与 `rKlineMA` 相同的八种 MA。自定义组合 Signal 直接持有 pyta2 指标，在父 Signal 新增观测时调用其 `rolling()`，修订末根时调用其 `update_last()`，重置时调用其 `reset()`；`checkpoint_fields` 只声明父 Signal 自有的可修订状态。[直接调用设计](docs/design/direct-pyta2-20260926-overview.md)说明生命周期和状态所有权。

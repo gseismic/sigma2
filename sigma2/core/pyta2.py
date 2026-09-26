@@ -3,8 +3,9 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import Any
 
+from pyta2.base import rIndicator
+
 from sigma2.utils.pyta2 import (
-    Pyta2Component,
     normalize_pyta2_inputs,
     resolve_pyta2_default_inputs,
     resolve_pyta2_indicator,
@@ -54,11 +55,15 @@ class rPyta2Signal(rKlineWindowSignal):
             indicator if isinstance(indicator, str) else indicator.__name__
         )
         self.indicator_cls = resolve_pyta2_indicator(indicator)
+        if not issubclass(self.indicator_cls, rIndicator):
+            raise TypeError(
+                "indicator class must derive from pyta2 rIndicator, "
+                f"got {self.indicator_cls}"
+            )
         self.indicator_params = dict(params or {})
         self.inputs = self._resolve_inputs(indicator, field=field, inputs=inputs)
         self._full_name = full_name
         self._indicator = self._make_indicator()
-        self._component = Pyta2Component(self._indicator)
 
         super().__init__(
             window=self._indicator.window,
@@ -68,13 +73,13 @@ class rPyta2Signal(rKlineWindowSignal):
         )
 
     def reset_window_extras(self) -> None:
-        self._component.reset()
+        self._indicator.reset()
 
     def forward(self, opens, highs, lows, closes, volumes) -> Any:
         values = self._indicator_args_from_arrays(opens, highs, lows, closes, volumes)
-        if self._lifecycle_mode is None:
-            return self._component.step(*values)
-        return self.apply_component(self._component, *values)
+        if self._lifecycle_mode == "update_last":
+            return self._indicator.update_last(*values)
+        return self._indicator.rolling(*values)
 
     @property
     def full_name(self) -> str:

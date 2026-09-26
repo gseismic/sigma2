@@ -19,7 +19,6 @@ from sigma2.kline.target import (
 from sigma2.orderbook import rBookSpread
 from sigma2.trade import rTradeSignedVolume
 from sigma2.core import rOrderBookSignal
-from sigma2.utils.pyta2 import Pyta2Component
 
 
 def _kline(value: float) -> dict[str, float]:
@@ -67,7 +66,7 @@ def test_update_last_requires_a_committed_observation_again_after_reset():
         signal.update_last(**_kline(2.0))
 
 
-def test_pyta2_adapter_routes_update_last_to_child_indicator():
+def test_pyta2_signal_routes_update_last_to_child_indicator():
     signal = rPyta2Signal("SMA", params={"n": 2}, field="close")
     signal.step(**_kline(1.0))
     signal.step(**_kline(3.0))
@@ -112,7 +111,6 @@ class _rSmoothedDepthImbalance(rOrderBookSignal):
         self.levels = levels
         self._imbalances = NumpyDeque(maxlen=n)
         self._sma = _rPytaSMA(n, buffer_size=0)
-        self._sma_component = Pyta2Component(self._sma)
         super().__init__(
             window=n,
             schema={
@@ -127,7 +125,7 @@ class _rSmoothedDepthImbalance(rOrderBookSignal):
 
     def reset_extras(self):
         self._imbalances.clear()
-        self._sma_component.reset()
+        self._sma.reset()
 
     def forward(self, bids, asks):
         bid_depth = sum(size for _, size in bids[: self.levels])
@@ -135,7 +133,9 @@ class _rSmoothedDepthImbalance(rOrderBookSignal):
         total = bid_depth + ask_depth
         imbalance = math.nan if total <= 0 else (bid_depth - ask_depth) / total
         self._imbalances.append(imbalance)
-        return self.apply_component(self._sma_component, self._imbalances.values)
+        if self._lifecycle_mode == "update_last":
+            return self._sma.update_last(self._imbalances.values)
+        return self._sma.rolling(self._imbalances.values)
 
     @property
     def full_name(self):

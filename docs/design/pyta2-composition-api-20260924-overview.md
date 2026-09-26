@@ -1,7 +1,9 @@
 # Signal 组合组件与 pyta2 适配接口
 
 创建时间：2026-09-24 16:41 CST
-修订时间：2026-09-24 16:50 CST
+修订时间：2026-09-26 16:02 CST
+
+状态：历史设计。2026-09-26 起，`Pyta2Component` 与 `rSignal.apply_component()` 已由[直接调用设计](direct-pyta2-20260926-overview.md)取代；下文保留当时的方案与判断，不代表当前 API。
 
 背景：两级均值 V2 需要两个可修订的 MA 子指标。用户指出 `pyta2` 是独立库，不应在 `rSignal` 基类出现 `_apply_pyta2()`，也不应仅把它改成公开的 `apply_pyta2()`。本设计参考 `pyta2.base.rIndicator` 的检查点、嵌套修订和子指标状态所有权；问题文档仅作为问题线索，最终接口以 sigma2 的边界为准。
 

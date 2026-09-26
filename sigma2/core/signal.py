@@ -251,25 +251,6 @@ class rSignal(ABC):
     def _update_last_forward(self, *args: Any, **kwargs: Any) -> Any:
         return self.forward(*args, **kwargs)
 
-    def apply_component(self, component: Any, *args: Any, **kwargs: Any) -> Any:
-        """按当前生命周期调用子组件的 step() 或 update_last()。"""
-
-        self._ensure_healthy()
-        if self._lifecycle_mode not in {_STEP_MODE, _UPDATE_LAST_MODE}:
-            raise RuntimeError(
-                "apply_component() requires an active step() or update_last() call"
-            )
-        step = getattr(component, "step", None)
-        update_last = getattr(component, "update_last", None)
-        if not callable(step) or not callable(update_last):
-            raise TypeError(
-                "component must implement callable step() and update_last() methods, "
-                f"got {type(component)}"
-            )
-        if self._lifecycle_mode == _UPDATE_LAST_MODE:
-            return update_last(*args, **kwargs)
-        return step(*args, **kwargs)
-
     def reset(self) -> None:
         self.g_index = -1
         self._pre_observation_state = _NO_UPDATE_STATE
