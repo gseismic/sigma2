@@ -10,8 +10,6 @@ class rTradeSignedVolume(rTradeSignal):
     """带方向成交量：buy 为正，sell 为负，未知方向为 0。"""
 
     name = "trade_signed_volume"
-    _update_state_fields = ()
-
     def __init__(self, **kwargs) -> None:
         super().__init__(
             window=1,

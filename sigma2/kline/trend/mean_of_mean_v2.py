@@ -34,7 +34,6 @@ class rKlineMeanOfMeanV2(rKlineWindowSignal):
     """用两个 pyta2 MA 指标计算 K 线字段的两级均值。"""
 
     name = "mean_of_mean_v2"
-    checkpoint_fields = ("_inner_values",)
 
     def __init__(
         self,
@@ -87,23 +86,16 @@ class rKlineMeanOfMeanV2(rKlineWindowSignal):
         self._inner_values.clear()
 
     def forward(self, opens, highs, lows, closes, volumes) -> float:
-        mode = self._lifecycle_mode
-        if mode not in ("step", "update_last"):
-            raise RuntimeError("forward() requires step() or update_last()")
-        inner_call = (
-            self._inner.update_last if mode == "update_last" else self._inner.rolling
-        )
-        outer_call = (
-            self._outer.update_last if mode == "update_last" else self._outer.rolling
-        )
+        if self._lifecycle_mode != "step":
+            raise RuntimeError("forward() requires step()")
         values = (opens, highs, lows, closes, volumes)[_FIELD_INDEX[self.field]]
-        inner_value = inner_call(values)
+        inner_value = self._inner.rolling(values)
         if self._inner.g_index + 1 < self._inner.required_window:
             return float("nan")
 
         self._inner_values.append(float(inner_value))
         middle = np.fromiter(self._inner_values, dtype=np.float64)
-        return float(outer_call(middle))
+        return float(self._outer.rolling(middle))
 
     @property
     def full_name(self) -> str:

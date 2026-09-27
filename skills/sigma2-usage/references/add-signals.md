@@ -7,7 +7,7 @@
 先判断输出是否依赖未来数据：
 
 - 只使用当前及过去观测的值可作为 causal feature，按输入类型继承对应 family 基类。
-- 需要未来 K 线才能计算的输出属于 target，放在 `sigma2/kline/target/`，不得当作当下可用特征。参考现有 `rKlineFutureReturn` 等实现；target 的输出时点与正向 Signal 不同，不能照搬 `update_last()` 语义。
+- 需要未来 K 线才能计算的输出属于 target，放在 `sigma2/kline/target/`，不得当作当下可用特征。参考现有 `rKlineFutureReturn` 等实现；target 的输出时点与正向 Signal 不同。
 
 当前 family 的单条输入契约：
 
@@ -17,13 +17,13 @@
 | 盘口快照 | `rOrderBookSignal` | 已规范排序的完整 `bids` / `asks` 快照 |
 | 逐笔成交 | `rTradeSignal` | 一笔 `price` / `volume` / `side` 事件 |
 
-不要把盘口 snapshot、delta 和独立成交事件混成同一个含糊的输入语义。新增一种市场数据 family 是独立的 API 设计工作；先明确一条观测的输入与修订语义，不要仅为容纳一个新因子就改动现有 family 签名。
+不要把盘口 snapshot、delta 和独立成交事件混成同一个含糊的输入语义。新增一种市场数据 family 是独立的 API 设计工作；先明确一条观测的输入语义，不要仅为容纳一个新因子就改动现有 family 签名。
 
 ## 2. 选择实现模式
 
 ### 单个 pyta2 rolling 指标绑定 K 线字段
 
-优先复制 `docs/design/kline-factor-20260922-template.md` 中的 K 线模板。canonical 文件按输出的主要市场含义放在 `sigma2/kline/price/`、`trend/`、`momentum/` 或 `volatility/`：
+优先参考现有的 `rKlineMA` 和内部 `_rKlineIndicatorFactor`。canonical 文件按输出的主要市场含义放在 `sigma2/kline/price/`、`trend/`、`momentum/` 或 `volatility/`：
 
 - 一个公开因子一个文件；rolling 类与 batch 函数同文件。
 - 继承内部 `_rKlineIndicatorFactor`，复用 pyta2 指标的 schema、窗口、数值和名称，不复制公式或元信息。
@@ -32,20 +32,20 @@
 
 ### 自有公式或有状态组合，不调用 pyta2 指标
 
-参考 [`rKlineMeanOfMean`](../../../sigma2/kline/trend/mean_of_mean.py) 及其[设计说明](../../../docs/design/mean-of-mean-20260924-template.md)。直接继承 `rKlineSignal`，把每次观测需要的状态放在子类，并将修订时必须恢复的字段列入公开的 `checkpoint_fields`；`reset_extras()` 重新建立这些状态。V1 仍使用兼容的 `_update_state_fields`，新 Signal 应使用 `checkpoint_fields`。`forward()` 只处理当前一根观测，预热不足时自行返回 `NaN`。
+参考 [`rKlineMeanOfMean`](../../../sigma2/kline/trend/mean_of_mean.py)。直接继承 `rKlineSignal`，把每次观测需要的状态放在子类；`reset_extras()` 重新建立这些状态。`forward()` 只处理当前一根观测，预热不足时自行返回 `NaN`。
 
 纯数值输出可以用 `schema={"mean_of_mean": np.float64}` 声明 dtype，不必在因子文件导入 pyta2 的 `Space`。这只消除因子源码对 pyta2 指标和类型的依赖；sigma2 core 当前仍使用 pyta2 的 schema/缓存工具，安装依赖不变。
 
 ### 市场结构派生或组合 Signal
 
-从正确的 family 基类继承，自己定义 schema、`full_name` 和真实输入派生。例如盘口深度失衡先由 sigma2 处理 bids/asks，再直接调用所持 pyta2 rolling 指标；详见[直接调用设计](../../../docs/design/direct-pyta2-20260926-overview.md)与 [`rKlineMeanOfMeanV2`](../../../sigma2/kline/trend/mean_of_mean_v2.py)。
+从正确的 family 基类继承，自己定义 schema、`full_name` 和真实输入派生。例如盘口深度失衡先由 sigma2 处理 bids/asks，再直接调用所持 pyta2 rolling 指标；参见[当前设计](../../../docs/design/sigma2-20260927-rolling-only.md)与 [`rKlineMeanOfMeanV2`](../../../sigma2/kline/trend/mean_of_mean_v2.py)。
 
 实现时遵守这些边界：
 
-- `forward()` 只实现算法，不手动推进父 Signal 的 `g_index`，也不追加或替换父 Signal 的 `outputs`。若持有有状态子指标，只为选择其 `rolling()` / `update_last()` 而判断父 Signal 当前的生命周期。
-- 保持 `step()` 和 `update_last()` 的输入结构一致。直接持有 pyta2 指标：`self._lifecycle_mode == "update_last"` 时调用 `indicator.update_last(...)`，否则在 `step()` 中调用 `indicator.rolling(...)`。需要禁止直接调用 `forward()` 的因子应先检查 `_lifecycle_mode` 是否为 `"step"` 或 `"update_last"`。不使用额外适配对象。
-- 覆盖 `reset_extras()`，清空 Signal 自有状态并直接调用子指标的 `reset()`。自有可变递推字段列入 `checkpoint_fields`，以便最后观测修订能恢复观测前状态；不要把有独立修订生命周期的子指标列入父 Signal 的检查点字段。旧 `_update_state_fields` 仍兼容既有子类。
-- 修订计算失败后 Signal 进入 faulted 状态；只有 `reset()` 并重放已确认观测才能继续。不要直接改 `g_index` 或输出缓存。
+- `forward()` 只实现算法，不手动推进父 Signal 的 `g_index`，也不追加或替换父 Signal 的 `outputs`。
+- 直接持有 pyta2 指标，在 `step()` 的计算中调用 `indicator.rolling(...)`。需要禁止直接调用 `forward()` 的因子可检查 `_lifecycle_mode == "step"`。不使用额外适配对象。
+- 覆盖 `reset_extras()`，清空 Signal 自有状态并直接调用子指标的 `reset()`。
+- `step()` 计算失败后 Signal 进入 faulted 状态；只有 `reset()` 并重放已确认观测才能继续。不要直接改 `g_index` 或输出缓存。
 - 明确 `window` / `extra_window`，使 `required_window` 反映输出需要的观测数量；schema 的输出 key、dtype 与实际结果保持一致。
 
 ## 3. 提供配对 batch API
@@ -53,7 +53,7 @@
 有稳定公开价值的 K 线因子提供同名配对接口：
 
 ```text
-rKlineExample(...)  # 在线逐条 step/update_last
+rKlineExample(...)  # 在线逐条 step
 KlineExample(data, ...)  # 对同一 Signal 逐行 replay
 ```
 
@@ -73,8 +73,8 @@ batch 函数用 `forward_signal_apply(data, rKlineExample, ...)`；不要维护�
 为新 Signal 补充项目测试，至少覆盖与实现模式相关的契约：
 
 - pyta2 支撑的因子与 pyta2 结果一致；batch 输出与逐条 `step()` replay 一致。
-- 修订当前观测后，再继续下一条观测，与直接输入修订后的完整序列一致；检查连续 `update_last()`、`g_index`、输出行数和 `reset()`。
+- 逐条 `step()` 与 batch replay 一致；检查 `g_index`、输出行数、`reset()` 后重放。
 - 检查 `schema`、`output_keys`、`full_name`、`factor_names`、必需列校验和 family 包导出。
-- target 应验证数据时点与 `update_last()` 的拒绝行为，避免未来数据被误用为当前特征。
+- target 应验证数据时点，避免未来数据被误用为当前特征。
 
-使用 `checkpoint_fields` 的组合 Signal，尤其要验证“派生状态 + pyta2 子指标”同时恢复时的 replay 等价性。扩展完成后按仓库 `AGENTS.md` 执行实施计划、review、结果记录和提交约定。
+组合 Signal 还要验证父 Signal 与 pyta2 子指标同步推进，并在 `reset()` 后一起恢复初始状态。扩展完成后按仓库 `AGENTS.md` 执行实施计划、review、结果记录和提交约定。

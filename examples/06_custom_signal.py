@@ -10,8 +10,6 @@ class rTradeCumulativeSignedVolume(rTradeSignal):
     """当前输入流中买量减卖量的累计值。"""
 
     name = "trade_cumulative_signed_volume"
-    _update_state_fields = ("_total",)
-
     def __init__(self, **kwargs) -> None:
         super().__init__(
             window=1,
@@ -40,13 +38,13 @@ def main() -> None:
     signal = rTradeCumulativeSignedVolume()
     signal.step(price=100.0, volume=3.0, side="buy")
     signal.step(price=101.0, volume=2.0, side="sell")
-    print("修订最后成交：", signal.update_last(price=101.0, volume=4.0, side="sell"))
+    print("下一笔成交：", signal.step(price=101.0, volume=4.0, side="sell"))
     print("累计值与索引：", signal.latest, signal.g_index)
 
     finalized = {
-        "price": [100.0, 101.0],
-        "volume": [3.0, 4.0],
-        "side": ["buy", "sell"],
+        "price": [100.0, 101.0, 101.0],
+        "volume": [3.0, 2.0, 4.0],
+        "side": ["buy", "sell", "sell"],
     }
     batch = forward_signal_apply(finalized, rTradeCumulativeSignedVolume)
     print("批量重放：", batch[signal.factor_names[0]])

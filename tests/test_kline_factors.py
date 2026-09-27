@@ -178,28 +178,24 @@ def test_factor_batch_matches_signal_replay_and_pyta2(
     ],
     ids=["ma", "rsi", "macd", "boll", "kdj", "atr"],
 )
-def test_every_factor_update_last_is_idempotent_and_matches_replay(factory):
+def test_every_factor_advances_with_pyta2_child_and_replays_after_reset(factory):
     data = _kline_data(24)
     rows = [
         {key: values[index] for key, values in data.items()}
         for index in range(len(data["close"]))
     ]
     signal = factory()
-    for row in rows:
-        signal.step(**row)
+    first_run = [signal.step(**row) for row in rows]
+    assert signal.g_index == signal._indicator.g_index == len(rows) - 1
+    assert len(signal.outputs) == len(rows)
 
-    revised = dict(rows[-1])
-    revised["close"] += 1.25
-    revised["high"] += 1.5
-    first = signal.update_last(**revised)
-    second = signal.update_last(**revised)
+    signal.reset()
+    second_run = [signal.step(**row) for row in rows]
 
     replay = factory()
-    for row in [*rows[:-1], revised]:
-        expected = replay.step(**row)
-
-    _assert_columns_equal(first, second)
-    _assert_columns_equal(first, expected)
+    replay_values = [replay.step(**row) for row in rows]
+    _assert_columns_equal(first_run, second_run)
+    _assert_columns_equal(first_run, replay_values)
     assert signal.g_index == replay.g_index == len(rows) - 1
     assert signal._indicator.g_index == replay._indicator.g_index == len(rows) - 1
 

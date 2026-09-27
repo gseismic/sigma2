@@ -175,27 +175,19 @@ def test_nan_output_is_cached_as_nan():
     assert math.isnan(signal.latest["value"])
 
 
-def test_non_pyta2_child_revisions_match_replay():
+def test_non_pyta2_child_rolling_and_reset_match_replay():
     class RunningSum:
         def __init__(self):
             self.reset()
 
         def reset(self):
             self.total = 0.0
-            self.previous = 0.0
 
         def step(self, value):
-            self.previous = self.total
             self.total += value
             return self.total
 
-        def update_last(self, value):
-            self.total = self.previous + value
-            return self.total
-
     class rComposite(rSignal):
-        checkpoint_fields = ()
-
         def __init__(self):
             self.component = RunningSum()
             super().__init__(window=1, schema={"sum": np.float64})
@@ -204,8 +196,6 @@ def test_non_pyta2_child_revisions_match_replay():
             self.component.reset()
 
         def forward(self, value):
-            if self._lifecycle_mode == "update_last":
-                return self.component.update_last(value)
             return self.component.step(value)
 
         @property
@@ -214,9 +204,7 @@ def test_non_pyta2_child_revisions_match_replay():
 
     signal = rComposite()
     assert signal.step(1.0) == 1.0
-    assert signal.step(3.0) == 4.0
-    assert signal.update_last(5.0) == 6.0
-    assert signal.update_last(5.0) == 6.0
+    assert signal.step(5.0) == 6.0
     assert signal.step(2.0) == 8.0
 
     replay = rComposite()
@@ -224,3 +212,6 @@ def test_non_pyta2_child_revisions_match_replay():
         expected = replay.step(value)
     assert signal.g_index == replay.g_index == 2
     assert signal.latest == replay.latest == {"sum": expected}
+    signal.reset()
+    assert signal.g_index == -1
+    assert signal.step(4.0) == 4.0

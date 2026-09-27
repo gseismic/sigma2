@@ -19,17 +19,6 @@ class rKlineSignal(rSignal):
     def step(self, *, open: float, high: float, low: float, close: float, volume: float) -> Any:
         return super().step(open, high, low, close, volume)
 
-    def update_last(
-        self,
-        *,
-        open: float,
-        high: float,
-        low: float,
-        close: float,
-        volume: float,
-    ) -> Any:
-        return super().update_last(open, high, low, close, volume)
-
     @abstractmethod
     def forward(self, open: float, high: float, low: float, close: float, volume: float) -> Any:
         raise NotImplementedError
@@ -37,8 +26,6 @@ class rKlineSignal(rSignal):
 
 class rKlineWindowSignal(rKlineSignal):
     """显式选择维护 OHLCV 历史窗口的 K 线 signal。"""
-
-    _update_state_fields = ()
 
     def __init__(self, *args: Any, history_window: int | None = None, **kwargs: Any) -> None:
         if history_window is not None and history_window <= 0:
@@ -86,32 +73,6 @@ class rKlineWindowSignal(rKlineSignal):
                 "close": close,
                 "volume": volume,
             }
-        )
-        return self.forward(
-            self._window["open"],
-            self._window["high"],
-            self._window["low"],
-            self._window["close"],
-            self._window["volume"],
-        )
-
-    def _update_last_forward(
-        self,
-        open: float,
-        high: float,
-        low: float,
-        close: float,
-        volume: float,
-    ) -> Any:
-        self._window.update_row(
-            -1,
-            {
-                "open": open,
-                "high": high,
-                "low": low,
-                "close": close,
-                "volume": volume,
-            },
         )
         return self.forward(
             self._window["open"],

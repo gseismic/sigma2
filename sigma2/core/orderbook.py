@@ -18,14 +18,6 @@ class rOrderBookSignal(rSignal):
     def step(self, *, bids: Sequence[BookLevel], asks: Sequence[BookLevel]) -> Any:
         return super().step(bids, asks)
 
-    def update_last(
-        self,
-        *,
-        bids: Sequence[BookLevel],
-        asks: Sequence[BookLevel],
-    ) -> Any:
-        return super().update_last(bids, asks)
-
     @abstractmethod
     def forward(self, bids: Sequence[BookLevel], asks: Sequence[BookLevel]) -> Any:
         raise NotImplementedError

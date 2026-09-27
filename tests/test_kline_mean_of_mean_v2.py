@@ -64,44 +64,40 @@ def test_sma_v2_matches_v1_but_has_distinct_factor_name() -> None:
 
 
 @pytest.mark.parametrize("ma_type", _MA_TYPES)
-def test_repeated_revision_and_next_step_match_finalized_replay(ma_type: str) -> None:
+def test_continued_steps_match_replay(ma_type: str) -> None:
     values = _data(90)["close"]
     signal = rKlineMeanOfMeanV2(5, 5, ma_type=ma_type, buffer_size=2)
     for value in values:
         signal.step(**_bar(float(value)))
 
-    signal.update_last(**_bar(float(values[-1] + 1.0)))
-    revised = signal.update_last(**_bar(float(values[-1] + 2.0)))
-    assert signal.update_last(**_bar(float(values[-1] + 2.0))) == pytest.approx(revised)
-    assert signal.g_index == len(values) - 1
+    continued = signal.step(**_bar(float(values[-1] + 3.0)))
+    assert signal.g_index == len(values)
     assert len(signal.outputs) == 2
 
-    continued = signal.step(**_bar(float(values[-1] + 3.0)))
     replay = rKlineMeanOfMeanV2(5, 5, ma_type=ma_type)
-    for value in (*values[:-1], values[-1] + 2.0, values[-1] + 3.0):
+    for value in (*values, values[-1] + 3.0):
         expected = replay.step(**_bar(float(value)))
 
-    assert revised == pytest.approx(replay.outputs[-2]["mean_of_mean"])
     assert continued == pytest.approx(expected)
     assert signal._inner.g_index == len(values)
     assert signal._outer.g_index == replay._outer.g_index
 
 
 @pytest.mark.parametrize("count", [1, 3, 5])
-def test_revision_during_each_warmup_stage_matches_replay(count: int) -> None:
+def test_each_warmup_stage_matches_replay(count: int) -> None:
     signal = rKlineMeanOfMeanV2(3, 3, ma_type="EMA")
     for value in range(1, count + 1):
         signal.step(**_bar(float(value)))
 
-    revised = signal.update_last(**_bar(10.0))
+    actual = signal.step(**_bar(10.0))
     replay = rKlineMeanOfMeanV2(3, 3, ma_type="EMA")
-    for value in (*range(1, count), 10.0):
+    for value in (*range(1, count + 1), 10.0):
         expected = replay.step(**_bar(float(value)))
 
     if math.isnan(expected):
-        assert math.isnan(revised)
+        assert math.isnan(actual)
     else:
-        assert revised == pytest.approx(expected)
+        assert actual == pytest.approx(expected)
     assert signal.step(**_bar(11.0)) == pytest.approx(
         replay.step(**_bar(11.0)), nan_ok=True
     )
@@ -145,19 +141,10 @@ def test_direct_forward_rejects_lifecycle_outside_step() -> None:
     signal = rKlineMeanOfMeanV2(2, 2)
     values = np.asarray([1.0])
 
-    with pytest.raises(RuntimeError, match=r"requires step\(\) or update_last\(\)"):
+    with pytest.raises(RuntimeError, match=r"requires step\(\)"):
         signal.forward(values, values, values, values, values)
 
     assert signal._inner.g_index == -1
     assert signal._outer.g_index == -1
     assert not signal.is_faulted
     assert math.isnan(signal.step(**_bar(1.0)))
-
-
-def test_checkpoint_fields_cannot_include_child_indicator() -> None:
-    class BadCheckpoint(rKlineMeanOfMeanV2):
-        checkpoint_fields = ("_inner",)
-
-    signal = BadCheckpoint(2, 2)
-    with pytest.raises(TypeError, match="lifecycle component"):
-        signal.step(**_bar(1.0))

@@ -3,7 +3,6 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from collections import OrderedDict
 from collections.abc import Iterator, Mapping
-from copy import deepcopy
 from dataclasses import dataclass
 from typing import Any
 
@@ -14,25 +13,7 @@ from pyta2.utils.deque import DequeTable
 from pyta2.utils.space import Space
 
 
-_NO_UPDATE_STATE = object()
 _STEP_MODE = "step"
-_UPDATE_LAST_MODE = "update_last"
-
-
-@dataclass(frozen=True)
-class _ObjectUpdateState:
-    target: Any
-    checkpoint: Any
-
-
-@dataclass(frozen=True)
-class _CopiedUpdateState:
-    value: Any
-
-
-@dataclass(frozen=True)
-class _DeclaredUpdateState:
-    values: dict[str, Any]
 
 
 @dataclass(frozen=True)
@@ -115,11 +96,6 @@ class rSignal(ABC):
     name: str | None = None
     family: str | None = None
     step_input_keys: tuple[str, ...] = ()
-    supports_update_last = True
-    # 新子类声明需要在 update_last 前恢复的自有字段；None 沿用旧入口。
-    checkpoint_fields: tuple[str, ...] | None = None
-    # 有额外递推状态的子类应显式列出需要修订的字段。
-    _update_state_fields: tuple[str, ...] = ()
 
     def __init__(
         self,
@@ -148,7 +124,6 @@ class rSignal(ABC):
         self.return_dict = return_dict
         self.g_index = -1
         self._outputs: DequeTable | None = None
-        self._pre_observation_state: Any = _NO_UPDATE_STATE
         self._lifecycle_mode: str | None = None
         self._faulted = False
 
@@ -194,7 +169,6 @@ class rSignal(ABC):
 
         self._ensure_healthy()
         previous_index = self.g_index
-        self._pre_observation_state = self._snapshot_update_state()
         self.g_index = previous_index + 1
         previous_mode = self._lifecycle_mode
         self._lifecycle_mode = _STEP_MODE
@@ -212,48 +186,11 @@ class rSignal(ABC):
 
         return dict_output if self.return_dict else output
 
-    def update_last(self, *args: Any, **kwargs: Any) -> Any:
-        """修订最后一个逻辑观测，不推进时间索引。"""
-
-        self._ensure_healthy()
-        if not self.supports_update_last:
-            raise NotImplementedError(
-                f"{self.full_name} does not support update_last(); reset and replay instead"
-            )
-        if self.g_index < 0 or self._pre_observation_state is _NO_UPDATE_STATE:
-            raise IndexError(
-                f"{self.full_name} update_last() requires a preceding step() call"
-            )
-
-        previous_mode = self._lifecycle_mode
-        try:
-            self._restore_update_state(self._pre_observation_state)
-            self._lifecycle_mode = _UPDATE_LAST_MODE
-            output = self._update_last_forward(*args, **kwargs)
-            dict_output = self.make_dict_output(output)
-            if self._outputs is not None:
-                if len(self._outputs) == 0:
-                    raise RuntimeError(
-                        f"{self.full_name} cannot replace an empty output cache"
-                    )
-                self._outputs.update_row(-1, dict_output)
-        except Exception:
-            self._faulted = True
-            raise
-        finally:
-            self._lifecycle_mode = previous_mode
-
-        return dict_output if self.return_dict else output
-
     def _step_forward(self, *args: Any, **kwargs: Any) -> Any:
-        return self.forward(*args, **kwargs)
-
-    def _update_last_forward(self, *args: Any, **kwargs: Any) -> Any:
         return self.forward(*args, **kwargs)
 
     def reset(self) -> None:
         self.g_index = -1
-        self._pre_observation_state = _NO_UPDATE_STATE
         self._lifecycle_mode = None
         self._faulted = False
         if self._outputs is not None:
@@ -266,63 +203,6 @@ class rSignal(ABC):
                 f"{self.full_name} is faulted after a failed state calculation; "
                 "call reset() and replay committed observations"
             )
-
-    def _snapshot_update_state(self) -> Any:
-        fields = (
-            self._update_state_fields
-            if self.checkpoint_fields is None
-            else self.checkpoint_fields
-        )
-        if not isinstance(fields, tuple) or any(
-            not isinstance(field, str) for field in fields
-        ):
-            raise TypeError(
-                f"{self.full_name} checkpoint_fields must be a tuple of field names"
-            )
-        values: dict[str, Any] = {}
-        for field in fields:
-            if not hasattr(self, field):
-                raise AttributeError(
-                    f"{self.full_name} update state field {field!r} does not exist"
-                )
-            value = getattr(self, field)
-            if isinstance(value, rSignal) or (
-                callable(getattr(value, "update_last", None))
-                and callable(getattr(value, "reset", None))
-            ):
-                raise TypeError(
-                    f"{self.full_name} update state field {field!r} is a lifecycle "
-                    "component and must not be checkpointed by its parent"
-                )
-            values[field] = self._snapshot_update_value(value)
-        return _DeclaredUpdateState(values)
-
-    def _restore_update_state(self, state: Any) -> None:
-        if not isinstance(state, _DeclaredUpdateState):
-            raise TypeError(f"{self.full_name} has an invalid update checkpoint")
-        for field, saved in state.values.items():
-            setattr(self, field, self._restore_update_value(saved))
-
-    @staticmethod
-    def _snapshot_update_value(value: Any) -> Any:
-        if isinstance(value, (type(None), bool, int, float, complex, str, bytes)):
-            return value
-        make_checkpoint = getattr(value, "_make_update_checkpoint", None)
-        if callable(make_checkpoint):
-            return _ObjectUpdateState(value, make_checkpoint())
-        return _CopiedUpdateState(deepcopy(value))
-
-    @staticmethod
-    def _restore_update_value(state: Any) -> Any:
-        if isinstance(state, _ObjectUpdateState):
-            restore = getattr(state.target, "_restore_update_checkpoint", None)
-            if not callable(restore):
-                raise TypeError("checkpoint target does not support restore")
-            restore(state.checkpoint)
-            return state.target
-        if isinstance(state, _CopiedUpdateState):
-            return deepcopy(state.value)
-        return state
 
     @abstractmethod
     def reset_extras(self) -> None:
@@ -422,6 +302,5 @@ class rSignal(ABC):
             "buffer_factor": self.buffer_factor,
             "return_dict": self.return_dict,
             "g_index": self.g_index,
-            "supports_update_last": self.supports_update_last,
             "is_faulted": self.is_faulted,
         }

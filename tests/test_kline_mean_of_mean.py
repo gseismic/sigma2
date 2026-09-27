@@ -47,23 +47,20 @@ def test_two_stage_mean_matches_independent_formula(inner_n: int, outer_n: int) 
     assert signal.schema["mean_of_mean"].dtype == np.dtype("float64")
 
 
-def test_revision_and_continuation_match_finalized_replay() -> None:
+def test_continuation_and_reset_match_replay() -> None:
     signal = rKlineMeanOfMean(2, 2, return_dict=True, buffer_size=2)
-    for value in (1.0, 2.0, 3.0):
+    for value in (1.0, 2.0, 3.0, 5.0):
         signal.step(**_bar(value))
 
-    assert signal.update_last(**_bar(5.0)) == {"mean_of_mean": pytest.approx(2.5)}
-    assert signal.update_last(**_bar(6.0)) == {"mean_of_mean": pytest.approx(2.75)}
-    assert signal.update_last(**_bar(6.0)) == {"mean_of_mean": pytest.approx(2.75)}
-    assert signal.g_index == 2
+    assert signal.latest == {"mean_of_mean": pytest.approx(3.25)}
+    assert signal.g_index == 3
     assert len(signal.outputs) == 2
-    assert signal.latest == {"mean_of_mean": pytest.approx(2.75)}
 
     continued = signal.step(**_bar(4.0))
     replay = rKlineMeanOfMean(2, 2, return_dict=True)
-    for value in (1.0, 2.0, 6.0, 4.0):
+    for value in (1.0, 2.0, 3.0, 5.0, 4.0):
         expected = replay.step(**_bar(value))
-    assert continued == expected == {"mean_of_mean": pytest.approx(4.5)}
+    assert continued == expected == {"mean_of_mean": pytest.approx(4.25)}
 
     signal.reset()
     assert signal.g_index == -1

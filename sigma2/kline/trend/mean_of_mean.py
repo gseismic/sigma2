@@ -15,7 +15,6 @@ class rKlineMeanOfMean(rKlineSignal):
     """对 K 线字段先取内层简单均值，再取外层简单均值。"""
 
     name = "mean_of_mean"
-    _update_state_fields = ("_inner_values", "_outer_values")
 
     def __init__(
         self,

@@ -1,6 +1,6 @@
 # 计划执行索引
 
-更新时间：2026-09-26 16:02 CST
+更新时间：2026-09-27 12:23 CST
 
 ## 历史说明
 
@@ -35,6 +35,7 @@
 | 2026-09-24 16:26 CST | `PLAN-023-mean-of-mean-template.md` | `PLAN-023-mean-of-mean-template-OUTCOME.md` | 实现无 pyta2 指标的 K 线两级均值 Signal 模板，core 支持 dtype 输出 schema；验证连续修订、重放与 batch，一共 93 项测试通过，并记录 core 仍依赖 pyta2 的运行时边界。 |
 | 2026-09-24 16:56 CST | `PLAN-024-mean-of-mean-v2.md` | `PLAN-024-mean-of-mean-v2-OUTCOME.md` | 保留 V1，新增可选八种 pyta2 MA 的两级均值 V2；core 改为通用 `apply_component()`，pyta2 调用移至适配对象，公开 `checkpoint_fields`；119 项测试通过，1 项因可选依赖跳过。 |
 | 2026-09-26 16:02 CST | `PLAN-025-direct-pyta2-calls.md` | `PLAN-025-direct-pyta2-calls-OUTCOME.md` | 按新的直接调用设计删除 `Pyta2Component` 与 `rSignal.apply_component()`，所有当前调用方直接使用原指标或子对象的新增/修订/重置方法；版本升至 0.5.0，118 项测试通过。 |
+| 2026-09-27 12:23 CST | `PLAN-026-rolling-only-signal.md` | `PLAN-026-rolling-only-signal-OUTCOME.md` | 归档旧设计至 `docs/backup/v2/`，移除 Signal 的 `update_last()`、检查点和子指标修订分支；保留 `step()` 单向推进、`reset()` 重放和 batch 一致性，版本升至 0.6.0，120 项测试通过。 |
 
 ## 当前设计文档规则
 
@@ -45,3 +46,7 @@
 - `docs/design/operator-family-layering-20260708-overview.md` 是历史专题，其中 family 分层结论保留，平行 primitive catalogue 方向已被 v5 替代。
 - `docs/design/sigma2-20260704-overview.md` 是当前 v0.1 代码的历史设计依据，不再指导后续新实施。
 - `docs/design/backup/` 中的文档仅用于历史追溯，不作为实现依据。
+
+## 2026-09-27 当前设计入口
+
+以上“当前设计文档规则”记录的是各阶段的历史状态。现行生命周期以 `docs/design/sigma2-20260927-rolling-only.md` 为准；原 `docs/design/` 的 14 个旧设计文档已原样移动到 `docs/backup/v2/`，不再作为新实现依据。历史计划中的旧相对链接按归档目录查找。

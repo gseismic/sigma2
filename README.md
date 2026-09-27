@@ -1,6 +1,6 @@
 # sigma2
 
-sigma2 是面向金融市场事件的有状态 Signal 与机器学习因子库，当前版本为 `0.5.0`。同一个 Signal 既能逐条处理事件，也能由批量接口逐行重放。pyta2 提供 rolling 指标；sigma2 负责 K 线、盘口、成交的输入语义、字段绑定、修订生命周期和最终因子名。
+sigma2 是面向金融市场事件的有状态 Signal 与机器学习因子库，当前版本为 `0.6.0`。同一个 Signal 既能逐条处理事件，也能由批量接口逐行重放。pyta2 提供 rolling 指标；sigma2 负责 K 线、盘口、成交的输入语义、字段绑定和最终因子名。
 
 ## 安装与运行
 
@@ -36,24 +36,21 @@ print(name, columns[name][-1])  # SMA(2)[close] 12.5
 
 `rKlineMA` / `KlineMA` 可选择 SMA、EMA、WMA、HMA、DEMA、TEMA、KAMA、ZLEMA，并通过 `field` 绑定 `open/high/low/close/volume`。例如 [批量示例](examples/01_kline_batch.py) 同时计算收盘价均线和成交量均线。
 
-### 在线推进与修订
+### 在线逐条推进
 
-一条 `step()` 输入是一根完整 K 线。行情源修订最后一根时，用相同字段调用 `update_last()`：
+一条 `step()` 输入是一根已确定的完整 K 线；每次调用都会新增一条观测：
 
 ```python
 from sigma2 import rKlineMA
 
 signal = rKlineMA(2, ma_type="SMA", return_dict=True)
-for close in (10.0, 11.0):
+for close in (10.0, 11.0, 12.0):
     signal.step(open=close, high=close, low=close, close=close, volume=1.0)
 
-revised = signal.update_last(
-    open=12.0, high=12.0, low=12.0, close=12.0, volume=1.0
-)
-print(float(revised["ma"]), signal.g_index)  # 11.0 1
+print(float(signal.latest["ma"]), signal.g_index)  # 11.5 2
 ```
 
-`update_last()` 从该观测之前的检查点重算，不增加 `g_index`，也不追加输出行；连续修订只以最近一次 `step()` 为基准。每个实例只服务一条输入流。计算失败后实例会进入 faulted 状态，需要 `reset()` 并重放已确认数据。`forward()` 是子类计算钩子，不用于推进公共生命周期。
+`step()` 每次推进 `g_index` 并追加输出。若来源数据修改了已处理的观测，先确定完整输入序列，再用新实例或 `reset()` 从头重放。每个实例只服务一条输入流。计算失败后实例会进入 faulted 状态，需要 `reset()` 并重放已确认数据。`forward()` 是子类计算钩子，不用于推进公共生命周期。
 
 ## 可运行示例
 
@@ -62,12 +59,12 @@ print(float(revised["ma"]), signal.g_index)  # 11.0 1
 | 场景 | 示例 | 内容 |
 | --- | --- | --- |
 | K 线批量 | [01_kline_batch.py](examples/01_kline_batch.py) | MA、MACD 多输出和元信息 |
-| 在线修订 | [02_kline_stream.py](examples/02_kline_stream.py) | `step()`、重复 `update_last()`、批量重放 |
+| 在线逐条计算 | [02_kline_stream.py](examples/02_kline_stream.py) | `step()`、`reset()`、批量重放 |
 | 盘口与成交 | [03_market_events.py](examples/03_market_events.py) | 完整盘口快照与逐笔成交的不同输入签名 |
 | 未来目标 | [04_future_target.py](examples/04_future_target.py) | 目标值对应历史 anchor 的位置 |
 | pyta2 桥接 | [05_pyta2_bridge.py](examples/05_pyta2_bridge.py) | 将通用 ROC 绑定到 K 线并批量重放 |
-| 自定义 Signal | [06_custom_signal.py](examples/06_custom_signal.py) | 自有递推状态、最后观测修订和批量重放 |
-| 两级均值模板 | [07_mean_of_mean.py](examples/07_mean_of_mean.py) | 不调用 pyta2 指标的 K 线组合信号、修订与 batch |
+| 自定义 Signal | [06_custom_signal.py](examples/06_custom_signal.py) | 自有递推状态和批量重放 |
+| 两级均值模板 | [07_mean_of_mean.py](examples/07_mean_of_mean.py) | 不调用 pyta2 指标的 K 线组合信号与 batch |
 | 两级均值 V2 | [08_mean_of_mean_v2.py](examples/08_mean_of_mean_v2.py) | 用 pyta2 MA 组合并选择 SMA、EMA 等类型 |
 
 ## 公共入口与输出身份
@@ -79,7 +76,7 @@ print(float(revised["ma"]), signal.g_index)  # 11.0 1
 | 逐笔成交 | `rTradeSignedVolume`，`step(price=..., volume=..., side=...)` | [03_market_events.py](examples/03_market_events.py) |
 | 通用 pyta2 桥接 | `pyta2_signal()` / `rPyta2Signal` | `forward_signal_apply()` |
 
-`bids`、`asks` 是已按价格排序的完整档位快照，档位形如 `(price, size)`；成交 `side` 为 `"buy"`、`"sell"` 或 `None`。K 线、盘口和成交 family 的 `update_last()` 与各自的 `step()` 使用同样的输入签名。
+`bids`、`asks` 是已按价格排序的完整档位快照，档位形如 `(price, size)`；成交 `side` 为 `"buy"`、`"sell"` 或 `None`。K 线、盘口和成交 family 都用各自的 `step()` 输入一条新观测。
 
 批量结果用 `factor_names` 作为列名：单输出是 `full_name`，多输出按 `full_name.output_key` 展开。例如 `rKlineMACD()` 的列名包括 `MACD(26,12,9)[close].dif`；逐条调用时 `return_dict=True` 则返回 `dif`、`dea`、`macd` 这些 schema key。`Kline` 只区分 Python API，不进入数据列身份。
 
@@ -97,10 +94,10 @@ signal = rKlineRSI(14, field="close")
 
 ## 未来目标与扩展
 
-`sigma2.kline.target` 中的 `rKlineFutureReturn` 等目标依赖未来 K 线。以 horizon 为 2 的 future return 为例，在索引 2 收到第三根 K 线时，输出才确定索引 0 的目标值。它属于历史 anchor，不能作为索引 2 当下可用的特征；这些 target 也不支持普通正向 Signal 的 `update_last()` 语义。
+`sigma2.kline.target` 中的 `rKlineFutureReturn` 等目标依赖未来 K 线。以 horizon 为 2 的 future return 为例，在索引 2 收到第三根 K 线时，输出才确定索引 0 的目标值。它属于历史 anchor，不能作为索引 2 当下可用的特征。
 
-扩展单个 pyta2 指标支撑的 K 线因子，参考 [K 线因子模板](docs/design/kline-factor-20260922-template.md)；扩展结构化或有状态 Signal，参考 [新增信号指南](skills/sigma2-usage/references/add-signals.md) 与 [06_custom_signal.py](examples/06_custom_signal.py)。当前总设计见 [sigma2 v5](docs/design/sigma2-20260922-v5.md)，最新计划执行记录见 [docs/dev/INDEX.md](docs/dev/INDEX.md)。
+扩展单个 pyta2 指标支撑的 K 线因子，参考 [新增信号指南](skills/sigma2-usage/references/add-signals.md) 与现有 `rKlineMA`；扩展自有状态 Signal，参考 [06_custom_signal.py](examples/06_custom_signal.py)。当前生命周期设计见 [单向逐条运行设计](docs/design/sigma2-20260927-rolling-only.md)，旧设计归档于 [docs/backup/v2](docs/backup/v2)，计划执行记录见 [docs/dev/INDEX.md](docs/dev/INDEX.md)。
 
-不调用 pyta2 指标、直接在 K 线 Signal 中维护两层均值的实现，见 [rKlineMeanOfMean](sigma2/kline/trend/mean_of_mean.py) 和 [设计说明](docs/design/mean-of-mean-20260924-template.md)。`rSignal` 现在接受 `schema={"mean_of_mean": np.float64}` 这样的 dtype 声明，便于扩展自有公式。sigma2 core 的 schema 与缓存实现仍使用 pyta2 工具，因此安装依赖未改变。
+不调用 pyta2 指标、直接在 K 线 Signal 中维护两层均值的实现，见 [rKlineMeanOfMean](sigma2/kline/trend/mean_of_mean.py)。`rSignal` 接受 `schema={"mean_of_mean": np.float64}` 这样的 dtype 声明，便于扩展自有公式。sigma2 core 的 schema 与缓存实现仍使用 pyta2 工具，因此安装依赖未改变。
 
-需要复用 pyta2 的 MA 类型时，用 [rKlineMeanOfMeanV2](sigma2/kline/trend/mean_of_mean_v2.py)：`rKlineMeanOfMeanV2(3, 3, ma_type="EMA")`。`ma_type` 同时选择内外两层，支持与 `rKlineMA` 相同的八种 MA。自定义组合 Signal 直接持有 pyta2 指标，在父 Signal 新增观测时调用其 `rolling()`，修订末根时调用其 `update_last()`，重置时调用其 `reset()`；`checkpoint_fields` 只声明父 Signal 自有的可修订状态。[直接调用设计](docs/design/direct-pyta2-20260926-overview.md)说明生命周期和状态所有权。
+需要复用 pyta2 的 MA 类型时，用 [rKlineMeanOfMeanV2](sigma2/kline/trend/mean_of_mean_v2.py)：`rKlineMeanOfMeanV2(3, 3, ma_type="EMA")`。`ma_type` 同时选择内外两层，支持与 `rKlineMA` 相同的八种 MA。自定义组合 Signal 直接持有 pyta2 指标，在父 Signal 新增观测时调用其 `rolling()`，重置时调用其 `reset()`。

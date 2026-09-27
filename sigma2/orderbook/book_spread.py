@@ -10,8 +10,6 @@ class rBookSpread(rOrderBookSignal):
     """订单簿快照的最优卖价减最优买价。"""
 
     name = "book_spread"
-    _update_state_fields = ()
-
     def __init__(self, **kwargs) -> None:
         super().__init__(
             window=1,

@@ -77,8 +77,6 @@ class rPyta2Signal(rKlineWindowSignal):
 
     def forward(self, opens, highs, lows, closes, volumes) -> Any:
         values = self._indicator_args_from_arrays(opens, highs, lows, closes, volumes)
-        if self._lifecycle_mode == "update_last":
-            return self._indicator.update_last(*values)
         return self._indicator.rolling(*values)
 
     @property

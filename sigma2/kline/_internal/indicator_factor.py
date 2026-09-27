@@ -12,8 +12,6 @@ from sigma2.utils.pyta2 import normalize_pyta2_inputs
 class _rKlineIndicatorFactor(rKlineWindowSignal):
     """由单个 pyta2 rolling 指标支撑的 K 线因子内部模板。"""
 
-    _update_state_fields = ()
-
     def __init__(
         self,
         indicator: rIndicator,
@@ -60,8 +58,6 @@ class _rKlineIndicatorFactor(rKlineWindowSignal):
             "volume": volumes,
         }
         values = tuple(arrays[field] for field in self.fields)
-        if self._lifecycle_mode == "update_last":
-            return self._indicator.update_last(*values)
         return self._indicator.rolling(*values)
 
     @property

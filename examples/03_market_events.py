@@ -13,8 +13,8 @@ def main() -> None:
         ),
     )
     print(
-        "修订盘口：",
-        spread.update_last(
+        "下个盘口：",
+        spread.step(
             bids=[(100.25, 2.0), (99.5, 3.0)],
             asks=[(100.75, 1.0), (101.0, 4.0)],
         ),
@@ -24,8 +24,8 @@ def main() -> None:
     print("买单：", signed_volume.step(price=100.5, volume=3.0, side="buy"))
     print("卖单：", signed_volume.step(price=100.4, volume=2.0, side="sell"))
     print(
-        "修订最后成交：",
-        signed_volume.update_last(price=100.4, volume=4.0, side="sell"),
+        "下一笔卖单：",
+        signed_volume.step(price=100.4, volume=4.0, side="sell"),
     )
 
 
