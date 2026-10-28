@@ -7,6 +7,7 @@ from pyta2.utils.space import Scalar
 from pyta2.utils.validation import ensure_integer
 
 from sigma2.core import rKlineWindowOutcome
+from sigma2.core._kline_data import include_required_fields
 from sigma2.utils.pyta2 import normalize_pyta2_inputs
 
 
@@ -18,6 +19,7 @@ class rKlineFutureChange(rKlineWindowOutcome):
     def __init__(self, n_forward: int, *, field: str = "close", **kwargs: Any) -> None:
         n_forward = ensure_integer(n_forward, "n_forward", min_value=1)
         self.field = normalize_pyta2_inputs((field,))[0]
+        include_required_fields(kwargs, self.field)
         super().__init__(
             schema={"value": Scalar(low=-np.inf, high=np.inf, dtype=np.float64)},
             n_backward=0,

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import math
+from collections.abc import Mapping
 from numbers import Real
 from typing import Any
 
@@ -49,6 +50,7 @@ def KlineBoll(
     return_type: str = "dict",
     return_meta_info: bool = False,
     symbol: str | None = None,
+    key_map: Mapping[str, str] | None = None,
 ) -> Any:
     """批量 replay :class:`rKlineBoll`。"""
 
@@ -60,6 +62,7 @@ def KlineBoll(
         return_type=return_type,
         return_meta_info=return_meta_info,
         symbol=symbol,
+        key_map=key_map,
     )
 
 

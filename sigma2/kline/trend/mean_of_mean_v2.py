@@ -11,6 +11,7 @@ from pyta2.utils.validation import ensure_integer
 
 from sigma2.core import forward_signal_apply, rKlineWindowSignal
 from sigma2.core._indicator_factor import rolling_with_nan_recovery
+from sigma2.core._kline_data import include_required_fields
 from sigma2.utils.pyta2 import normalize_pyta2_inputs
 
 
@@ -52,6 +53,7 @@ class rKlineMeanOfMeanV2(rKlineWindowSignal):
             self.outer_n, buffer_size=0, return_dict=False, **self.ma_kwargs
         )
         self.ma_type = str(self._inner.name)
+        include_required_fields(kwargs, self.field)
         super().__init__(
             schema={"mean_of_mean": Scalar(low=-np.inf, high=np.inf, dtype=np.float64)},
             n_backward=self._inner.n_backward + self._outer.n_backward,
@@ -119,6 +121,7 @@ def KlineMeanOfMeanV2(
     return_type: str = "dict",
     return_meta_info: bool = False,
     symbol: str | None = None,
+    key_map: Mapping[str, str] | None = None,
 ) -> Any:
     """逐时点重放两级均线。"""
     return forward_signal_apply(
@@ -129,6 +132,7 @@ def KlineMeanOfMeanV2(
         return_type=return_type,
         return_meta_info=return_meta_info,
         symbol=symbol,
+        key_map=key_map,
     )
 
 

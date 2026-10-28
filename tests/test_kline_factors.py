@@ -302,8 +302,13 @@ def test_atr_n_one_keeps_previous_close_for_true_range():
 def test_batch_validates_bar_sequence_and_result_type():
     data = _kline_data(4)
     bars = bars_from_columns(data)
+    np.testing.assert_allclose(
+        KlineRSI(data, 2, return_type="tuple"),
+        KlineRSI(bars, 2, return_type="tuple"),
+        equal_nan=True,
+    )
     with pytest.raises(TypeError, match="KlineBar"):
-        KlineRSI(data, 2)
+        KlineRSI([object()], 2)
     with pytest.raises(ValueError, match="unsupported return_type"):
         KlineRSI(bars, 2, return_type="records")
     with pytest.raises(TypeError, match="rSignal subclass"):

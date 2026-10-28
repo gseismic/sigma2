@@ -8,6 +8,7 @@ from pyta2.base import rIndicator
 
 from sigma2.utils.pyta2 import normalize_pyta2_inputs
 
+from ._kline_data import include_required_fields
 from .kline import rKlineWindowSignal
 
 
@@ -42,6 +43,7 @@ class _rKlineIndicatorFactor(rKlineWindowSignal):
         self._indicator.return_dict = False
         if history_window is None:
             history_window = indicator.min_periods
+        include_required_fields(kwargs, *self.fields)
         super().__init__(
             indicator.schema,
             n_backward=indicator.n_backward,

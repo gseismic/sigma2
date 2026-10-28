@@ -4,6 +4,8 @@
 更新时间：2026-10-28 07:36 CST
 状态：确定方案，按 [PLAN-027](../dev/PLAN-027-kline-bundle-operator.md) 实施。
 
+> 0.8.0 输入契约补充：Bundle 可直接使用包含 `bars` 的字典，字段映射和可选元信息以[字典输入设计](step-mapping-20261028-overview.md)为准。本稿中的对象构造、时区和时序校验适用于兼容保留的 `KlineBar` / `KlineBundle` 对象；字典输入的时序与截面同步由上游负责。
+
 ## 1. 目标
 
 `KlineBundle` 是同一个逻辑时点的多 symbol K 线快照。一个 K 线算子一次接收一个 Bundle，可以一次计算整个截面的均线、排名、相对强度或未来收益。市场事件逐条推进、结果时间位置与 Operator 基类见 [Operator、Signal 与 Outcome 设计](sigma2-operator-signal-outcome-20261028-overview.md)。

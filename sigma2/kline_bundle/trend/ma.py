@@ -40,6 +40,8 @@ def KlineBundleMA(
     n: int,
     *,
     symbols: Sequence[str] | None = None,
+    key_map: Mapping[str, str] | None = None,
+    bundle_key_map: Mapping[str, str] | None = None,
     ma_type: str = "SMA",
     field: str = "close",
     ma_kwargs: Mapping[str, Any] | None = None,
@@ -53,6 +55,8 @@ def KlineBundleMA(
         param_args=(n,),
         param_kwargs={"ma_type": ma_type, "field": field, "ma_kwargs": ma_kwargs},
         symbols=symbols,
+        key_map=key_map,
+        bundle_key_map=bundle_key_map,
         return_type=return_type,
         return_meta_info=return_meta_info,
     )

@@ -7,6 +7,7 @@ from pyta2.utils.space import Scalar
 from pyta2.utils.validation import ensure_integer
 
 from sigma2.core import rKlineWindowOutcome
+from sigma2.core._kline_data import include_required_fields
 from sigma2.utils.pyta2 import normalize_pyta2_inputs
 
 
@@ -32,6 +33,7 @@ class rKlineFutureReturn(rKlineWindowOutcome):
         self.return_type = return_type.lower()
         self.field = normalize_pyta2_inputs((field,))[0]
         key = "log_return" if self.return_type == "log" else "return"
+        include_required_fields(kwargs, self.field)
         super().__init__(
             schema={key: Scalar(low=-np.inf, high=np.inf, dtype=np.float64)},
             n_backward=0,

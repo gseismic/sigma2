@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from typing import Any
 
 import numpy as np
@@ -12,6 +12,7 @@ from sigma2.core import (
     rKlineBundleSignal,
     rKlineBundleWindowSignal,
 )
+from sigma2.core._kline_data import include_required_fields
 from sigma2.utils.pyta2 import normalize_pyta2_inputs
 
 
@@ -44,6 +45,7 @@ class rKlineBundleRank(rKlineBundleSignal):
         if not isinstance(ascending, bool):
             raise TypeError("ascending must be bool")
         self.ascending = ascending
+        include_required_fields(kwargs, self.field)
         super().__init__(
             schema={"rank": Scalar(low=1, high=np.inf, dtype=np.float64)},
             n_backward=0,
@@ -71,6 +73,7 @@ class rKlineBundleReturnRank(rKlineBundleWindowSignal):
         if not isinstance(ascending, bool):
             raise TypeError("ascending must be bool")
         self.ascending = ascending
+        include_required_fields(kwargs, self.field)
         super().__init__(
             schema={"rank": Scalar(low=1, high=np.inf, dtype=np.float64)},
             n_backward=self.n,
@@ -109,6 +112,8 @@ def KlineBundleRank(
     return_type: str = "dict",
     return_meta_info: bool = False,
     symbols: Sequence[str] | None = None,
+    key_map: Mapping[str, str] | None = None,
+    bundle_key_map: Mapping[str, str] | None = None,
 ) -> Any:
     """逐时点重放横截面字段排名。"""
     return forward_signal_apply(
@@ -118,6 +123,8 @@ def KlineBundleRank(
         return_type=return_type,
         return_meta_info=return_meta_info,
         symbols=symbols,
+        key_map=key_map,
+        bundle_key_map=bundle_key_map,
     )
 
 
@@ -130,6 +137,8 @@ def KlineBundleReturnRank(
     return_type: str = "dict",
     return_meta_info: bool = False,
     symbols: Sequence[str] | None = None,
+    key_map: Mapping[str, str] | None = None,
+    bundle_key_map: Mapping[str, str] | None = None,
 ) -> Any:
     """逐时点重放收益排名。"""
     return forward_signal_apply(
@@ -140,6 +149,8 @@ def KlineBundleReturnRank(
         return_type=return_type,
         return_meta_info=return_meta_info,
         symbols=symbols,
+        key_map=key_map,
+        bundle_key_map=bundle_key_map,
     )
 
 

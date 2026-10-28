@@ -7,6 +7,7 @@ from pyta2.utils.space import Scalar
 from pyta2.utils.validation import ensure_integer
 
 from sigma2.core import rKlineWindowOutcome
+from sigma2.core._kline_data import include_required_fields
 from sigma2.utils.pyta2 import normalize_pyta2_inputs
 
 
@@ -20,6 +21,7 @@ class rKlineFutureHighLowChange(rKlineWindowOutcome):
     ) -> None:
         n_forward = ensure_integer(n_forward, "n_forward", min_value=1)
         self.reference_field = normalize_pyta2_inputs((reference_field,))[0]
+        include_required_fields(kwargs, self.reference_field)
         super().__init__(
             schema={
                 key: Scalar(low=-np.inf, high=np.inf, dtype=np.float64)

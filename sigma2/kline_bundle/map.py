@@ -8,10 +8,26 @@ import numpy as np
 
 from sigma2.core import (
     KlineBar,
+    KlineBundle,
     rKlineBundleOutcome,
     rKlineBundleSignal,
     rKlineOutcome,
     rKlineSignal,
+)
+from sigma2.core._kline_data import include_required_fields, input_value
+
+_LEGACY_BAR_FIELDS = frozenset(
+    (
+        "open",
+        "high",
+        "low",
+        "close",
+        "volume",
+        "symbol",
+        "bar_time",
+        "available_at",
+        "is_missing",
+    )
 )
 
 
@@ -35,7 +51,7 @@ class _BundleMap:
                 f"operator_cls must derive from {self._component_base.__name__}"
             )
         params = dict(operator_kwargs or {})
-        reserved = {"symbol", "buffer_size", "return_dict"} & params.keys()
+        reserved = {"symbol", "buffer_size", "return_dict", "key_map"} & params.keys()
         if reserved:
             raise ValueError(f"operator_kwargs cannot contain {sorted(reserved)}")
         self._prototype = operator_cls(
@@ -48,6 +64,7 @@ class _BundleMap:
             raise ValueError(
                 "mapping a single-symbol operator requires per_symbol=True"
             )
+        include_required_fields(kwargs, *self._prototype.required_fields)
         super().__init__(self._prototype.schema, symbols=symbols, **timing, **kwargs)
 
     def reset_extras(self) -> None:
@@ -58,19 +75,30 @@ class _BundleMap:
     def forward(self, bundle):
         values: dict[str, list[Any]] = {key: [] for key in self.output_keys}
         for symbol, operator in zip(self.symbols, self._operators):
-            bar = bundle.get(symbol)
+            bar = bundle.bars.get(symbol)
             if bar is None:
-                bar = KlineBar(
-                    symbol=symbol,
-                    bar_time=bundle.bar_time,
-                    open=np.nan,
-                    high=np.nan,
-                    low=np.nan,
-                    close=np.nan,
-                    volume=np.nan,
-                    available_at=bundle.available_at,
-                    is_missing=True,
+                legacy_placeholder = isinstance(bundle, KlineBundle) and all(
+                    field in _LEGACY_BAR_FIELDS for field in operator.required_fields
                 )
+                if legacy_placeholder:
+                    bar = KlineBar(
+                        symbol=symbol,
+                        bar_time=bundle.bar_time,
+                        open=np.nan,
+                        high=np.nan,
+                        low=np.nan,
+                        close=np.nan,
+                        volume=np.nan,
+                        available_at=bundle.available_at,
+                        is_missing=True,
+                    )
+                else:
+                    bar = {field: np.nan for field in operator.required_fields}
+                    bar.update({"symbol": symbol, "volume": np.nan, "is_missing": True})
+                    for field in ("bar_time", "available_at"):
+                        value = input_value(bundle, field)
+                        if value is not None:
+                            bar[field] = value
             result = operator.step(bar)
             for key in self.output_keys:
                 values[key].append(result[key])

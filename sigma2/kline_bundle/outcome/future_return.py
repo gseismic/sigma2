@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from typing import Any
 
 from sigma2.core import forward_outcome_apply
@@ -35,6 +35,8 @@ def KlineBundleFutureReturn(
     n_forward: int,
     *,
     symbols: Sequence[str] | None = None,
+    key_map: Mapping[str, str] | None = None,
+    bundle_key_map: Mapping[str, str] | None = None,
     field: str = "close",
     return_mode: str = "simple",
     return_type: str = "dict",
@@ -47,6 +49,8 @@ def KlineBundleFutureReturn(
         param_args=(n_forward,),
         param_kwargs={"field": field, "return_type": return_mode},
         symbols=symbols,
+        key_map=key_map,
+        bundle_key_map=bundle_key_map,
         return_type=return_type,
         return_meta_info=return_meta_info,
     )

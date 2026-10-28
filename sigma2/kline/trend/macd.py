@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Mapping
 from typing import Any
 
 from pyta2.momentum import rMACD as _rPytaMACD
@@ -55,6 +56,7 @@ def KlineMACD(
     return_type: str = "dict",
     return_meta_info: bool = False,
     symbol: str | None = None,
+    key_map: Mapping[str, str] | None = None,
 ) -> Any:
     """批量 replay :class:`rKlineMACD`。"""
 
@@ -66,6 +68,7 @@ def KlineMACD(
         return_type=return_type,
         return_meta_info=return_meta_info,
         symbol=symbol,
+        key_map=key_map,
     )
 
 

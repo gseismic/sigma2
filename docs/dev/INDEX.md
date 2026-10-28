@@ -38,6 +38,8 @@
 | 2026-09-27 12:23 CST | `PLAN-026-rolling-only-signal.md` | `PLAN-026-rolling-only-signal-OUTCOME.md` | 归档旧设计至 `docs/backup/v2/`，移除 Signal 的 `update_last()`、检查点和子指标修订分支；保留 `step()` 单向推进、`reset()` 重放和 batch 一致性，版本升至 0.6.0，120 项测试通过。 |
 | 2026-10-28 08:02 CST | `PLAN-027-kline-bundle-operator.md` | `PLAN-027-kline-bundle-operator-OUTCOME.md` | 实施 Operator/Signal/Outcome、单 K 线与多 symbol 时点快照、截面排名和未来结果对齐；与 pyta2 统一 result_index 和 schema，版本升至 0.7.0，159 项测试通过。 |
 | 2026-10-28 08:14 CST | `PLAN-028-examples-direct.md` | `PLAN-028-examples-direct-OUTCOME.md` | 修复示例脚本直接运行时的公共数据导入，支持在 examples 目录执行并保留模块运行方式；9 个示例运行通过。 |
+| 2026-10-28 15:24 CST | `PLAN-029-readme-skill-warmup.md` | `PLAN-029-readme-skill-warmup-OUTCOME.md` | 更新 README 与 sigma2 使用 skill，说明预热、字典输入和字段映射，并新增字典示例。 |
+| 2026-10-28 15:24 CST | `PLAN-030-kline-mapping.md` | `PLAN-030-kline-mapping-OUTCOME.md` | 实施单 K 线与 Bundle 字典协议、字段映射、可选元信息和批量重放，兼容旧对象；版本升至 0.8.0，213 项测试通过。 |
 
 ## 当前设计文档规则
 
@@ -56,3 +58,7 @@
 ## 2026-10-28 当前设计入口
 
 当前核心与横截面契约分别见 `docs/design/sigma2-operator-signal-outcome-20261028-overview.md`、`docs/design/kline-bundle-20261028-overview.md`；`sigma2-20260927-rolling-only.md` 保留 0.6.0 的历史语义。
+
+## 2026-10-28 字典输入补充
+
+从 0.8.0 起，输入字典、字段映射、可选元信息及批量索引以 `docs/design/step-mapping-20261028-overview.md` 为准；上述核心和横截面设计中必须构造对象的旧描述不再是唯一输入方式。

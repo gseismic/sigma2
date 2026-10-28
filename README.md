@@ -16,82 +16,73 @@ python -m pip install -e .
 
 ## 单 symbol K 线
 
-`KlineBar` 表示一根已确定的 K 线，时间必须包含时区。每个算子实例只处理一个 symbol；未指定 symbol 时首次成功输入会绑定它。
+一根 K 线可以直接用字典表示，`step(bar)` 接收整条数据。`open`、`high`、`low`、`close` 必须存在；`volume`、`symbol`、时间和其他字段可选。具体算子依赖的其他字段也必须提供，例如 `field="volume"` 时需要成交量。额外字段可以保留。
 
 ```python
-from datetime import datetime, timedelta, timezone
+from sigma2.kline import KlineMA, rKlineMA
 
-from sigma2.kline import KlineBar, KlineMA, rKlineMA
-
-t0 = datetime(2026, 1, 1, tzinfo=timezone.utc)
 bars = [
-    KlineBar("BTC", t0, 100, 101, 99, 100, 10),
-    KlineBar("BTC", t0 + timedelta(days=1), 110, 111, 109, 110, 12),
+    {"open": 100, "high": 101, "low": 99, "close": 100, "open_time": 1},
+    {"open": 110, "high": 111, "low": 109, "close": 110, "open_time": 2},
 ]
 signal = rKlineMA(2, return_dict=True)
 for bar in bars:
     value = signal.step(bar)
 print(value)  # {'ma': 105.0}
 
-columns = KlineMA(bars, 2)
+columns, meta = KlineMA(
+    bars, 2, key_map={"bar_time": "open_time"}, return_meta_info=True
+)
 print(columns[signal.factor_names[0]])  # [nan, 105.]
+print(meta["bar_times"])                # (1, 2)
 ```
 
-批量接口按输入顺序重放同一个 `step()`，默认返回以 `factor_names` 为键的 NumPy 数组字典。`return_type` 还支持 `tuple`、`list`、`dataframe` 和 `pl.dataframe`；`return_meta_info=True` 返回结果和元信息。
+字段名默认使用同名键。`key_map` 的方向是**算子使用的逻辑字段 → 数据字典的实际字段**：例如 `{"date": "open_time"}` 让需要 `date` 的自定义算子读取输入的 `open_time`。均线不需要 `date`；映射不会使可选字段变为必需字段，也不会自动推断时间单位或可用时间。批量元信息需要行情时间时，可像上例一样显式映射 `bar_time`。
+
+每个单 K 线算子实例用于一个 symbol 的输入流；字典的顺序和所属 symbol 由上游管理。如果构造时指定 `symbol`，输入字典中一旦包含 `symbol` 就必须一致。映射信息保存在 `meta_info["key_map"]` 中；计算公式相同但数据来源不同的结果，需要在消费端用数据集或别名区分。
+
+批量接口按输入顺序重放同一个 `step()`，接受逐行字典序列、列式字典或 DataFrame，默认返回以 `factor_names` 为键的 NumPy 数组字典。`return_type` 还支持 `tuple`、`list`、`dataframe` 和 `pl.dataframe`；`return_meta_info=True` 返回结果和元信息。原有 `KlineBar` 输入仍可使用，其时间和 symbol 校验保持不变。
 
 ## 多 symbol 截面
 
-`KlineBundle` 是同一时间标签的多 symbol 快照。固定的 `symbols` 定义结果顺序；当前时点没有行情的 symbol 不放进 `bars`。数据源负责确认快照何时可以放行。
+Bundle 字典是同一逻辑时点的多 symbol 快照。固定的 `symbols` 定义结果顺序；当前时点没有行情的 symbol 不放进 `bars`。数据源负责保证各标的属于同一时点并确认快照何时可以放行。
 
 ```python
-from datetime import datetime, timedelta, timezone
+from sigma2.kline_bundle import rKlineBundleMA, rKlineBundleRank
 
-from sigma2.kline import KlineBar
-from sigma2.kline_bundle import KlineBundle, rKlineBundleMA, rKlineBundleRank
-
-t = datetime(2026, 1, 1, tzinfo=timezone.utc)
-ready = t + timedelta(days=1)
 symbols = ("BTC", "ETH", "SOL")
-bundle = KlineBundle(
-    bar_time=t,
-    symbols=symbols,
-    interval="1d",
-    time_label="open",
-    bars={
-        "BTC": KlineBar("BTC", t, 100, 101, 99, 100, 10, ready),
-        "ETH": KlineBar("ETH", t, 200, 201, 199, 200, 20, ready),
+bundle = {
+    "open_time": 1,
+    "bars": {
+        "BTC": {"open": 100, "high": 101, "low": 99, "close": 100},
+        "ETH": {"open": 200, "high": 201, "low": 199, "close": 200},
     },
-    available_at=ready,
-)
+}
 rank = rKlineBundleRank(symbols=symbols, return_dict=True)
 ma = rKlineBundleMA(2, symbols=symbols, return_dict=True)
 print(rank.step(bundle))  # {'rank': [1., 2., nan]}，输出值为 NumPy 数组
 print(ma.step(bundle))    # 第一个快照尚未满足均线预热
 ```
 
-排名只包含当前字段有效的 symbol，平局使用平均名次。`rKlineBundleReturnRank(n)` 计算过去 N 个共同快照的收益，再在截面上排名。要对其他单 K 线 Signal 计算整个截面，可使用 `rKlineBundleMapSignal`；它为每个 symbol 创建独立状态，缺失 Bar 使用显式占位推进共同时间。
+每个存在的 Bar 使用单 K 线字段规则；Bar 中若提供 `symbol`，必须与 `bars` 的对应键一致。未知 symbol 会报错。排名只包含当前字段有效的 symbol，平局使用平均名次。`rKlineBundleReturnRank(n)` 计算过去 N 个共同快照的收益，再在截面上排名。要对其他单 K 线 Signal 计算整个截面，可使用 `rKlineBundleMapSignal`；它为每个 symbol 创建独立状态，缺失 Bar 使用显式占位推进共同时间。
 
-Batch 结果的每个字段形状是 `(时间, symbol)`；`Space` 描述一个 symbol 的值，symbol 顺序由 Bundle 和元信息提供。多维 Space 的结果在 symbol 轴后继续保留其形状。DataFrame 格式按 `(bar_time, symbol)` 展开。
+Bundle 的 `key_map` 作用于每个 Bar，`bundle_key_map` 作用于 Bundle 顶层。例如 `bundle_key_map={"bar_time": "open_time"}` 将顶层 `open_time` 作为行情时间。批量字典输入需通过 `symbols=` 或首个快照的 `symbols` 明确提供完整全集，不根据可能缺失标的的首个 `bars` 推断。原有 `KlineBundle` 输入仍可使用。
+
+Batch 结果的每个字段形状是 `(时间, symbol)`；`Space` 描述一个 symbol 的值，symbol 顺序由算子配置和元信息提供。多维 Space 的结果在 symbol 轴后继续保留其形状。DataFrame 格式按 `(bar_time, symbol)` 展开；行情时间缺失或部分缺失时使用 `(g_index, symbol)`。
 
 ## 未来结果与时间
 
 ```python
-from datetime import datetime, timedelta, timezone
-
-from sigma2.kline import KlineBar
-from sigma2.kline_bundle import KlineBundle, KlineBundleFutureReturn, rKlineBundleFutureReturn
+from sigma2.kline_bundle import KlineBundleFutureReturn, rKlineBundleFutureReturn
 
 symbols = ("BTC", "ETH")
-start = datetime(2026, 1, 1, tzinfo=timezone.utc)
 ordered_bundles = []
 for i, prices in enumerate([(100, 200), (110, 190), (121, 210)]):
-    t = start + timedelta(days=i)
-    ready = t + timedelta(days=1)
     bars = {
-        symbol: KlineBar(symbol, t, price, price, price, price, 1, ready)
+        symbol: {"open": price, "high": price, "low": price, "close": price}
         for symbol, price in zip(symbols, prices)
     }
-    ordered_bundles.append(KlineBundle(t, symbols, "1d", "open", bars, ready))
+    ordered_bundles.append({"bar_time": i, "available_at": i + 1, "bars": bars})
 
 outcome = rKlineBundleFutureReturn(2, symbols=symbols, return_dict=True)
 for bundle in ordered_bundles:
@@ -99,12 +90,14 @@ for bundle in ordered_bundles:
     if outcome.result_index >= 0:
         print(outcome.result_index, value)
 
-columns, meta = KlineBundleFutureReturn(ordered_bundles, 2, return_meta_info=True)
+columns, meta = KlineBundleFutureReturn(
+    ordered_bundles, 2, symbols=symbols, return_meta_info=True
+)
 ```
 
 `n_forward=2` 表示等待 2 个输入快照，不自动等同于 2 个自然日。未来收益要求锚点及全部未来区间的对应字段有效，符合当前 pyta2 的缺失规则。在线缓存按结果产生顺序保存；batch 按 `result_index` 回填历史锚点，末尾未成熟位置为缺失值。单 K 线也可使用 `rKlineFutureReturn` 和 `forward_outcome_apply()`。
 
-`bar_time` 是来源声明的 K 线时间标签；`available_at` 是来源确认 Bar 或 Bundle 可用的时间。batch 元信息中的 `result_input_ready_at` 是所有先前输入最早齐备时间，不包含计算和发布延迟。结果的实际可用时间需要由运行或消费层记录；按锚点回填的未来结果不能视为锚点时已知。
+`bar_time` 是来源声明的 K 线时间标签；`available_at` 是来源确认 Bar 或 Bundle 可用的时间。两者均可省略，sigma2 不根据 `open_time` 猜测 `available_at`。batch 元信息中的 `result_input_ready_at` 是所有先前输入最早齐备时间，不包含计算和发布延迟；无法确定时为 `None`。结果的实际可用时间需要由运行或消费层记录；按锚点回填的未来结果不能视为锚点时已知。
 
 ## 生命周期与 schema
 
@@ -112,13 +105,27 @@ columns, meta = KlineBundleFutureReturn(ordered_bundles, 2, return_meta_info=Tru
 - `schema` 直接使用 pyta2 的 `Schema` 与 `Space`。逐条原始返回值、`return_dict`、字段顺序和 `missing_output` 沿用 pyta2 语义；Bundle 的 symbol 轴由 family 添加。
 - 输出缓存默认保存最近一步，`buffer_size=0` 或 `None` 关闭，`-1` 无限，正数保存最近 N 步。Bundle 缓存逐 symbol 使用 pyta2 标量表，`outputs[key]` 以时间和 symbol 两个轴查看。
 - 修改已处理数据或计算失败后，调用 `reset()` 并从已确认输入序列重放。重置失败时实例保持 faulted；算子状态与输出缓存不是数据源的持久化存储。
-- Bundle 的 symbol 顺序、周期和时间标签在一个运行段内固定，时间严格递增。要改变 symbol 集合，建立新运行段；需要连续历史时按新集合重放。
+- Bundle 的 symbol 结果顺序在一个运行段内固定。字典输入的时序、周期和共同时间由上游保证；旧 `KlineBar` / `KlineBundle` 对象保留自身身份和时间校验。要改变 symbol 集合，建立新运行段；需要连续历史时按新集合重放。
 
 ## 从 0.6.0 迁移
 
-- 单 K 线 `step(**ohlcv)` 改为 `step(KlineBar(...))`，批量数据改为 `KlineBar` 序列；横截面使用 `KlineBundle` 序列。
+- 单 K 线 `step(**ohlcv)` 改为 `step(bar)`，直接传入行情字典；横截面使用包含 `bars` 的字典。原有 `KlineBar` / `KlineBundle` 对象也可继续使用。
 - 未来计算从 `sigma2.kline.target` 迁至 `sigma2.kline.outcome`，`horizon` 改名为 `n_forward`，批量使用 `forward_outcome_apply()`；旧路径不再提供。
 - 自定义算子的 schema 改用 pyta2 `Space`，窗口元信息改为 `n_backward`、`n_forward` 和 `min_periods`。输出缓存默认仅保留最近一步，原来依赖无限缓存的调用方需设置 `buffer_size=-1`。
+
+### 预热
+
+`n_backward` 表示结果所属位置之前需要的最少观测数，`n_forward` 表示结果所属位置之后需要等待的观测数，`min_periods = n_backward + 1 + n_forward`。例如：
+
+```python
+from sigma2.kline import rKlineMA
+
+signal = rKlineMA(20, ma_type="SMA")
+print(signal.n_backward)  # 19：当前结果之前至少需要 19 根
+print(signal.min_periods)  # 20：包括结果所属的当前 K 线
+```
+
+旧的 `required_window` 与新的 `n_backward` 是否相差一根取决于原算法及其窗口定义，迁移时应核对计数边界。观测数按实际输入步数计算；如果行情存在缺口，向前读取相同分钟数不一定得到所需根数。EMA 等递推算法的 `n_backward` 只是开始产生完整输出的最小预热要求；若要和持续运行的实例精确一致，应从相同起点重放相同数据。
 
 ## 示例与扩展
 
@@ -129,6 +136,6 @@ cd examples
 python 09_kline_bundle.py
 ```
 
-其余例子按 `01` 至 `08` 展示单 K 线、盘口、成交、未来结果、pyta2 组合和自定义 Signal。扩展时参考 [新增信号指南](skills/sigma2-usage/references/add-signals.md)、[核心设计](docs/design/sigma2-operator-signal-outcome-20261028-overview.md) 和 [KlineBundle 设计](docs/design/kline-bundle-20261028-overview.md)。
+其余例子按 `01` 至 `08` 展示单 K 线、盘口、成交、未来结果、pyta2 组合和自定义 Signal；`10_mapping_inputs.py` 展示字典和字段映射。扩展时参考 [新增信号指南](skills/sigma2-usage/references/add-signals.md)、[字典输入设计](docs/design/step-mapping-20261028-overview.md)、[核心设计](docs/design/sigma2-operator-signal-outcome-20261028-overview.md) 和 [KlineBundle 设计](docs/design/kline-bundle-20261028-overview.md)。
 
 通用 `pyta2_signal()` 需要显式 `history_window`；调用者应确认具体 pyta2 指标支持该有限窗口。部分 pyta2 指标和 effect 尚未迁移到新基类，不能假定它们均可用于桥接。

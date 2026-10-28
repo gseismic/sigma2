@@ -1,13 +1,14 @@
 from __future__ import annotations
 
 from collections import deque
+from collections.abc import Mapping
 from typing import Any
 
 import numpy as np
 from pyta2.utils.space import Scalar
 
 from sigma2.core import forward_signal_apply, rKlineSignal
-
+from sigma2.core._kline_data import include_required_fields
 
 _FIELD_INDEX = {"open": 0, "high": 1, "low": 2, "close": 3, "volume": 4}
 
@@ -35,6 +36,7 @@ class rKlineMeanOfMean(rKlineSignal):
         self.inner_n = inner_n
         self.outer_n = outer_n
         self.field = field
+        include_required_fields(kwargs, self.field)
         super().__init__(
             n_backward=inner_n + outer_n - 2,
             schema={"mean_of_mean": Scalar(low=-np.inf, high=np.inf, dtype=np.float64)},
@@ -68,6 +70,7 @@ def KlineMeanOfMean(
     return_type: str = "dict",
     return_meta_info: bool = False,
     symbol: str | None = None,
+    key_map: Mapping[str, str] | None = None,
 ) -> Any:
     """逐根重放 :class:`rKlineMeanOfMean`。"""
 
@@ -79,6 +82,7 @@ def KlineMeanOfMean(
         return_type=return_type,
         return_meta_info=return_meta_info,
         symbol=symbol,
+        key_map=key_map,
     )
 
 
