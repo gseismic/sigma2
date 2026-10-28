@@ -1,4 +1,5 @@
 from .ma import KlineMA, rKlineMA
+from .cross import KlineMACross, rKlineMACross
 from .macd import KlineMACD, rKlineMACD
 from .mean_of_mean import KlineMeanOfMean, rKlineMeanOfMean
 from .mean_of_mean_v2 import KlineMeanOfMeanV2, rKlineMeanOfMeanV2
@@ -6,10 +7,12 @@ from .mean_of_mean_v2 import KlineMeanOfMeanV2, rKlineMeanOfMeanV2
 __all__ = [
     "KlineMA",
     "KlineMACD",
+    "KlineMACross",
     "KlineMeanOfMean",
     "KlineMeanOfMeanV2",
     "rKlineMA",
     "rKlineMACD",
+    "rKlineMACross",
     "rKlineMeanOfMean",
     "rKlineMeanOfMeanV2",
 ]

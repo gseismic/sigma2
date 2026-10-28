@@ -1,6 +1,6 @@
 # 计划执行索引
 
-更新时间：2026-10-28 17:49 CST
+更新时间：2026-10-28 17:50 CST
 
 ## 历史说明
 
@@ -42,6 +42,7 @@
 | 2026-10-28 15:24 CST | `PLAN-030-kline-mapping.md` | `PLAN-030-kline-mapping-OUTCOME.md` | 实施单 K 线与 Bundle 字典协议、字段映射、可选元信息和批量重放，兼容旧对象；版本升至 0.8.0，213 项测试通过。 |
 | 2026-10-28 16:08 CST | `PLAN-031-bundle-snapshot.md` | `PLAN-031-bundle-snapshot-OUTCOME.md` | 截面统一为 `bundle` 和可选 `open_time` 的字典协议，移除旧对象及专用分支，更新示例和文档；版本升至 0.9.0，228 项测试通过。 |
 | 2026-10-28 17:49 CST | `PLAN-032-factor-identities.md` | `PLAN-032-factor-identities-OUTCOME.md` | 检查点一：单标的与截面因子身份、公式名、可配置作用域及测试；设计见 `docs/design/factor-identity-pipeline-20261028-overview.md`，后续包装和联调继续。 |
+| 2026-10-28 17:50 CST | `PLAN-032-factor-identities.md` | `PLAN-032-factor-identities-OUTCOME.md` | 检查点二：KDJ、ATR、均线交叉和量能指标复用已迁移的 pyta2，并固定依赖版本。 |
 
 ## 当前设计文档规则
 
