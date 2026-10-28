@@ -1,7 +1,11 @@
-"""逐根推进 K 线并与批量重放比较：运行 python -m examples.02_kline_stream。"""
+"""逐根推进 K 线并与批量重放比较：在 examples 目录运行 python 02_kline_stream.py。"""
 
 from sigma2 import KlineMA, rKlineMA
-from examples._data import make_bars
+
+if __package__:
+    from ._data import make_bars
+else:
+    from _data import make_bars
 
 
 def main() -> None:

@@ -1,9 +1,13 @@
-"""将 pyta2 rolling 指标绑定到 K 线：运行 python -m examples.05_pyta2_bridge。"""
+"""将 pyta2 rolling 指标绑定到 K 线：在 examples 目录运行 python 05_pyta2_bridge.py。"""
 
 from pyta2.trend.ma.sma import rSMA
 
-from examples._data import make_bars
 from sigma2 import forward_signal_apply, pyta2_signal, rPyta2Signal
+
+if __package__:
+    from ._data import make_bars
+else:
+    from _data import make_bars
 
 
 def main() -> None:

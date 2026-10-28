@@ -1,6 +1,6 @@
 # 计划执行索引
 
-更新时间：2026-10-28 08:02 CST
+更新时间：2026-10-28 08:14 CST
 
 ## 历史说明
 
@@ -37,6 +37,7 @@
 | 2026-09-26 16:02 CST | `PLAN-025-direct-pyta2-calls.md` | `PLAN-025-direct-pyta2-calls-OUTCOME.md` | 按新的直接调用设计删除 `Pyta2Component` 与 `rSignal.apply_component()`，所有当前调用方直接使用原指标或子对象的新增/修订/重置方法；版本升至 0.5.0，118 项测试通过。 |
 | 2026-09-27 12:23 CST | `PLAN-026-rolling-only-signal.md` | `PLAN-026-rolling-only-signal-OUTCOME.md` | 归档旧设计至 `docs/backup/v2/`，移除 Signal 的 `update_last()`、检查点和子指标修订分支；保留 `step()` 单向推进、`reset()` 重放和 batch 一致性，版本升至 0.6.0，120 项测试通过。 |
 | 2026-10-28 08:02 CST | `PLAN-027-kline-bundle-operator.md` | `PLAN-027-kline-bundle-operator-OUTCOME.md` | 实施 Operator/Signal/Outcome、单 K 线与多 symbol 时点快照、截面排名和未来结果对齐；与 pyta2 统一 result_index 和 schema，版本升至 0.7.0，159 项测试通过。 |
+| 2026-10-28 08:14 CST | `PLAN-028-examples-direct.md` | `PLAN-028-examples-direct-OUTCOME.md` | 修复示例脚本直接运行时的公共数据导入，支持在 examples 目录执行并保留模块运行方式；9 个示例运行通过。 |
 
 ## 当前设计文档规则
 

@@ -1,7 +1,11 @@
-"""pyta2 MA 两级组合：运行 python -m examples.08_mean_of_mean_v2。"""
+"""pyta2 MA 两级组合：在 examples 目录运行 python 08_mean_of_mean_v2.py。"""
 
 from sigma2.kline import KlineMeanOfMeanV2, rKlineMeanOfMeanV2
-from examples._data import make_bars
+
+if __package__:
+    from ._data import make_bars
+else:
+    from _data import make_bars
 
 
 def main() -> None:

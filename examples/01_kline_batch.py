@@ -1,7 +1,11 @@
-"""批量计算 K 线因子：从仓库根目录运行 python -m examples.01_kline_batch。"""
+"""批量计算 K 线因子：在 examples 目录运行 python 01_kline_batch.py。"""
 
 from sigma2 import KlineMA, KlineMACD
-from examples._data import make_bars
+
+if __package__:
+    from ._data import make_bars
+else:
+    from _data import make_bars
 
 
 def main() -> None:

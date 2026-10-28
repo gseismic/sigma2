@@ -122,6 +122,13 @@ columns, meta = KlineBundleFutureReturn(ordered_bundles, 2, return_meta_info=Tru
 
 ## 示例与扩展
 
-在仓库根目录运行 `python -m examples.09_kline_bundle`。其余例子按 `01` 至 `08` 展示单 K 线、盘口、成交、未来结果、pyta2 组合和自定义 Signal。扩展时参考 [新增信号指南](skills/sigma2-usage/references/add-signals.md)、[核心设计](docs/design/sigma2-operator-signal-outcome-20261028-overview.md) 和 [KlineBundle 设计](docs/design/kline-bundle-20261028-overview.md)。
+安装项目及依赖后，在 `examples` 目录运行示例，例如：
+
+```bash
+cd examples
+python 09_kline_bundle.py
+```
+
+其余例子按 `01` 至 `08` 展示单 K 线、盘口、成交、未来结果、pyta2 组合和自定义 Signal。扩展时参考 [新增信号指南](skills/sigma2-usage/references/add-signals.md)、[核心设计](docs/design/sigma2-operator-signal-outcome-20261028-overview.md) 和 [KlineBundle 设计](docs/design/kline-bundle-20261028-overview.md)。
 
 通用 `pyta2_signal()` 需要显式 `history_window`；调用者应确认具体 pyta2 指标支持该有限窗口。部分 pyta2 指标和 effect 尚未迁移到新基类，不能假定它们均可用于桥接。

@@ -1,7 +1,11 @@
-"""不调用 pyta2 指标的两级均值 Signal：运行 python -m examples.07_mean_of_mean。"""
+"""不调用 pyta2 指标的两级均值 Signal：在 examples 目录运行 python 07_mean_of_mean.py。"""
 
 from sigma2.kline import KlineMeanOfMean, rKlineMeanOfMean
-from examples._data import make_bars
+
+if __package__:
+    from ._data import make_bars
+else:
+    from _data import make_bars
 
 
 def main() -> None:

@@ -1,12 +1,16 @@
-"""多 symbol 排名与未来收益：运行 python -m examples.09_kline_bundle。"""
+"""多 symbol 排名与未来收益：在 examples 目录运行 python 09_kline_bundle.py。"""
 
-from examples._data import make_bundles
 from sigma2.kline_bundle import (
     KlineBundleFutureReturn,
     rKlineBundleFutureReturn,
     rKlineBundleMA,
     rKlineBundleRank,
 )
+
+if __package__:
+    from ._data import make_bundles
+else:
+    from _data import make_bundles
 
 
 def main() -> None:

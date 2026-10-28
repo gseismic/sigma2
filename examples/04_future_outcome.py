@@ -1,7 +1,11 @@
-"""未来收益属于历史锚点：运行 python -m examples.04_future_outcome。"""
+"""未来收益属于历史锚点：在 examples 目录运行 python 04_future_outcome.py。"""
 
-from examples._data import make_bars
 from sigma2 import forward_outcome_apply, rKlineFutureReturn
+
+if __package__:
+    from ._data import make_bars
+else:
+    from _data import make_bars
 
 
 def main() -> None:
