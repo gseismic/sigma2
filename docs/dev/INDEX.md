@@ -40,6 +40,7 @@
 | 2026-10-28 08:14 CST | `PLAN-028-examples-direct.md` | `PLAN-028-examples-direct-OUTCOME.md` | 修复示例脚本直接运行时的公共数据导入，支持在 examples 目录执行并保留模块运行方式；9 个示例运行通过。 |
 | 2026-10-28 15:24 CST | `PLAN-029-readme-skill-warmup.md` | `PLAN-029-readme-skill-warmup-OUTCOME.md` | 更新 README 与 sigma2 使用 skill，说明预热、字典输入和字段映射，并新增字典示例。 |
 | 2026-10-28 15:24 CST | `PLAN-030-kline-mapping.md` | `PLAN-030-kline-mapping-OUTCOME.md` | 实施单 K 线与 Bundle 字典协议、字段映射、可选元信息和批量重放，兼容旧对象；版本升至 0.8.0，213 项测试通过。 |
+| 2026-10-28 16:08 CST | `PLAN-031-bundle-snapshot.md` | `PLAN-031-bundle-snapshot-OUTCOME.md` | 截面统一为 `bundle` 和可选 `open_time` 的字典协议，移除旧对象及专用分支，更新示例和文档；版本升至 0.9.0，228 项测试通过。 |
 
 ## 当前设计文档规则
 
@@ -62,3 +63,7 @@
 ## 2026-10-28 字典输入补充
 
 从 0.8.0 起，输入字典、字段映射、可选元信息及批量索引以 `docs/design/step-mapping-20261028-overview.md` 为准；上述核心和横截面设计中必须构造对象的旧描述不再是唯一输入方式。
+
+## 2026-10-28 截面字典补充
+
+从 0.9.0 起，Bundle 字典的字段及 `Mapping` 协议以 `docs/design/bundle-snapshot-20261028-overview.md` 为准；其余字典输入契约继续参考 `step-mapping-20261028-overview.md`。

@@ -18,7 +18,7 @@ Bundle 算子持有固定 `symbols` 轴；一份快照缺少某个 symbol 仍推
 
 - 直接使用 pyta2 的 `Schema`、`Space` 声明 schema，例如 `Scalar(low=-np.inf, high=np.inf, dtype=np.float64)`；一个 Bundle Space 描述一个 symbol。单字段返回数组，多字段按 schema 顺序返回 tuple，或返回 schema key 到值的 mapping。
 - K 线基类默认要求 OHLC；在 `super().__init__(..., required_fields=("volume", "date"))` 中声明算法使用的其他必需字段。Bundle 的 `required_fields` 作用于每个存在的 Bar，`required_bundle_fields` 作用于顶层；必需字段在推进状态前检查。可选字段只在算法确实需要时读取。
-- 字典输入进入 `forward(self, bar)` 时是只读映射视图，可用 `bar["close"]` 或 `bar["date"]` 读取逻辑字段和额外字段；`key_map` 已经解析。Bundle 视图可通过 `bundle["bars"]`、`bundle["date"]` 和 `bundle.field("close")` 读取；后者按照固定 symbol 轴生成数组。未配置字段映射的旧对象仍以对象传递给 `forward()`；如果自定义算子也要支持它，应同时处理对象属性。需要持有自定义可变字段时由算子保存快照。
+- 字典输入进入 `forward(self, bar)` 时是只读映射视图，可用 `bar["close"]` 或 `bar["date"]` 读取逻辑字段和额外字段；`key_map` 已经解析。Bundle 视图可通过 `snapshot["bundle"]`、`snapshot["open_time"]` 和 `snapshot.field("close")` 读取；后者按照固定 symbol 轴生成数组，时间仅在输入时可用。需要持有自定义可变字段时由算子保存快照。单 K 线没有字段映射时仍可能接收 `KlineBar` 对象，自定义单 K 线算子如要支持它，应处理对象属性。
 - 使用 `rKlineBundleMapSignal` / `rKlineBundleMapOutcome` 时，在父算子配置 `key_map`，不要在 `operator_kwargs` 再配置。缺失 symbol 的子算子通过 `is_missing=True` 及各必需字段的缺失值占位推进。
 - 按算法声明 `n_backward` 和 `n_forward`；`n_backward` 不含结果所属位置，`min_periods = n_backward + 1 + n_forward`。需要历史字段时另显式声明 `history_window`，它不等同于 `min_periods`。窗口 family 的 `forward` 接收 OHLCV 数组，单 K 线是一维，Bundle 是 `(时间, symbol)`。
 - 实现 `forward()`、`full_name` 和必要的 `reset_extras()` 或 `reset_window_extras()`。不要手动修改 `g_index` 或输出缓存。计算失败后状态可能已改变，应 `reset()` 并重放。

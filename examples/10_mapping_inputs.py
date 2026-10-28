@@ -68,15 +68,15 @@ def main() -> None:
     print("输入时间和映射：", meta["bar_times"], meta["key_map"])
 
     bundle = {
-        "open_time": 2,
-        "bars": {
+        "date": 2,
+        "klines": {
             "BTC": {"open": 110, "high": 111, "low": 109, "close": 110},
             "ETH": {"open": 200, "high": 201, "low": 199, "close": 200},
         },
     }
     rank = rKlineBundleRank(
         symbols=("BTC", "ETH", "SOL"),
-        bundle_key_map={"bar_time": "open_time"},
+        bundle_key_map={"bundle": "klines", "open_time": "date"},
     )
     print("截面排名：", rank.step(bundle))
     print("截面时间：", rank.meta_info["last_bar_time"])

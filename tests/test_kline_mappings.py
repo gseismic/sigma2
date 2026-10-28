@@ -81,7 +81,7 @@ class rMappedBundle(rKlineBundleSignal):
 
     def forward(self, bundle):
         assert isinstance(bundle, Mapping)
-        self.seen = (bundle["date"], bundle["note"], bundle["bars"]["A"]["extra"])
+        self.seen = (bundle["date"], bundle["note"], bundle["bundle"]["A"]["extra"])
         return float(np.nansum(bundle.field("amount")))
 
     @property
@@ -206,7 +206,7 @@ def test_unrelated_uncopyable_extra_field_does_not_reject_a_row():
 def test_invalid_optional_volume_does_not_break_close_based_windows():
     assert rKlineMA(1).step(bar(10, volume={"unexpected": 1})) == 10
     assert rKlineMA(1).step(bar(10, volume=[1, 2])) == 10
-    bundle = {"bars": {"A": bar(10, volume={"unexpected": 1})}}
+    bundle = {"bundle": {"A": bar(10, volume={"unexpected": 1})}}
     np.testing.assert_allclose(rKlineBundleMA(1, symbols=("A",)).step(bundle), [10])
     from sigma2.kline_bundle import rKlineBundleReturnRank
 
@@ -340,9 +340,9 @@ def test_dataframe_uses_observation_index_if_times_are_incomplete():
 def test_bundle_mapping_rank_ma_outcome_and_missing_symbol_share_one_axis():
     symbols = ("A", "B")
     bundles = [
-        {"bars": {"A": bar(10), "B": bar(20)}},
-        {"bars": {"A": bar(12)}},
-        {"bars": {"A": bar(15), "B": bar(30)}},
+        {"bundle": {"A": bar(10), "B": bar(20)}},
+        {"bundle": {"A": bar(12)}},
+        {"bundle": {"A": bar(15), "B": bar(30)}},
     ]
     rank = rKlineBundleRank(symbols=symbols)
     np.testing.assert_allclose(rank.step(bundles[0]), [1, 2])
@@ -373,7 +373,7 @@ def test_bundle_mapping_rank_ma_outcome_and_missing_symbol_share_one_axis():
 )
 def test_all_bundle_batch_wrappers_accept_both_mapping_scopes(batch, args):
     rows = [
-        {"source_time": index, "bars": {"A": bar(value, qty=value)}}
+        {"source_time": index, "klines": {"A": bar(value, qty=value)}}
         for index, value in enumerate((10, 11, 12))
     ]
     _, meta = batch(
@@ -382,22 +382,22 @@ def test_all_bundle_batch_wrappers_accept_both_mapping_scopes(batch, args):
         symbols=("A",),
         field="volume",
         key_map={"volume": "qty"},
-        bundle_key_map={"bar_time": "source_time"},
+        bundle_key_map={"bundle": "klines", "open_time": "source_time"},
         return_meta_info=True,
     )
     assert meta["bar_times"] == (0, 1, 2)
     assert meta["key_map"] == {"volume": "qty"}
-    assert meta["bundle_key_map"] == {"bar_time": "source_time"}
+    assert meta["bundle_key_map"] == {"bundle": "klines", "open_time": "source_time"}
 
 
 def test_bundle_declared_fields_are_checked_before_parent_or_child_advance():
     signal = rKlineBundleMA(2, symbols=("A", "B"), field="volume")
-    bad = {"bars": {"A": bar(1, volume=5), "B": bar(2)}}
+    bad = {"bundle": {"A": bar(1, volume=5), "B": bar(2)}}
     with pytest.raises(KeyError, match="volume"):
         signal.step(bad)
     assert signal.g_index == -1 and not signal.is_faulted
     assert all(child.g_index == -1 for child in signal._operators)
-    good = {"bars": {"A": bar(1, volume=5), "B": bar(2, volume=6)}}
+    good = {"bundle": {"A": bar(1, volume=5), "B": bar(2, volume=6)}}
     signal.step(good)
     assert signal.g_index == 0
     assert all(child.g_index == 0 for child in signal._operators)
@@ -407,7 +407,7 @@ def test_bundle_custom_fields_and_top_level_mapping_are_available():
     signal = rMappedBundle(
         symbols=("A", "B"),
         key_map={"amount": "turnover"},
-        bundle_key_map={"date": "open_time", "bars": "klines"},
+        bundle_key_map={"date": "open_time", "bundle": "klines"},
     )
     bundle = {
         "klines": {"A": bar(1, turnover=9, extra="bar-extra")},
@@ -428,7 +428,7 @@ def test_bundle_mapping_applies_once_through_single_symbol_children():
         symbols=("A",),
         key_map={"close": "alternate", "alternate": "another"},
     )
-    bundle = {"bars": {"A": bar(1, alternate=7, another=20)}}
+    bundle = {"bundle": {"A": bar(1, alternate=7, another=20)}}
     np.testing.assert_allclose(signal.step(bundle), [7])
     batch = KlineBundleMA(
         [bundle],
@@ -446,16 +446,13 @@ def test_bundle_mapping_custom_child_receives_extra_and_missing_placeholders():
         symbols=("A", "B"),
         key_map={"date": "open_time", "amount": "turnover"},
     )
-    bundle = {"bars": {"A": bar(1, open_time=100, turnover=9, extra="x")}}
+    bundle = {"bundle": {"A": bar(1, open_time=100, turnover=9, extra="x")}}
     np.testing.assert_allclose(signal.step(bundle), [9, np.nan], equal_nan=True)
     assert all(child.g_index == 0 for child in signal._operators)
 
 
-def test_legacy_bundle_keeps_legacy_bar_placeholders_for_custom_children():
-    from examples._data import make_bundles
-    from sigma2.kline import KlineBar
-
-    class rLegacyClose(rKlineSignal):
+def test_bundle_missing_placeholders_are_mapping_views_for_custom_children():
+    class rClose(rKlineSignal):
         def __init__(self, **kwargs):
             super().__init__(
                 {"close": Scalar(low=-np.inf, high=np.inf, dtype=np.float64)},
@@ -464,25 +461,25 @@ def test_legacy_bundle_keeps_legacy_bar_placeholders_for_custom_children():
             )
 
         def forward(self, row):
-            assert isinstance(row, KlineBar)
-            return row.close
+            assert isinstance(row, Mapping)
+            return row["close"]
 
         @property
         def full_name(self):
-            return "legacy_close"
+            return "close"
 
-    signal = rKlineBundleMapSignal(rLegacyClose, symbols=("A", "B"))
-    bundle = make_bundles([{"A": 1}], symbols=("A", "B"))[0]
+    signal = rKlineBundleMapSignal(rClose, symbols=("A", "B"))
+    bundle = {"bundle": {"A": bar(1)}}
     np.testing.assert_allclose(signal.step(bundle), [1, np.nan], equal_nan=True)
 
 
 def test_bundle_universe_is_explicit_and_unknown_symbols_fail():
-    sparse = {"bars": {"A": bar(1)}}
+    sparse = {"bundle": {"A": bar(1)}}
     with pytest.raises(ValueError, match="symbols must be supplied"):
         KlineBundleRank([sparse])
     with pytest.raises(ValueError, match="unknown"):
         KlineBundleRank([sparse], symbols=("B",))
-    mismatch = {"bars": {"A": bar(1, symbol="B")}}
+    mismatch = {"bundle": {"A": bar(1, symbol="B")}}
     signal = rKlineBundleRank(symbols=("A",))
     with pytest.raises(ValueError, match="symbol"):
         signal.step(mismatch)
@@ -498,20 +495,19 @@ def test_bundle_universe_is_explicit_and_unknown_symbols_fail():
 def test_bundle_batch_mapping_metadata_and_index_fallback():
     pd = pytest.importorskip("pandas")
     bundles = [
-        {"bars": {"A": bar(1)}, "open_time": 10},
-        {"bars": {"A": bar(2)}},
+        {"bundle": {"A": bar(1)}, "open_time": 10},
+        {"bundle": {"A": bar(2)}},
     ]
     frame, meta = KlineBundleRank(
         bundles,
         symbols=("A",),
-        bundle_key_map={"bar_time": "open_time"},
         return_type="dataframe",
         return_meta_info=True,
     )
     assert isinstance(frame.index, pd.MultiIndex)
     assert frame.index.names == ["g_index", "symbol"]
     assert meta["bar_times"] == (10, None)
-    assert meta["bundle_key_map"] == {"bar_time": "open_time"}
+    assert meta["bundle_key_map"] == {}
 
 
 def test_polars_columnar_input_and_missing_time_output():

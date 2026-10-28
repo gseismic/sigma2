@@ -5,7 +5,6 @@ from pyta2.utils.space import Box, Scalar, Space
 
 from .core import (
     KlineBar,
-    KlineBundle,
     forward_outcome_apply,
     forward_signal_apply,
     pyta2_signal,
@@ -65,7 +64,6 @@ from .utils import register_pyta2_indicator, resolve_pyta2_indicator
 __all__ = [
     "Box",
     "KlineBar",
-    "KlineBundle",
     "KlineBundleFutureReturn",
     "KlineBundleMA",
     "KlineATR",

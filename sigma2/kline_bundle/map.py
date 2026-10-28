@@ -7,28 +7,12 @@ from typing import Any
 import numpy as np
 
 from sigma2.core import (
-    KlineBar,
-    KlineBundle,
     rKlineBundleOutcome,
     rKlineBundleSignal,
     rKlineOutcome,
     rKlineSignal,
 )
 from sigma2.core._kline_data import include_required_fields, input_value
-
-_LEGACY_BAR_FIELDS = frozenset(
-    (
-        "open",
-        "high",
-        "low",
-        "close",
-        "volume",
-        "symbol",
-        "bar_time",
-        "available_at",
-        "is_missing",
-    )
-)
 
 
 class _BundleMap:
@@ -75,30 +59,16 @@ class _BundleMap:
     def forward(self, bundle):
         values: dict[str, list[Any]] = {key: [] for key in self.output_keys}
         for symbol, operator in zip(self.symbols, self._operators):
-            bar = bundle.bars.get(symbol)
+            bar = bundle["bundle"].get(symbol)
             if bar is None:
-                legacy_placeholder = isinstance(bundle, KlineBundle) and all(
-                    field in _LEGACY_BAR_FIELDS for field in operator.required_fields
-                )
-                if legacy_placeholder:
-                    bar = KlineBar(
-                        symbol=symbol,
-                        bar_time=bundle.bar_time,
-                        open=np.nan,
-                        high=np.nan,
-                        low=np.nan,
-                        close=np.nan,
-                        volume=np.nan,
-                        available_at=bundle.available_at,
-                        is_missing=True,
-                    )
-                else:
-                    bar = {field: np.nan for field in operator.required_fields}
-                    bar.update({"symbol": symbol, "volume": np.nan, "is_missing": True})
-                    for field in ("bar_time", "available_at"):
-                        value = input_value(bundle, field)
-                        if value is not None:
-                            bar[field] = value
+                bar = {field: np.nan for field in operator.required_fields}
+                bar.update({"symbol": symbol, "volume": np.nan, "is_missing": True})
+                for field, value in (
+                    ("bar_time", input_value(bundle, "open_time")),
+                    ("available_at", input_value(bundle, "available_at")),
+                ):
+                    if value is not None:
+                        bar[field] = value
             result = operator.step(bar)
             for key in self.output_keys:
                 values[key].append(result[key])

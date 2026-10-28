@@ -3,6 +3,8 @@
 创建时间：2026-10-28 14:33 CST
 状态：sigma2 字典接口已实施；实施步骤与验证见 `docs/dev/PLAN-030-kline-mapping.md` 及对应结果。
 
+> Bundle 字典从 0.9.0 起以[截面字典结构](bundle-snapshot-20261028-overview.md)为准，默认字段为 `bundle` 和可选的 `open_time`。本文第 3 节和第 4 节有关 Bundle 的结构和旧对象描述保留为 0.8.0 的设计记录。
+
 ## 1. 背景和目标
 
 本次按用户反馈调整：`step()` 接收一个字典，满足必需字段即可，允许额外字段。单 symbol 与多 symbol 输入都采用字典协议，不要求调用者构造特定类。`step()` 仍表示推进一个逻辑时点；schema 和 `result_index` 沿用现有设计，时间可选时的批量结果索引需要重新确定。

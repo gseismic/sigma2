@@ -8,7 +8,6 @@ from typing import Any
 import numpy as np
 
 from sigma2.kline.data import KlineBar
-from sigma2.kline_bundle.data import KlineBundle
 
 from ._kline_data import normalize_key_map
 from .kline import _KlineInput
@@ -129,16 +128,19 @@ def _forward_apply(
         events = iter(_all_column_events(data) if is_columnar else data)
         sentinel = object()
         first = next(events, sentinel)
-        expected_type = KlineBundle if is_bundle else KlineBar
-        if first is not sentinel and not isinstance(first, (expected_type, Mapping)):
-            raise TypeError(
-                f"K-line batch data must contain mappings or {expected_type.__name__} objects"
+        if first is not sentinel:
+            valid = isinstance(first, Mapping) or (
+                is_single and isinstance(first, KlineBar)
             )
+            if not valid:
+                if is_single:
+                    raise TypeError(
+                        "K-line batch data must contain mappings or KlineBar objects"
+                    )
+                raise TypeError("bundle batch data must contain mappings")
         if is_bundle and "symbols" not in kwargs:
             if first is sentinel:
                 kwargs["symbols"] = ()
-            elif isinstance(first, KlineBundle):
-                kwargs["symbols"] = first.symbols
             else:
                 top_map = normalize_key_map(
                     kwargs.get("bundle_key_map"), "bundle_key_map"

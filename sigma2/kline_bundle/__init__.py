@@ -3,8 +3,6 @@
 from importlib import import_module
 from typing import Any
 
-from .data import KlineBundle
-
 _MODULES = {
     "rKlineBundleSignal": "sigma2.core",
     "rKlineBundleOutcome": "sigma2.core",
@@ -24,7 +22,7 @@ _MODULES = {
 
 
 def __getattr__(name: str) -> Any:
-    """按需加载截面算子，避免数据类型和 core 的循环导入。"""
+    """按需加载截面算子，避免与 core 循环导入。"""
     if name not in _MODULES:
         raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
     module_name = _MODULES[name]
@@ -35,4 +33,4 @@ def __getattr__(name: str) -> Any:
     return value
 
 
-__all__ = ["KlineBundle", *_MODULES]
+__all__ = list(_MODULES)

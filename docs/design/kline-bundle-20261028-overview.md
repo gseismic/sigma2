@@ -4,7 +4,7 @@
 更新时间：2026-10-28 07:36 CST
 状态：确定方案，按 [PLAN-027](../dev/PLAN-027-kline-bundle-operator.md) 实施。
 
-> 0.8.0 输入契约补充：Bundle 可直接使用包含 `bars` 的字典，字段映射和可选元信息以[字典输入设计](step-mapping-20261028-overview.md)为准。本稿中的对象构造、时区和时序校验适用于兼容保留的 `KlineBar` / `KlineBundle` 对象；字典输入的时序与截面同步由上游负责。
+> 字典输入契约以[字典输入设计](step-mapping-20261028-overview.md)及 0.9.0 的[截面字典结构](bundle-snapshot-20261028-overview.md)为准，使用 `bundle` 和可选 `open_time`。本稿中的 `KlineBundle` 数据类及其对象校验保留为历史设计记录；截面字典的时序与同步由上游负责。
 
 ## 1. 目标
 

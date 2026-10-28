@@ -4,7 +4,7 @@
 更新时间：2026-10-28 07:36 CST
 状态：确定方案，按 PLAN-027 实施。
 
-> 0.8.0 输入契约补充：单 K 线和 Bundle 均可直接使用字典，字段映射、可选时间和批量输入以[字典输入设计](step-mapping-20261028-overview.md)为准。本稿中关于必须使用 `KlineBar` / `KlineBundle` 的内容保留为 0.7.0 的设计记录；对象输入仍兼容。
+> 输入契约补充：单 K 线和 Bundle 均可直接使用字典，字段映射、可选时间和批量输入以[字典输入设计](step-mapping-20261028-overview.md)为准；Bundle 默认结构以 0.9.0 的[截面字典结构](bundle-snapshot-20261028-overview.md)为准。本稿中关于必须使用 `KlineBar` / `KlineBundle` 的内容保留为 0.7.0 的设计记录；Bundle 使用映射协议。
 
 ## 1. 背景与目标
 

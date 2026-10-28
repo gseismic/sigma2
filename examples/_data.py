@@ -3,7 +3,6 @@
 from datetime import datetime, timedelta, timezone
 
 from sigma2.kline import KlineBar
-from sigma2.kline_bundle import KlineBundle
 
 
 def make_bars(closes, symbol="A"):
@@ -30,26 +29,22 @@ def make_bundles(rows, symbols=("A", "B")):
         bar_time = start + timedelta(days=index)
         available_at = bar_time + timedelta(days=1)
         bars = {
-            symbol: KlineBar(
-                symbol=symbol,
-                bar_time=bar_time,
-                open=close,
-                high=close + 0.5,
-                low=close - 0.5,
-                close=close,
-                volume=100.0,
-                available_at=available_at,
-            )
+            symbol: {
+                "symbol": symbol,
+                "open": close,
+                "high": close + 0.5,
+                "low": close - 0.5,
+                "close": close,
+                "volume": 100.0,
+            }
             for symbol, close in row.items()
         }
         bundles.append(
-            KlineBundle(
-                bar_time=bar_time,
-                symbols=symbols,
-                interval="1d",
-                time_label="open",
-                bars=bars,
-                available_at=available_at,
-            )
+            {
+                "open_time": bar_time,
+                "symbols": symbols,
+                "bundle": bars,
+                "available_at": available_at,
+            }
         )
     return bundles

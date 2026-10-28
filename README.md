@@ -45,28 +45,28 @@ print(meta["bar_times"])                # (1, 2)
 
 ## 多 symbol 截面
 
-Bundle 字典是同一逻辑时点的多 symbol 快照。固定的 `symbols` 定义结果顺序；当前时点没有行情的 symbol 不放进 `bars`。数据源负责保证各标的属于同一时点并确认快照何时可以放行。
+Bundle 字典是同一逻辑时点的多 symbol 快照。固定的 `symbols` 定义结果顺序；当前时点没有行情的 symbol 不放进 `bundle`。数据源负责保证各标的属于同一时点并确认快照何时可以放行。
 
 ```python
 from sigma2.kline_bundle import rKlineBundleMA, rKlineBundleRank
 
 symbols = ("BTC", "ETH", "SOL")
-bundle = {
+snapshot = {
     "open_time": 1,
-    "bars": {
+    "bundle": {
         "BTC": {"open": 100, "high": 101, "low": 99, "close": 100},
         "ETH": {"open": 200, "high": 201, "low": 199, "close": 200},
     },
 }
 rank = rKlineBundleRank(symbols=symbols, return_dict=True)
 ma = rKlineBundleMA(2, symbols=symbols, return_dict=True)
-print(rank.step(bundle))  # {'rank': [1., 2., nan]}，输出值为 NumPy 数组
-print(ma.step(bundle))    # 第一个快照尚未满足均线预热
+print(rank.step(snapshot))  # {'rank': [1., 2., nan]}，输出值为 NumPy 数组
+print(ma.step(snapshot))    # 第一个快照尚未满足均线预热
 ```
 
-每个存在的 Bar 使用单 K 线字段规则；Bar 中若提供 `symbol`，必须与 `bars` 的对应键一致。未知 symbol 会报错。排名只包含当前字段有效的 symbol，平局使用平均名次。`rKlineBundleReturnRank(n)` 计算过去 N 个共同快照的收益，再在截面上排名。要对其他单 K 线 Signal 计算整个截面，可使用 `rKlineBundleMapSignal`；它为每个 symbol 创建独立状态，缺失 Bar 使用显式占位推进共同时间。
+快照和每个存在的 Bar 都接受字典或其他 `Mapping`，Bar 使用单 K 线字段规则；若提供 `symbol`，必须与 `bundle` 的对应键一致。未知 symbol 会报错。排名只包含当前字段有效的 symbol，平局使用平均名次。`rKlineBundleReturnRank(n)` 计算过去 N 个共同快照的收益，再在截面上排名。要对其他单 K 线 Signal 计算整个截面，可使用 `rKlineBundleMapSignal`；它为每个 symbol 创建独立状态，缺失 Bar 使用显式占位推进共同时间。
 
-Bundle 的 `key_map` 作用于每个 Bar，`bundle_key_map` 作用于 Bundle 顶层。例如 `bundle_key_map={"bar_time": "open_time"}` 将顶层 `open_time` 作为行情时间。批量字典输入需通过 `symbols=` 或首个快照的 `symbols` 明确提供完整全集，不根据可能缺失标的的首个 `bars` 推断。原有 `KlineBundle` 输入仍可使用。
+`open_time` 可省略；存在时默认作为快照行情时间。Bundle 的 `key_map` 作用于每个 Bar，`bundle_key_map` 作用于快照顶层，例如 `{"bundle": "klines", "open_time": "date"}` 分别读取输入的 `klines` 和 `date`。映射优先于同名键；映射的可选时间缺失时不回退。批量字典输入需通过 `symbols=` 或首个快照的 `symbols` 明确提供完整全集，不从可能缺失标的的首个快照推断。
 
 Batch 结果的每个字段形状是 `(时间, symbol)`；`Space` 描述一个 symbol 的值，symbol 顺序由算子配置和元信息提供。多维 Space 的结果在 symbol 轴后继续保留其形状。DataFrame 格式按 `(bar_time, symbol)` 展开；行情时间缺失或部分缺失时使用 `(g_index, symbol)`。
 
@@ -82,7 +82,7 @@ for i, prices in enumerate([(100, 200), (110, 190), (121, 210)]):
         symbol: {"open": price, "high": price, "low": price, "close": price}
         for symbol, price in zip(symbols, prices)
     }
-    ordered_bundles.append({"bar_time": i, "available_at": i + 1, "bars": bars})
+    ordered_bundles.append({"open_time": i, "available_at": i + 1, "bundle": bars})
 
 outcome = rKlineBundleFutureReturn(2, symbols=symbols, return_dict=True)
 for bundle in ordered_bundles:
@@ -97,7 +97,7 @@ columns, meta = KlineBundleFutureReturn(
 
 `n_forward=2` 表示等待 2 个输入快照，不自动等同于 2 个自然日。未来收益要求锚点及全部未来区间的对应字段有效，符合当前 pyta2 的缺失规则。在线缓存按结果产生顺序保存；batch 按 `result_index` 回填历史锚点，末尾未成熟位置为缺失值。单 K 线也可使用 `rKlineFutureReturn` 和 `forward_outcome_apply()`。
 
-`bar_time` 是来源声明的 K 线时间标签；`available_at` 是来源确认 Bar 或 Bundle 可用的时间。两者均可省略，sigma2 不根据 `open_time` 猜测 `available_at`。batch 元信息中的 `result_input_ready_at` 是所有先前输入最早齐备时间，不包含计算和发布延迟；无法确定时为 `None`。结果的实际可用时间需要由运行或消费层记录；按锚点回填的未来结果不能视为锚点时已知。
+`bar_time` 是输出元信息和索引中使用的通用行情时间名称；Bundle 字典默认从 `open_time` 读取，单 K 线字典从 `bar_time` 或显式映射读取。`available_at` 是来源确认 Bar 或 Bundle 可用的时间。两者均可省略，sigma2 不根据 `open_time` 猜测 `available_at`。batch 元信息中的 `result_input_ready_at` 是所有先前输入最早齐备时间，不包含计算和发布延迟；无法确定时为 `None`。结果的实际可用时间需要由运行或消费层记录；按锚点回填的未来结果不能视为锚点时已知。
 
 ## 生命周期与 schema
 
@@ -105,11 +105,11 @@ columns, meta = KlineBundleFutureReturn(
 - `schema` 直接使用 pyta2 的 `Schema` 与 `Space`。逐条原始返回值、`return_dict`、字段顺序和 `missing_output` 沿用 pyta2 语义；Bundle 的 symbol 轴由 family 添加。
 - 输出缓存默认保存最近一步，`buffer_size=0` 或 `None` 关闭，`-1` 无限，正数保存最近 N 步。Bundle 缓存逐 symbol 使用 pyta2 标量表，`outputs[key]` 以时间和 symbol 两个轴查看。
 - 修改已处理数据或计算失败后，调用 `reset()` 并从已确认输入序列重放。重置失败时实例保持 faulted；算子状态与输出缓存不是数据源的持久化存储。
-- Bundle 的 symbol 结果顺序在一个运行段内固定。字典输入的时序、周期和共同时间由上游保证；旧 `KlineBar` / `KlineBundle` 对象保留自身身份和时间校验。要改变 symbol 集合，建立新运行段；需要连续历史时按新集合重放。
+- Bundle 的 symbol 结果顺序在一个运行段内固定。字典输入的时序、周期和共同时间由上游保证。要改变 symbol 集合，建立新运行段；需要连续历史时按新集合重放。
 
 ## 从 0.6.0 迁移
 
-- 单 K 线 `step(**ohlcv)` 改为 `step(bar)`，直接传入行情字典；横截面使用包含 `bars` 的字典。原有 `KlineBar` / `KlineBundle` 对象也可继续使用。
+- 单 K 线 `step(**ohlcv)` 改为 `step(bar)`，直接传入行情字典；横截面使用包含 `bundle` 的字典。
 - 未来计算从 `sigma2.kline.target` 迁至 `sigma2.kline.outcome`，`horizon` 改名为 `n_forward`，批量使用 `forward_outcome_apply()`；旧路径不再提供。
 - 自定义算子的 schema 改用 pyta2 `Space`，窗口元信息改为 `n_backward`、`n_forward` 和 `min_periods`。输出缓存默认仅保留最近一步，原来依赖无限缓存的调用方需设置 `buffer_size=-1`。
 
@@ -136,6 +136,6 @@ cd examples
 python 09_kline_bundle.py
 ```
 
-其余例子按 `01` 至 `08` 展示单 K 线、盘口、成交、未来结果、pyta2 组合和自定义 Signal；`10_mapping_inputs.py` 展示字典和字段映射。扩展时参考 [新增信号指南](skills/sigma2-usage/references/add-signals.md)、[字典输入设计](docs/design/step-mapping-20261028-overview.md)、[核心设计](docs/design/sigma2-operator-signal-outcome-20261028-overview.md) 和 [KlineBundle 设计](docs/design/kline-bundle-20261028-overview.md)。
+其余例子按 `01` 至 `08` 展示单 K 线、盘口、成交、未来结果、pyta2 组合和自定义 Signal；`10_mapping_inputs.py` 展示字典和字段映射。扩展时参考 [新增信号指南](skills/sigma2-usage/references/add-signals.md)、[截面字典结构](docs/design/bundle-snapshot-20261028-overview.md)、[字典输入设计](docs/design/step-mapping-20261028-overview.md)、[核心设计](docs/design/sigma2-operator-signal-outcome-20261028-overview.md) 和 [KlineBundle 设计](docs/design/kline-bundle-20261028-overview.md)。
 
 通用 `pyta2_signal()` 需要显式 `history_window`；调用者应确认具体 pyta2 指标支持该有限窗口。部分 pyta2 指标和 effect 尚未迁移到新基类，不能假定它们均可用于桥接。

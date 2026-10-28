@@ -1,6 +1,5 @@
 from .batch import forward_outcome_apply, forward_signal_apply
 from sigma2.kline.data import KlineBar
-from sigma2.kline_bundle.data import KlineBundle
 from .kline import rKlineOutcome, rKlineSignal, rKlineWindowOutcome, rKlineWindowSignal
 from .kline_bundle import (
     rKlineBundleOutcome,
@@ -15,7 +14,6 @@ from .trade import rTradeSignal
 
 __all__ = [
     "KlineBar",
-    "KlineBundle",
     "forward_outcome_apply",
     "forward_signal_apply",
     "pyta2_signal",

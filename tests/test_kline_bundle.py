@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 
 import numpy as np
 import pytest
@@ -10,7 +10,6 @@ from examples._data import make_bundles
 from sigma2 import forward_outcome_apply, forward_signal_apply
 from sigma2.kline import KlineBar, rKlineFutureHighLowChange, rKlineMA
 from sigma2.kline_bundle import (
-    KlineBundle,
     KlineBundleFutureReturn,
     KlineBundleMA,
     KlineBundleRank,
@@ -24,53 +23,60 @@ from sigma2.kline_bundle import (
 )
 
 
-def test_data_modules_are_siblings_and_types_are_public():
+def test_data_packages_are_siblings_and_calculations_are_public():
     import sigma2
     import sigma2.kline as single
     import sigma2.kline_bundle as bundle
 
     assert KlineBar.__module__ == "sigma2.kline.data"
-    assert KlineBundle.__module__ == "sigma2.kline_bundle.data"
     assert sigma2.KlineBar is single.KlineBar is KlineBar
-    assert sigma2.KlineBundle is bundle.KlineBundle is KlineBundle
+    assert sigma2.rKlineBundleRank is bundle.rKlineBundleRank
     for package in (single, bundle):
         for name in package.__all__:
             assert getattr(package, name) is not None
 
 
 def test_bundle_distinguishes_missing_bar_from_invalid_field_and_copies_mapping():
-    t = datetime(2026, 1, 1, tzinfo=timezone.utc)
-    values = {"A": KlineBar("A", t, 1, 2, 0, np.nan, 5)}
-    bundle = KlineBundle(t, ("A", "B"), "1d", "open", values)
+    class rInspect(rKlineBundleSignal):
+        def __init__(self, **kwargs):
+            super().__init__(
+                {"value": Scalar(low=-np.inf, high=np.inf, dtype=np.float64)},
+                n_backward=0,
+                **kwargs,
+            )
+
+        def forward(self, snapshot):
+            self.snapshot = snapshot
+            self.present = snapshot.present
+            return snapshot.field("close")
+
+        @property
+        def full_name(self):
+            return "inspect"
+
+    values = {"A": {"open": 1, "high": 2, "low": 0, "close": np.nan}}
+    signal = rInspect(symbols=("A", "B"))
+    np.testing.assert_allclose(signal.step({"bundle": values}), [np.nan, np.nan])
     values.clear()
-    assert bundle.get("A") is not None
-    assert bundle.get("B") is None
-    assert bundle.present.tolist() == [True, False]
-    np.testing.assert_allclose(bundle.field("close"), [np.nan, np.nan], equal_nan=True)
-    with pytest.raises(KeyError):
-        bundle.get("C")
+    assert signal.snapshot["bundle"].get("A") is not None
+    assert signal.snapshot["bundle"].get("B") is None
+    assert signal.present.tolist() == [True, False]
     with pytest.raises(TypeError):
-        bundle.bars["B"] = bundle.bars["A"]
+        signal.snapshot["bundle"]["B"] = signal.snapshot["bundle"]["A"]
 
 
-def test_bundle_rejects_bad_members_times_and_availability():
+def test_bundle_rejects_bad_members_before_advancing():
     t = datetime(2026, 1, 1, tzinfo=timezone.utc)
-    a = KlineBar("A", t, 1, 2, 0, 1, 5, t + timedelta(days=1))
     with pytest.raises(ValueError, match="unique"):
-        KlineBundle(t, ("A", "A"), "1d", "open", {})
+        rKlineBundleRank(symbols=("A", "A"))
+    signal = rKlineBundleRank(symbols=("A",))
     with pytest.raises(ValueError, match="unknown"):
-        KlineBundle(t, ("B",), "1d", "open", {"A": a})
-    with pytest.raises(ValueError, match="time"):
-        KlineBundle(t + timedelta(days=1), ("A",), "1d", "open", {"A": a})
-    with pytest.raises(ValueError, match="before"):
-        KlineBundle(t, ("A",), "1d", "open", {"A": a}, available_at=t)
+        signal.step({"bundle": {"B": {"open": 1, "high": 1, "low": 1, "close": 1}}})
+    with pytest.raises(TypeError, match="mapping"):
+        signal.step({"bundle": {"A": KlineBar("A", t, 1, 2, 0, 1, 5)}})
     with pytest.raises(ValueError, match="timezone"):
         KlineBar("A", t.replace(tzinfo=None), 1, 2, 0, 1, 5)
-    placeholder = KlineBar(
-        "A", t, np.nan, np.nan, np.nan, np.nan, np.nan, is_missing=True
-    )
-    with pytest.raises(ValueError, match="omit"):
-        KlineBundle(t, ("A",), "1d", "open", {"A": placeholder})
+    assert signal.g_index == -1 and not signal.is_faulted
 
 
 def test_cross_section_rank_ties_descending_and_missing():
@@ -98,22 +104,13 @@ def test_return_rank_uses_common_endpoints_without_forward_fill():
     assert signal.n_backward == 2 and signal.min_periods == 3
 
 
-def test_bundle_rejects_wrong_identity_context_and_order_without_advancing():
+def test_bundle_rejects_wrong_symbol_axis_without_advancing():
     bundles = make_bundles([{"A": 10, "B": 20}, {"A": 11, "B": 22}])
     signal = rKlineBundleRank(symbols=("A", "B"))
     signal.step(bundles[0])
-    with pytest.raises(ValueError, match="strictly increasing"):
-        signal.step(bundles[0])
-    wrong_order = KlineBundle(
-        bundles[1].bar_time, ("B", "A"), "1d", "open", bundles[1].bars
-    )
+    wrong_order = {**bundles[1], "symbols": ("B", "A")}
     with pytest.raises(ValueError, match="symbols"):
         signal.step(wrong_order)
-    wrong_period = KlineBundle(
-        bundles[1].bar_time, ("A", "B"), "1h", "open", bundles[1].bars
-    )
-    with pytest.raises(ValueError, match="interval"):
-        signal.step(wrong_period)
     assert signal.g_index == 0 and not signal.is_faulted
     signal.step(bundles[1])
     assert signal.g_index == 1
@@ -180,14 +177,14 @@ def test_outcome_replay_aligns_anchor_and_retains_common_missing_positions():
     )
     assert meta["symbols"] == ("A", "B")
     assert meta["emission_bar_times"] == (
-        bundles[2].bar_time,
-        bundles[3].bar_time,
+        bundles[2]["open_time"],
+        bundles[3]["open_time"],
         None,
         None,
     )
     assert meta["result_input_ready_at"] == (
-        bundles[2].available_at,
-        bundles[3].available_at,
+        bundles[2]["available_at"],
+        bundles[3]["available_at"],
         None,
         None,
     )
@@ -301,7 +298,7 @@ def test_dataframe_has_time_symbol_index_and_order():
 
 def test_missing_input_availability_is_not_guessed():
     base = make_bundles([{"A": 10}, {"A": 12}], symbols=("A",))
-    unknown = KlineBundle(base[0].bar_time, ("A",), "1d", "open", base[0].bars)
+    unknown = {key: value for key, value in base[0].items() if key != "available_at"}
     _, meta = forward_outcome_apply(
         [unknown, base[1]],
         rKlineBundleFutureReturn,
