@@ -10,6 +10,15 @@ from pyta2.utils.space import Space
 from pyta2.utils.validation import ensure_integer
 
 
+def qualify_factor_name(scope: str | None, formula_name: str) -> str:
+    """由独立保存的作用域和公式名生成展示或训练使用的名称。"""
+    if scope is not None and (not isinstance(scope, str) or not scope):
+        raise ValueError("scope must be a non-empty string or None")
+    if not isinstance(formula_name, str) or not formula_name:
+        raise ValueError("formula_name must be a non-empty string")
+    return formula_name if scope is None else f"{scope}:{formula_name}"
+
+
 class rOperator(ABC):
     """逐条推进的有状态算子，统一预热、结果位置和输出生命周期。"""
 
@@ -23,6 +32,7 @@ class rOperator(ABC):
         *,
         n_backward: int,
         n_forward: int,
+        scope: str | None = None,
         buffer_size: int | None = 1,
         buffer_factor: int = 2,
         return_dict: bool = False,
@@ -31,6 +41,8 @@ class rOperator(ABC):
             raise TypeError(
                 f"schema must be list, Mapping or Schema, got {type(schema)}"
             )
+        qualify_factor_name(scope, "validation")
+        self._scope = scope
         self._n_backward = ensure_integer(n_backward, "n_backward", min_value=0)
         self._n_forward = ensure_integer(n_forward, "n_forward", min_value=0)
         if not isinstance(return_dict, bool):
@@ -55,6 +67,10 @@ class rOperator(ABC):
     @property
     def n_forward(self) -> int:
         return self._n_forward
+
+    @property
+    def scope(self) -> str | None:
+        return self._scope
 
     @property
     def min_periods(self) -> int:
@@ -189,10 +205,14 @@ class rOperator(ABC):
         return self._outputs[-1]
 
     @property
-    def factor_names(self) -> list[str]:
+    def formula_names(self) -> list[str]:
         if len(self.output_keys) == 1:
             return [self.full_name]
         return [f"{self.full_name}.{key}" for key in self.output_keys]
+
+    @property
+    def factor_names(self) -> list[str]:
+        return [qualify_factor_name(self.scope, name) for name in self.formula_names]
 
     @property
     def is_faulted(self) -> bool:
@@ -203,6 +223,7 @@ class rOperator(ABC):
         return {
             "name": self.name,
             "full_name": self.full_name,
+            "scope": self.scope,
             "family": self.family,
             "step_input_keys": self.step_input_keys,
             "schema": self.schema,
@@ -212,6 +233,7 @@ class rOperator(ABC):
             "min_periods": self.min_periods,
             "result_index": self.result_index,
             "factor_names": self.factor_names,
+            "formula_names": self.formula_names,
             "buffer_size": self.buffer_size,
             "buffer_factor": self.buffer_factor,
             "return_dict": self.return_dict,
@@ -237,4 +259,4 @@ class rOutcome(rOperator):
         super().__init__(schema, n_backward=n_backward, n_forward=n_forward, **kwargs)
 
 
-__all__ = ["rOperator", "rSignal", "rOutcome"]
+__all__ = ["qualify_factor_name", "rOperator", "rSignal", "rOutcome"]

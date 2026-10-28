@@ -75,6 +75,7 @@ class _KlineInput:
         self._last_bar_time: Any = None
         self._last_legacy_bar_time: Any = None
         self._last_input_metadata: dict[str, Any] = {}
+        kwargs.setdefault("scope", symbol)
         super().__init__(schema, **kwargs)
 
     def step(self, bar: Mapping[str, Any] | KlineBar) -> Any:

@@ -39,6 +39,7 @@ def KlineBundleFutureReturn(
     bundle_key_map: Mapping[str, str] | None = None,
     field: str = "close",
     return_mode: str = "simple",
+    scope: str = "all",
     return_type: str = "dict",
     return_meta_info: bool = False,
 ) -> Any:
@@ -47,7 +48,7 @@ def KlineBundleFutureReturn(
         data,
         rKlineBundleFutureReturn,
         param_args=(n_forward,),
-        param_kwargs={"field": field, "return_type": return_mode},
+        param_kwargs={"field": field, "return_type": return_mode, "scope": scope},
         symbols=symbols,
         key_map=key_map,
         bundle_key_map=bundle_key_map,

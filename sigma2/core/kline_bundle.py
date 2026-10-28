@@ -111,6 +111,7 @@ class _KlineBundleInput:
         schema: Any,
         *,
         symbols: Sequence[str],
+        scope: str = "all",
         per_symbol: bool = True,
         key_map: Mapping[str, str] | None = None,
         bundle_key_map: Mapping[str, str] | None = None,
@@ -133,7 +134,7 @@ class _KlineBundleInput:
         )
         self._last_bar_time: Any = None
         self._last_input_metadata: dict[str, Any] = {}
-        super().__init__(schema, **kwargs)
+        super().__init__(schema, scope=scope, **kwargs)
 
     def _new_output_table(self, maxlen: int | None) -> Any:
         if self.per_symbol:

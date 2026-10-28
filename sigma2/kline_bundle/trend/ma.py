@@ -45,6 +45,7 @@ def KlineBundleMA(
     ma_type: str = "SMA",
     field: str = "close",
     ma_kwargs: Mapping[str, Any] | None = None,
+    scope: str = "all",
     return_type: str = "dict",
     return_meta_info: bool = False,
 ) -> Any:
@@ -53,7 +54,7 @@ def KlineBundleMA(
         data,
         rKlineBundleMA,
         param_args=(n,),
-        param_kwargs={"ma_type": ma_type, "field": field, "ma_kwargs": ma_kwargs},
+        param_kwargs={"ma_type": ma_type, "field": field, "ma_kwargs": ma_kwargs, "scope": scope},
         symbols=symbols,
         key_map=key_map,
         bundle_key_map=bundle_key_map,

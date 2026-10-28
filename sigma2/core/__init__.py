@@ -9,7 +9,7 @@ from .kline_bundle import (
 )
 from .orderbook import rOrderBookSignal
 from .pyta2 import pyta2_signal, rPyta2Signal
-from .signal import rOperator, rOutcome, rSignal
+from .signal import qualify_factor_name, rOperator, rOutcome, rSignal
 from .trade import rTradeSignal
 
 __all__ = [
@@ -17,6 +17,7 @@ __all__ = [
     "forward_outcome_apply",
     "forward_signal_apply",
     "pyta2_signal",
+    "qualify_factor_name",
     "rKlineBundleOutcome",
     "rKlineBundleSignal",
     "rKlineBundleWindowOutcome",

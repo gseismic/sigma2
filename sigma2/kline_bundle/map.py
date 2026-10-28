@@ -35,7 +35,7 @@ class _BundleMap:
                 f"operator_cls must derive from {self._component_base.__name__}"
             )
         params = dict(operator_kwargs or {})
-        reserved = {"symbol", "buffer_size", "return_dict", "key_map"} & params.keys()
+        reserved = {"symbol", "scope", "buffer_size", "return_dict", "key_map"} & params.keys()
         if reserved:
             raise ValueError(f"operator_kwargs cannot contain {sorted(reserved)}")
         self._prototype = operator_cls(
