@@ -17,3 +17,10 @@
 - 将 KDJ、ATR 替换为 pyta2 指标适配，新增均线交叉、OBV、MFI、滚动 VWAP 的单 K 线和 batch 入口。
 - 保留用于递推的有限 K 线历史，并让 pyta2 负责公式和缺失状态；固定 pyta2 到本轮迁移后的提交，版本升至 0.10.0。
 - 新增与 pyta2 数值对照，短 ATR 周期和均线类型一并核查。边界 Outcome 与联调仍在实施。
+
+## 检查点三：边界 Outcome 复用
+
+更新时间：2026-10-28 17:50 CST。
+
+- 将 ATR 边界 Outcome 的窗口扫描委托给已迁移的 pyta2 Effect，采用有界输入前缀适配，保持连续 ATR 状态及 result_index 对齐。
+- schema 使用 pyta2 的 `trigger_location`；比较包含缺失行情的逐步输出。全部 236 项 sigma2 测试与本次文件 Ruff 通过。factor_make 联调及文档仍在实施。

@@ -76,7 +76,7 @@ def test_kline_bound_trigger_uses_atr_units():
     first = _step(signal, 100, 104, 100, 101)
     second = _step(signal, 101, 102, 99, 100)
     assert first == signal.make_dict_output(signal.missing_output)
-    assert second == {"trigger": 1, "unit_change": 0.05, "trigger_index": 1}
+    assert second == {"trigger": 1, "unit_change": 0.05, "trigger_location": 1}
 
 
 def test_kline_atr_bound_trigger_aligns_anchor_after_atr_warmup():
@@ -88,7 +88,7 @@ def test_kline_atr_bound_trigger_aligns_anchor_after_atr_warmup():
         for high in (101, 101, 101, 103)
     ]
     assert all(np.isnan(row["unit_change"]) for row in outputs[:3])
-    assert outputs[3] == {"trigger": 1, "unit_change": 1, "trigger_index": 1}
+    assert outputs[3] == {"trigger": 1, "unit_change": 1, "trigger_location": 1}
 
 
 def test_kline_atr_bound_trigger_validates_constructor_args():
@@ -96,7 +96,7 @@ def test_kline_atr_bound_trigger_validates_constructor_args():
         rKlineATRBoundTrigger(0, 1, 1)
     with pytest.raises(ValueError, match="n_forward"):
         rKlineATRBoundTrigger(1, 1, 0)
-    with pytest.raises(ValueError, match="atr_n"):
+    with pytest.raises(ValueError, match="n_atr"):
         rKlineATRBoundTrigger(1, 1, 1, atr_n=0)
 
 

@@ -43,6 +43,7 @@
 | 2026-10-28 16:08 CST | `PLAN-031-bundle-snapshot.md` | `PLAN-031-bundle-snapshot-OUTCOME.md` | 截面统一为 `bundle` 和可选 `open_time` 的字典协议，移除旧对象及专用分支，更新示例和文档；版本升至 0.9.0，228 项测试通过。 |
 | 2026-10-28 17:49 CST | `PLAN-032-factor-identities.md` | `PLAN-032-factor-identities-OUTCOME.md` | 检查点一：单标的与截面因子身份、公式名、可配置作用域及测试；设计见 `docs/design/factor-identity-pipeline-20261028-overview.md`，后续包装和联调继续。 |
 | 2026-10-28 17:50 CST | `PLAN-032-factor-identities.md` | `PLAN-032-factor-identities-OUTCOME.md` | 检查点二：KDJ、ATR、均线交叉和量能指标复用已迁移的 pyta2，并固定依赖版本。 |
+| 2026-10-28 17:50 CST | `PLAN-032-factor-identities.md` | `PLAN-032-factor-identities-OUTCOME.md` | 检查点三：ATR 边界 Outcome 以有限历史复用 pyta2 Effect，236 项测试通过；应用联调继续。 |
 
 ## 当前设计文档规则
 

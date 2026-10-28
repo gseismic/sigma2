@@ -308,7 +308,7 @@ def test_outcome_child_uses_the_same_mapped_input_as_its_parent():
         actual = mapped.step(row)
         expected = plain.step({**row, "close": row["adjusted"]})
         assert actual["trigger"] == expected["trigger"]
-        assert actual["trigger_index"] == expected["trigger_index"]
+        assert actual["trigger_location"] == expected["trigger_location"]
         np.testing.assert_allclose(
             actual["unit_change"], expected["unit_change"], equal_nan=True
         )
