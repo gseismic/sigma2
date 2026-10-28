@@ -25,6 +25,8 @@ description: 当用户询问安装或使用 sigma2、计算单 K 线或多 symbo
 - `rSignal` 的输出属于当前观测；`rOutcome` 等待固定未来期，输出属于 `result_index = g_index - n_forward`。`n_forward` 是输入次数，不自动等于自然日。回填到历史锚点不代表当时已知；说明数据的 `available_at` 和计算发布延迟。
 - 批量使用具名函数或 `forward_signal_apply()` / `forward_outcome_apply()`，按输入顺序重放；单 K 线支持逐行序列、列式字典和 DataFrame，Bundle 字典需显式提供完整 `symbols`。Outcome 结果按锚点回填。Bundle 的字段数组形状为 `(时间, symbol, *space.shape)`，输出列名由 `factor_names` 决定；同名公式来自不同映射时由消费端区分数据来源。
 - `schema` 使用 pyta2 的 `Schema` / `Space`，Bundle 中一个 Space 描述一个 symbol。`return_dict=True` 的 key 来自 schema；输出缓存默认保存最近一步，`0` 关闭、`-1` 无限。修改历史或失败后 `reset()` 并从头重放。
+- `full_name` 表示公式身份，`formula_names` 按 schema 字段展开公式列名；`factor_names` 附加构造时固定的作用域。单 K 线传 `symbol="BTCUSDT"` 得到如 `BTCUSDT:RSI(14)[close]`；未指定时保留无前缀名称。Bundle 默认作用域 `all`，可用 `scope=` 区分全集，名称数量不随 symbol 数量变化。行式表可保存共享公式列并用 `qualify_factor_name` 与独立的 symbol 组合，不解析结果字符串。
+- MA、RSI、MACD、Boll、KDJ、ATR、MACross、OBV、MFI、VWAP 均有单 K 线及 batch 入口，复用 pyta2；后三个量能指标依赖 volume，VWAP 是固定窗口版本。`rKlineATRBoundTrigger` 复用 pyta2 Effect，输出 `trigger_location`，未来结果按 `result_index` 对齐。
 - 通用 `pyta2_signal()` 需要显式 `history_window`，只适配支持有限历史窗口的指标；已有公开因子优先使用 `rKlineX` / `KlineX`。
 
 回答使用问题时给出定义完整输入的代码，并说明预热、缺失及多 symbol 结果顺序。用户要求重新设计接口时，遵循仓库 `AGENTS.md` 使用 `api-design-zh`。

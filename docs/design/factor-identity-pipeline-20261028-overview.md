@@ -1,13 +1,15 @@
 # 因子身份、常用指标与入库设计
 
 创建时间：2026-10-28 17:32 CST
-状态：实施中；跨项目路径以各仓库实际工作区为准。
+状态：已实施；跨项目路径以各仓库实际工作区为准。
 
 ## 目标与分层
 
 为量化数据准备提供可追溯的结果名称和常见指标计算。`factor_make` 只使用 sigma2 定义和推进信号，sigma2 绑定 K 线输入、生命周期及 symbol 轴，pyta2 提供指标公式与 rolling 内核；同一指标公式只维护一份。数据和训练目标的使用方式由消费层决定。
 
 本次覆盖均线族 SMA/EMA/WMA/HMA/DEMA/TEMA/KAMA/ZLEMA、RSI、MACD、Boll、KDJ、ATR、均线交叉、收益/跳空及常用量能 OBV/MFI/VWAP。前五项中未完成迁移的 pyta2 实现先依照均线的固定预热契约迁移，再由 sigma2 包装。已有自定义实体比例和两级均线使用 sigma2；未来方向与 ATR 边界目标采用 Outcome 并按 `result_index` 对齐。
+
+ATR 边界扫描也复用 pyta2 Effect，schema 使用 pyta2 的 `trigger_location`。KAMA 核心在无效窗口后重置并重新预热，组合指标沿用同一恢复规则。
 
 ## 名称与 schema
 

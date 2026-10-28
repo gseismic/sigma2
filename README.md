@@ -12,7 +12,7 @@ sigma2 为金融市场事件提供逐条推进的 Signal 和 Outcome。Signal �
 python -m pip install -e .
 ```
 
-当前 pyta2 的新旧接口都使用 `0.0.1` 版本号，项目依赖固定到 pyta2 提交 `85a2e84969a4a6aa9e201e9f57dc639e4b026827`，安装时需要能够通过 SSH 访问对应仓库。该 pyta2 提交的包初始化会使用 SciPy，因此 sigma2 显式声明 SciPy 依赖。
+当前 pyta2 的新旧接口都使用 `0.0.1` 版本号，项目依赖固定到 pyta2 提交 `93ab75884e137bc4133b9445bc900a0a8468624c`，安装时需要能够通过 SSH 访问对应仓库。该 pyta2 提交的包初始化会使用 SciPy，因此 sigma2 显式声明 SciPy 依赖。
 
 ## 单 symbol K 线
 
@@ -40,6 +40,25 @@ print(meta["bar_times"])                # (1, 2)
 字段名默认使用同名键。`key_map` 的方向是**算子使用的逻辑字段 → 数据字典的实际字段**：例如 `{"date": "open_time"}` 让需要 `date` 的自定义算子读取输入的 `open_time`。均线不需要 `date`；映射不会使可选字段变为必需字段，也不会自动推断时间单位或可用时间。批量元信息需要行情时间时，可像上例一样显式映射 `bar_time`。
 
 每个单 K 线算子实例用于一个 symbol 的输入流；字典的顺序和所属 symbol 由上游管理。如果构造时指定 `symbol`，输入字典中一旦包含 `symbol` 就必须一致。映射信息保存在 `meta_info["key_map"]` 中；计算公式相同但数据来源不同的结果，需要在消费端用数据集或别名区分。
+
+### 公式名和因子名
+
+```python
+from sigma2 import rKlineRSI
+
+signal = rKlineRSI(14, symbol="BTCUSDT", return_dict=True)
+print(signal.full_name)      # RSI(14)[close]
+print(signal.formula_names)  # ['RSI(14)[close]']，物理表可共享的公式列名
+print(signal.factor_names)   # ['BTCUSDT:RSI(14)[close]']，带作用域的结果名
+```
+
+`return_dict=True` 的键仍是 schema 字段，例如 `rsi`；批量结果以 `factor_names` 为列名。作用域在构造时确定，不会根据每条字典中的 symbol 改变；未指定 symbol 时单 K 线算子使用未加前缀的公式名。截面算子的作用域默认为 `all`，也可设置 `scope="top100"` 区分不同全集。`formula_names` 的顺序与 schema 输出字段一致，多输出会在公式名后加 `.字段名`；截面每个输出仍保留独立的 symbol 轴，不会按 symbol 展开成多个 `factor_names`。
+
+按 `(symbol, open_time)` 保存行式数据时，可存储共享的 `formula_names`，在读取时通过 `qualify_factor_name(symbol, formula_name)` 组合训练列名。symbol、公式和数据来源应分别保存，不应靠拆分结果字符串恢复身份。
+
+### 常用指标
+
+`sigma2.kline` 提供 `rKlineMA`、`rKlineRSI`、`rKlineMACD`、`rKlineBoll`、`rKlineKDJ`、`rKlineATR`、`rKlineMACross`、`rKlineOBV`、`rKlineMFI`、`rKlineVWAP` 及其 `KlineX` 批量函数。均线、指标公式和 ATR 边界扫描复用 pyta2；K 线输入、字段映射和逐条生命周期由 sigma2 管理。`KlineVWAP(n)` 是最近窗口的成交量加权典型价格，不按交易日重置；OBV、MFI、VWAP 需要 volume。
 
 批量接口按输入顺序重放同一个 `step()`，接受逐行字典序列、列式字典或 DataFrame，默认返回以 `factor_names` 为键的 NumPy 数组字典。`return_type` 还支持 `tuple`、`list`、`dataframe` 和 `pl.dataframe`；`return_meta_info=True` 返回结果和元信息。原有 `KlineBar` 输入仍可使用，其时间和 symbol 校验保持不变。
 
@@ -96,6 +115,8 @@ columns, meta = KlineBundleFutureReturn(
 ```
 
 `n_forward=2` 表示等待 2 个输入快照，不自动等同于 2 个自然日。未来收益要求锚点及全部未来区间的对应字段有效，符合当前 pyta2 的缺失规则。在线缓存按结果产生顺序保存；batch 按 `result_index` 回填历史锚点，末尾未成熟位置为缺失值。单 K 线也可使用 `rKlineFutureReturn` 和 `forward_outcome_apply()`。
+
+单 K 线 `rKlineATRBoundTrigger` 使用锚点 ATR 定义边界，固定观察期结束后给出 `trigger`、`unit_change` 和 `trigger_location`，字段名称与 pyta2 Effect 一致。窗口中存在无效 OHLC 时结果为 schema 缺失值。
 
 `bar_time` 是输出元信息和索引中使用的通用行情时间名称；Bundle 字典默认从 `open_time` 读取，单 K 线字典从 `bar_time` 或显式映射读取。`available_at` 是来源确认 Bar 或 Bundle 可用的时间。两者均可省略，sigma2 不根据 `open_time` 猜测 `available_at`。batch 元信息中的 `result_input_ready_at` 是所有先前输入最早齐备时间，不包含计算和发布延迟；无法确定时为 `None`。结果的实际可用时间需要由运行或消费层记录；按锚点回填的未来结果不能视为锚点时已知。
 

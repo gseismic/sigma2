@@ -9,6 +9,7 @@ from pyta2.volume import MFI, OBV, VWAP
 
 from sigma2 import (
     KlineATR, KlineKDJ, KlineMACross, KlineMFI, KlineOBV, KlineVWAP,
+    rKlineMACross,
 )
 
 
@@ -40,3 +41,14 @@ def test_kdj_cross_and_volume_match_pyta2():
     for actual, expected in cases:
         for actual_field, expected_field in zip(actual, expected, strict=True):
             np.testing.assert_allclose(actual_field, expected_field, equal_nan=True)
+
+
+def test_kama_cross_recovers_after_missing_bar():
+    signal = rKlineMACross(5, 10, ma_type="KAMA")
+    outputs = []
+    for index in range(90):
+        price = np.nan if index == 35 else float(10 + index)
+        outputs.append(signal.step({"open": price, "high": price, "low": price, "close": price}))
+    assert np.isfinite(outputs[34][1:]).all()
+    assert np.isnan(outputs[35][1:]).all()
+    assert np.isfinite(outputs[65][1:]).all()
