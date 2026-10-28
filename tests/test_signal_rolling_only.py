@@ -11,7 +11,7 @@ from pyta2.utils.space import Scalar
 from sigma2 import rPyta2Signal, rSignal
 from sigma2.core import rOrderBookSignal
 from sigma2.kline import rKlineMA
-from sigma2.kline.target import (
+from sigma2.kline.outcome import (
     rKlineATRBoundTrigger,
     rKlineFutureChange,
     rKlineFutureHighLowChange,
@@ -19,23 +19,18 @@ from sigma2.kline.target import (
 )
 from sigma2.orderbook import rBookSpread
 from sigma2.trade import rTradeSignedVolume
+from tests.helpers import make_bar
 
 
-def _kline(value: float) -> dict[str, float]:
-    return {
-        "open": value,
-        "high": value,
-        "low": value,
-        "close": value,
-        "volume": 1.0,
-    }
+def _kline(value: float) -> object:
+    return make_bar(open=value, high=value, low=value, close=value, volume=1.0)
 
 
 @pytest.mark.parametrize(
     "signal",
     [
         rKlineMA(2),
-        rPyta2Signal("SMA", params={"n": 2}),
+        rPyta2Signal("SMA", history_window=2, params={"n": 2}),
         rBookSpread(),
         rTradeSignedVolume(),
         rKlineFutureReturn(1),
@@ -52,45 +47,37 @@ def test_signals_do_not_expose_last_observation_revision(signal):
 
 def test_kline_and_pyta2_child_advance_together():
     signal = rKlineMA(3, ma_type="SMA", buffer_size=2)
-    actual = [signal.step(**_kline(value)) for value in (1.0, 2.0, 3.0, 4.0)]
+    actual = [signal.step(_kline(value)) for value in (1.0, 2.0, 3.0, 4.0)]
 
     assert math.isnan(actual[0])
     assert actual[-2:] == pytest.approx([2.0, 3.0])
     assert signal.g_index == signal._indicator.g_index == 3
     assert len(signal.outputs) == 2
-    assert signal._window["close"].tolist() == [2.0, 3.0, 4.0]
+    assert [bar.close for bar in signal._window] == [2.0, 3.0, 4.0]
 
     signal.reset()
-    replay = [signal.step(**_kline(value)) for value in (1.0, 2.0, 3.0, 4.0)]
+    replay = [signal.step(_kline(value)) for value in (1.0, 2.0, 3.0, 4.0)]
     np.testing.assert_allclose(actual, replay, equal_nan=True)
 
 
 def test_generic_pyta2_bridge_uses_rolling_child():
-    signal = rPyta2Signal("SMA", params={"n": 2}, field="close")
-    assert math.isnan(signal.step(**_kline(1.0)))
-    assert signal.step(**_kline(3.0)) == pytest.approx(2.0)
-    assert signal.step(**_kline(5.0)) == pytest.approx(4.0)
+    signal = rPyta2Signal("SMA", history_window=2, params={"n": 2}, field="close")
+    assert math.isnan(signal.step(_kline(1.0)))
+    assert signal.step(_kline(3.0)) == pytest.approx(2.0)
+    assert signal.step(_kline(5.0)) == pytest.approx(4.0)
     assert signal.g_index == signal._indicator.g_index == 2
 
 
 def test_orderbook_and_trade_steps_append_new_outputs():
-    spread = rBookSpread(return_dict=True)
-    assert spread.step(bids=[(100.0, 1.0)], asks=[(101.0, 1.0)]) == {
-        "spread": 1.0
-    }
-    assert spread.step(bids=[(100.25, 1.0)], asks=[(100.75, 1.0)]) == {
-        "spread": 0.5
-    }
+    spread = rBookSpread(return_dict=True, buffer_size=-1)
+    assert spread.step(bids=[(100.0, 1.0)], asks=[(101.0, 1.0)]) == {"spread": 1.0}
+    assert spread.step(bids=[(100.25, 1.0)], asks=[(100.75, 1.0)]) == {"spread": 0.5}
     assert spread.g_index == 1
     assert len(spread.outputs) == 2
 
-    trade = rTradeSignedVolume(return_dict=True)
-    assert trade.step(price=10.0, volume=3.0, side="buy") == {
-        "signed_volume": 3.0
-    }
-    assert trade.step(price=10.0, volume=4.0, side="sell") == {
-        "signed_volume": -4.0
-    }
+    trade = rTradeSignedVolume(return_dict=True, buffer_size=-1)
+    assert trade.step(price=10.0, volume=3.0, side="buy") == {"signed_volume": 3.0}
+    assert trade.step(price=10.0, volume=4.0, side="sell") == {"signed_volume": -4.0}
     assert trade.g_index == 1
     assert len(trade.outputs) == 2
 
@@ -104,11 +91,9 @@ class _rSmoothedDepthImbalance(rOrderBookSignal):
         self._imbalances = NumpyDeque(maxlen=n)
         self._sma = _rPytaSMA(n, buffer_size=0)
         super().__init__(
-            window=n,
+            n_backward=n - 1,
             schema={
-                "smoothed_depth_imbalance": Scalar(
-                    low=-1.0, high=1.0, dtype=np.float64
-                )
+                "smoothed_depth_imbalance": Scalar(low=-1.0, high=1.0, dtype=np.float64)
             },
             **kwargs,
         )
@@ -154,7 +139,7 @@ class _rFailingAccumulator(rSignal):
     def __init__(self):
         self.total = 0.0
         super().__init__(
-            window=1,
+            n_backward=0,
             schema={"total": Scalar(low=-np.inf, high=np.inf, dtype=np.float64)},
         )
 

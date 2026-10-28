@@ -1,6 +1,6 @@
 # 计划执行索引
 
-更新时间：2026-09-27 12:23 CST
+更新时间：2026-10-28 08:02 CST
 
 ## 历史说明
 
@@ -36,6 +36,7 @@
 | 2026-09-24 16:56 CST | `PLAN-024-mean-of-mean-v2.md` | `PLAN-024-mean-of-mean-v2-OUTCOME.md` | 保留 V1，新增可选八种 pyta2 MA 的两级均值 V2；core 改为通用 `apply_component()`，pyta2 调用移至适配对象，公开 `checkpoint_fields`；119 项测试通过，1 项因可选依赖跳过。 |
 | 2026-09-26 16:02 CST | `PLAN-025-direct-pyta2-calls.md` | `PLAN-025-direct-pyta2-calls-OUTCOME.md` | 按新的直接调用设计删除 `Pyta2Component` 与 `rSignal.apply_component()`，所有当前调用方直接使用原指标或子对象的新增/修订/重置方法；版本升至 0.5.0，118 项测试通过。 |
 | 2026-09-27 12:23 CST | `PLAN-026-rolling-only-signal.md` | `PLAN-026-rolling-only-signal-OUTCOME.md` | 归档旧设计至 `docs/backup/v2/`，移除 Signal 的 `update_last()`、检查点和子指标修订分支；保留 `step()` 单向推进、`reset()` 重放和 batch 一致性，版本升至 0.6.0，120 项测试通过。 |
+| 2026-10-28 08:02 CST | `PLAN-027-kline-bundle-operator.md` | `PLAN-027-kline-bundle-operator-OUTCOME.md` | 实施 Operator/Signal/Outcome、单 K 线与多 symbol 时点快照、截面排名和未来结果对齐；与 pyta2 统一 result_index 和 schema，版本升至 0.7.0，159 项测试通过。 |
 
 ## 当前设计文档规则
 
@@ -50,3 +51,7 @@
 ## 2026-09-27 当前设计入口
 
 以上“当前设计文档规则”记录的是各阶段的历史状态。现行生命周期以 `docs/design/sigma2-20260927-rolling-only.md` 为准；原 `docs/design/` 的 14 个旧设计文档已原样移动到 `docs/backup/v2/`，不再作为新实现依据。历史计划中的旧相对链接按归档目录查找。
+
+## 2026-10-28 当前设计入口
+
+当前核心与横截面契约分别见 `docs/design/sigma2-operator-signal-outcome-20261028-overview.md`、`docs/design/kline-bundle-20261028-overview.md`；`sigma2-20260927-rolling-only.md` 保留 0.6.0 的历史语义。

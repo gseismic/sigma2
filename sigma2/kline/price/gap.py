@@ -15,8 +15,9 @@ class rKlineGap(rKlineWindowSignal):
 
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(
-            window=2,
             schema=[("gap", Scalar(low=-np.inf, high=np.inf, dtype=np.float64))],
+            n_backward=1,
+            history_window=2,
             **kwargs,
         )
 
@@ -24,9 +25,14 @@ class rKlineGap(rKlineWindowSignal):
         if len(closes) < 2:
             return float("nan")
         previous_close = closes[-2]
-        if previous_close == 0:
+        if (
+            not (np.isfinite(previous_close) and np.isfinite(opens[-1]))
+            or previous_close == 0
+        ):
             return float("nan")
-        return float(opens[-1] / previous_close - 1.0)
+        with np.errstate(over="ignore", invalid="ignore"):
+            output = opens[-1] / previous_close - 1.0
+        return float(output) if np.isfinite(output) else float("nan")
 
     @property
     def full_name(self) -> str:
@@ -38,6 +44,7 @@ def KlineGap(
     *,
     return_type: str = "dict",
     return_meta_info: bool = False,
+    symbol: str | None = None,
 ) -> Any:
     """批量 replay :class:`rKlineGap`。"""
 
@@ -46,6 +53,7 @@ def KlineGap(
         rKlineGap,
         return_type=return_type,
         return_meta_info=return_meta_info,
+        symbol=symbol,
     )
 
 

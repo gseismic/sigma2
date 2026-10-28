@@ -6,6 +6,7 @@ import numpy as np
 
 from pyta2 import RSI as PytaRSI
 from pyta2 import rRSI as rPytaRSI
+from tests.helpers import bars_from_columns
 from sigma2 import (
     KlineGap,
     KlineRSI,
@@ -32,9 +33,7 @@ def _kline_data(length: int = 32) -> dict[str, np.ndarray]:
 def _step_all(signal: Any, data: dict[str, np.ndarray]) -> np.ndarray:
     outputs = []
     for index in range(len(data["close"])):
-        outputs.append(
-            signal.step(**{key: values[index] for key, values in data.items()})
-        )
+        outputs.append(signal.step(bars_from_columns(data)[index]))
     return np.asarray(outputs)
 
 
@@ -54,6 +53,6 @@ def test_price_batch_pairs_match_rolling_replay():
         (KlineReturn, rKlineReturn, (2,)),
         (KlineGap, rKlineGap, ()),
     ):
-        result = batch(data, *args, return_type="tuple")
+        result = batch(bars_from_columns(data), *args, return_type="tuple")
         replay = _step_all(rolling(*args), data)
         np.testing.assert_allclose(result, replay, equal_nan=True)

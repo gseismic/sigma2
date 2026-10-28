@@ -1,80 +1,24 @@
-# 新增 sigma2 Signal
+# 扩展 sigma2 算子
 
-本指南适用于在 sigma2 仓库增加因子或 family Signal。先读根目录 `AGENTS.md` 的计划、代码和文档约定，以及当前 `sigma2/__init__.py` 和目标 family 的实现。公共 API 取舍不清楚时先做设计，不要直接把实现选择写成新契约。最小有状态扩展示例见 [`examples/06_custom_signal.py`](../../../examples/06_custom_signal.py)；不调用 pyta2 指标的 K 线组合模板见 [`rKlineMeanOfMean`](../../../sigma2/kline/trend/mean_of_mean.py)，组合两个 pyta2 MA 的模板见 [`rKlineMeanOfMeanV2`](../../../sigma2/kline/trend/mean_of_mean_v2.py)。
+先看仓库 `AGENTS.md`、目标 family 和 `sigma2/__init__.py`。公开接口需要新的设计取舍时先设计。现有模板包括 [`rKlineMeanOfMean`](../../../sigma2/kline/trend/mean_of_mean.py)、[`rKlineMeanOfMeanV2`](../../../sigma2/kline/trend/mean_of_mean_v2.py)和[自定义成交信号](../../../examples/06_custom_signal.py)。
 
-## 1. 判断数据时点和 family
+## 选择时间语义和输入
 
-先判断输出是否依赖未来数据：
-
-- 只使用当前及过去观测的值可作为 causal feature，按输入类型继承对应 family 基类。
-- 需要未来 K 线才能计算的输出属于 target，放在 `sigma2/kline/target/`，不得当作当下可用特征。参考现有 `rKlineFutureReturn` 等实现；target 的输出时点与正向 Signal 不同。
-
-当前 family 的单条输入契约：
-
-| family | 基类 | 一条观测 |
+| 输入 | 当前结果 | 等待未来观测的结果 |
 | --- | --- | --- |
-| K 线 | `rKlineSignal` 或需要 OHLCV 历史窗口时的 `rKlineWindowSignal` | `open/high/low/close/volume` |
-| 盘口快照 | `rOrderBookSignal` | 已规范排序的完整 `bids` / `asks` 快照 |
-| 逐笔成交 | `rTradeSignal` | 一笔 `price` / `volume` / `side` 事件 |
+| 单 symbol `KlineBar` | `rKlineSignal` / `rKlineWindowSignal` | `rKlineOutcome` / `rKlineWindowOutcome` |
+| 同时点 `KlineBundle` | `rKlineBundleSignal` / `rKlineBundleWindowSignal` | `rKlineBundleOutcome` / `rKlineBundleWindowOutcome` |
+| 盘口或成交事件 | 对应 `rOrderBookSignal` / `rTradeSignal` | 有需求时先设计输入和对齐契约 |
 
-不要把盘口 snapshot、delta 和独立成交事件混成同一个含糊的输入语义。新增一种市场数据 family 是独立的 API 设计工作；先明确一条观测的输入语义，不要仅为容纳一个新因子就改动现有 family 签名。
+Signal 只能使用当前及以前的数据。Outcome 的 `n_forward` 是固定后续观测数，`result_index` 是结果所属锚点；不要将回填结果当作锚点当时可用的信息。单 K 线和 Bundle 分别放在并列的 `sigma2/kline/`、`sigma2/kline_bundle/`。
 
-## 2. 选择实现模式
+Bundle 算子持有固定 `symbols` 轴；一份快照缺少某个 symbol 仍推进共同时间。横截面计算可直接继承 Bundle family；逐 symbol 复用已有实现时使用 `rKlineBundleMapSignal` 或 `rKlineBundleMapOutcome`，每个 symbol 有独立子状态。
 
-### 单个 pyta2 rolling 指标绑定 K 线字段
+## 实现约定
 
-优先参考现有的 `rKlineMA` 和内部 `_rKlineIndicatorFactor`。canonical 文件按输出的主要市场含义放在 `sigma2/kline/price/`、`trend/`、`momentum/` 或 `volatility/`：
-
-- 一个公开因子一个文件；rolling 类与 batch 函数同文件。
-- 继承内部 `_rKlineIndicatorFactor`，复用 pyta2 指标的 schema、窗口、数值和名称，不复制公式或元信息。
-- 使用真实输入字段绑定。多输入指标传完整 `fields`，例如 HLC 输入不能伪装成只绑定 `close`。
-- `Kline` 只用于 Python API 避免与 pyta2 重名；不要把它加入训练列 `full_name`。
-
-### 自有公式或有状态组合，不调用 pyta2 指标
-
-参考 [`rKlineMeanOfMean`](../../../sigma2/kline/trend/mean_of_mean.py)。直接继承 `rKlineSignal`，把每次观测需要的状态放在子类；`reset_extras()` 重新建立这些状态。`forward()` 只处理当前一根观测，预热不足时自行返回 `NaN`。
-
-纯数值输出可以用 `schema={"mean_of_mean": np.float64}` 声明 dtype，不必在因子文件导入 pyta2 的 `Space`。这只消除因子源码对 pyta2 指标和类型的依赖；sigma2 core 当前仍使用 pyta2 的 schema/缓存工具，安装依赖不变。
-
-### 市场结构派生或组合 Signal
-
-从正确的 family 基类继承，自己定义 schema、`full_name` 和真实输入派生。例如盘口深度失衡先由 sigma2 处理 bids/asks，再直接调用所持 pyta2 rolling 指标；参见[当前设计](../../../docs/design/sigma2-20260927-rolling-only.md)与 [`rKlineMeanOfMeanV2`](../../../sigma2/kline/trend/mean_of_mean_v2.py)。
-
-实现时遵守这些边界：
-
-- `forward()` 只实现算法，不手动推进父 Signal 的 `g_index`，也不追加或替换父 Signal 的 `outputs`。
-- 直接持有 pyta2 指标，在 `step()` 的计算中调用 `indicator.rolling(...)`。需要禁止直接调用 `forward()` 的因子可检查 `_lifecycle_mode == "step"`。不使用额外适配对象。
-- 覆盖 `reset_extras()`，清空 Signal 自有状态并直接调用子指标的 `reset()`。
-- `step()` 计算失败后 Signal 进入 faulted 状态；只有 `reset()` 并重放已确认观测才能继续。不要直接改 `g_index` 或输出缓存。
-- 明确 `window` / `extra_window`，使 `required_window` 反映输出需要的观测数量；schema 的输出 key、dtype 与实际结果保持一致。
-
-## 3. 提供配对 batch API
-
-有稳定公开价值的 K 线因子提供同名配对接口：
-
-```text
-rKlineExample(...)  # 在线逐条 step
-KlineExample(data, ...)  # 对同一 Signal 逐行 replay
-```
-
-batch 函数用 `forward_signal_apply(data, rKlineExample, ...)`；不要维护第二套数学实现。列需求由 `step_input_keys` 决定。默认输出是以 `factor_names` 为键的列字典，可沿用 core 支持的 `return_type` 与 `return_meta_info`。
-
-如果新增的只是内部或非 K 线 Signal，不要为了形式统一而编造没有真实用途的 batch 包装。
-
-## 4. 命名、文件和导出
-
-- K 线公开类用 `rKlineExample`，batch 函数用 `KlineExample`。订单簿、成交信号使用对应 family 的明确名称，例如 `rBookSpread`、`rTradeSignedVolume`。
-- 不新增与 pyta2 冲突的 `rRSI`、`rMA` 一类短名称或旧式镜像目录。
-- 新实现只保留一个 canonical 文件，不新建转发兼容文件。K 线新文件还应导出到所属领域 `__init__.py` 和 `sigma2/kline/__init__.py`；确认属于稳定高频入口后再加到 `sigma2/__init__.py`。其他 family 同样更新其 family 包导出。
-- 所有影响结果的参数必须出现在可复现身份中：复用 pyta2 时沿用子指标名称及字段绑定；sigma2 自有参数应明确进入 `full_name`。多输出 `factor_names` 必须逐项对应 `output_keys`。
-
-## 5. 建立契约验证
-
-为新 Signal 补充项目测试，至少覆盖与实现模式相关的契约：
-
-- pyta2 支撑的因子与 pyta2 结果一致；batch 输出与逐条 `step()` replay 一致。
-- 逐条 `step()` 与 batch replay 一致；检查 `g_index`、输出行数、`reset()` 后重放。
-- 检查 `schema`、`output_keys`、`full_name`、`factor_names`、必需列校验和 family 包导出。
-- target 应验证数据时点，避免未来数据被误用为当前特征。
-
-组合 Signal 还要验证父 Signal 与 pyta2 子指标同步推进，并在 `reset()` 后一起恢复初始状态。扩展完成后按仓库 `AGENTS.md` 执行实施计划、review、结果记录和提交约定。
+- 直接使用 pyta2 的 `Schema`、`Space` 声明 schema，例如 `Scalar(low=-np.inf, high=np.inf, dtype=np.float64)`；一个 Bundle Space 描述一个 symbol。单字段返回数组，多字段按 schema 顺序返回 tuple，或返回 schema key 到值的 mapping。
+- 按算法声明 `n_backward` 和 `n_forward`；需要历史字段时另显式声明 `history_window`，它不等同于 `min_periods`。窗口 family 的 `forward` 接收 OHLCV 数组，单 K 线是一维，Bundle 是 `(时间, symbol)`。
+- 实现 `forward()`、`full_name` 和必要的 `reset_extras()` 或 `reset_window_extras()`。不要手动修改 `g_index` 或输出缓存。计算失败后状态可能已改变，应 `reset()` 并重放。
+- 复用 pyta2 时参考 `_rKlineIndicatorFactor`，确认上游指标已迁移且支持有限历史；通用桥接须显式指定历史长度。不要假定所有指标都能仅用 `min_periods` 的有限窗口重算。
+- 对外稳定算子可以配对 batch 函数：Signal 用 `forward_signal_apply()`，Outcome 用 `forward_outcome_apply()`，不要维护第二套计算公式。结果列以 `factor_names` 标识，实际参数应进入 `full_name`。
+- 将新实现放在相应数据目录的领域子目录，更新领域和必要的根包导出。检查数据时点、缺失、symbol 轴、预热、状态重置以及 batch 与在线的对齐；执行范围以用户要求和仓库指令为准。

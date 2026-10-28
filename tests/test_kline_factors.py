@@ -5,16 +5,15 @@ from typing import Any
 
 import numpy as np
 import pytest
-from pyta2.momentum import KDJ as pyta_KDJ
 from pyta2.momentum import MACD as pyta_MACD
 from pyta2.momentum import RSI as pyta_RSI
-from pyta2.stats.atr import ATR as pyta_ATR
 from pyta2.structure.channel import Boll as pyta_Boll
 from pyta2.trend.ma.api import get_ma_function
 
 from sigma2 import KlineATR, KlineBoll, KlineKDJ, KlineMA, KlineMACD, KlineRSI
 from sigma2 import rKlineATR, rKlineBoll, rKlineKDJ, rKlineMA, rKlineMACD, rKlineRSI
 from sigma2.core import forward_signal_apply
+from tests.helpers import bars_from_columns
 
 
 def _kline_data(length: int = 96) -> dict[str, np.ndarray]:
@@ -31,6 +30,45 @@ def _kline_data(length: int = 96) -> dict[str, np.ndarray]:
         "close": close,
         "volume": volume,
     }
+
+
+def _kdj_formula(data, n1, n2, n3):
+    k = d = 50.0
+    columns = [[], [], []]
+    for i, close in enumerate(data["close"]):
+        if i + 1 < n1:
+            values = (np.nan, np.nan, np.nan)
+        else:
+            high = max(data["high"][i + 1 - n1 : i + 1])
+            low = min(data["low"][i + 1 - n1 : i + 1])
+            rsv = 50 if high == low else (close - low) / (high - low) * 100
+            k = (k * (n2 - 1) + rsv) / n2
+            d = (d * (n3 - 1) + k) / n3
+            values = (k, d, 3 * k - 2 * d)
+        for column, value in zip(columns, values):
+            column.append(value)
+    return tuple(np.asarray(column) for column in columns)
+
+
+def _atr_formula(data, n):
+    ranges = []
+    values = []
+    ema = None
+    alpha = 2 / (n + 1)
+    for i, (high, low) in enumerate(zip(data["high"], data["low"])):
+        previous = data["close"][i - 1] if i else None
+        tr = (
+            high - low
+            if previous is None
+            else max(high - low, abs(high - previous), abs(low - previous))
+        )
+        ranges.append(tr)
+        if len(ranges) < n:
+            values.append(np.nan)
+        else:
+            ema = np.mean(ranges[-n:]) if ema is None else (tr - ema) * alpha + ema
+            values.append(ema)
+    return np.asarray(values)
 
 
 def _as_columns(value: Any) -> tuple[np.ndarray, ...]:
@@ -60,7 +98,7 @@ def _assert_columns_equal(actual: Any, expected: Any) -> None:
 def test_ma_supports_every_public_pyta2_ma_type(ma_type: str):
     data = _kline_data()
 
-    actual = KlineMA(data, 5, ma_type=ma_type, return_type="tuple")
+    actual = KlineMA(bars_from_columns(data), 5, ma_type=ma_type, return_type="tuple")
     expected = get_ma_function(ma_type)(data["close"], 5)
 
     _assert_columns_equal(actual, expected)
@@ -77,7 +115,7 @@ def test_ma_field_binding_and_advanced_kwargs_are_part_of_identity():
     )
 
     actual = KlineMA(
-        data,
+        bars_from_columns(data),
         5,
         ma_type="kama",
         field="volume",
@@ -96,18 +134,20 @@ def test_ma_field_binding_and_advanced_kwargs_are_part_of_identity():
     [
         (
             lambda: rKlineMA(5, ma_type="EMA"),
-            lambda data: KlineMA(data, 5, ma_type="EMA", return_type="tuple"),
+            lambda data: KlineMA(
+                bars_from_columns(data), 5, ma_type="EMA", return_type="tuple"
+            ),
             lambda data: get_ma_function("EMA")(data["close"], 5),
         ),
         (
             lambda: rKlineRSI(5),
-            lambda data: KlineRSI(data, 5, return_type="tuple"),
+            lambda data: KlineRSI(bars_from_columns(data), 5, return_type="tuple"),
             lambda data: pyta_RSI(data["close"], 5),
         ),
         (
             lambda: rKlineMACD(3, 6, 3),
             lambda data: KlineMACD(
-                data,
+                bars_from_columns(data),
                 fast=3,
                 slow=6,
                 signal=3,
@@ -117,30 +157,20 @@ def test_ma_field_binding_and_advanced_kwargs_are_part_of_identity():
         ),
         (
             lambda: rKlineBoll(5, 2),
-            lambda data: KlineBoll(data, 5, 2, return_type="tuple"),
+            lambda data: KlineBoll(bars_from_columns(data), 5, 2, return_type="tuple"),
             lambda data: pyta_Boll(data["close"], 5, 2),
         ),
         (
             lambda: rKlineKDJ(6, 3, 3),
-            lambda data: KlineKDJ(data, 6, 3, 3, return_type="tuple"),
-            lambda data: pyta_KDJ(
-                data["high"],
-                data["low"],
-                data["close"],
-                6,
-                3,
-                3,
+            lambda data: KlineKDJ(
+                bars_from_columns(data), 6, 3, 3, return_type="tuple"
             ),
+            lambda data: _kdj_formula(data, 6, 3, 3),
         ),
         (
             lambda: rKlineATR(5),
-            lambda data: KlineATR(data, 5, return_type="tuple"),
-            lambda data: pyta_ATR(
-                data["high"],
-                data["low"],
-                data["close"],
-                5,
-            ),
+            lambda data: KlineATR(bars_from_columns(data), 5, return_type="tuple"),
+            lambda data: _atr_formula(data, 5),
         ),
     ],
     ids=["ma", "rsi", "macd", "boll", "kdj", "atr"],
@@ -154,7 +184,7 @@ def test_factor_batch_matches_signal_replay_and_pyta2(
     signal = factory()
     replay_values = {key: [] for key in signal.output_keys}
     for index in range(len(data["close"])):
-        output = signal.step(**{key: values[index] for key, values in data.items()})
+        output = signal.step(bars_from_columns(data)[index])
         normalized = signal.make_dict_output(output)
         for key in signal.output_keys:
             replay_values[key].append(normalized[key])
@@ -180,24 +210,25 @@ def test_factor_batch_matches_signal_replay_and_pyta2(
 )
 def test_every_factor_advances_with_pyta2_child_and_replays_after_reset(factory):
     data = _kline_data(24)
-    rows = [
-        {key: values[index] for key, values in data.items()}
-        for index in range(len(data["close"]))
-    ]
+    rows = bars_from_columns(data)
     signal = factory()
-    first_run = [signal.step(**row) for row in rows]
-    assert signal.g_index == signal._indicator.g_index == len(rows) - 1
+    signal.resize_buffer(-1)
+    first_run = [signal.step(row) for row in rows]
+    assert signal.g_index == len(rows) - 1
+    if hasattr(signal, "_indicator"):
+        assert signal._indicator.g_index == signal.g_index
     assert len(signal.outputs) == len(rows)
 
     signal.reset()
-    second_run = [signal.step(**row) for row in rows]
+    second_run = [signal.step(row) for row in rows]
 
     replay = factory()
-    replay_values = [replay.step(**row) for row in rows]
+    replay_values = [replay.step(row) for row in rows]
     _assert_columns_equal(first_run, second_run)
     _assert_columns_equal(first_run, replay_values)
     assert signal.g_index == replay.g_index == len(rows) - 1
-    assert signal._indicator.g_index == replay._indicator.g_index == len(rows) - 1
+    if hasattr(signal, "_indicator"):
+        assert signal._indicator.g_index == replay._indicator.g_index == len(rows) - 1
 
 
 def test_factor_names_use_full_name_and_output_component():
@@ -216,16 +247,14 @@ def test_factor_names_use_full_name_and_output_component():
     ]
     assert boll.full_name == "Boll(20,2)[close]"
     assert atr.full_name == "ATR(20,EMA)[high,low,close]"
-    assert atr.meta_info["fields"] == ("high", "low", "close")
-    assert atr.meta_info["component"]["full_name"] == "ATR(20,EMA)"
 
 
 def test_batch_result_formats_and_metadata_use_factor_names():
     data = _kline_data(8)
 
-    as_dict, meta = KlineRSI(data, 3, return_meta_info=True)
-    as_tuple = KlineRSI(data, 3, return_type="tuple")
-    as_list = KlineRSI(data, 3, return_type="list")
+    as_dict, meta = KlineRSI(bars_from_columns(data), 3, return_meta_info=True)
+    as_tuple = KlineRSI(bars_from_columns(data), 3, return_type="tuple")
+    as_list = KlineRSI(bars_from_columns(data), 3, return_type="list")
 
     assert list(as_dict) == ["RSI(3)[close]"]
     np.testing.assert_allclose(
@@ -245,13 +274,13 @@ def test_batch_optional_dataframe_formats():
     polars = pytest.importorskip("polars")
     data = _kline_data(8)
 
-    pandas_frame = KlineRSI(data, 3, return_type="dataframe")
-    polars_frame = KlineRSI(data, 3, return_type="pl.dataframe")
+    pandas_frame = KlineRSI(bars_from_columns(data), 3, return_type="dataframe")
+    polars_frame = KlineRSI(bars_from_columns(data), 3, return_type="pl.dataframe")
 
     assert isinstance(pandas_frame, pandas.DataFrame)
     assert isinstance(polars_frame, polars.DataFrame)
     assert list(pandas_frame.columns) == ["RSI(3)[close]"]
-    assert polars_frame.columns == ["RSI(3)[close]"]
+    assert polars_frame.columns == ["bar_time", "RSI(3)[close]"]
 
 
 def test_atr_n_one_keeps_previous_close_for_true_range():
@@ -263,41 +292,26 @@ def test_atr_n_one_keeps_previous_close_for_true_range():
         "volume": np.ones(3),
     }
 
-    actual = KlineATR(data, 1, return_type="tuple")
-    expected = pyta_ATR(data["high"], data["low"], data["close"], 1)
+    actual = KlineATR(bars_from_columns(data), 1, return_type="tuple")
+    expected = _atr_formula(data, 1)
 
     _assert_columns_equal(actual, expected)
     assert rKlineATR(1).history_window == 2
 
 
-def test_batch_validates_columnar_contract_and_result_type():
+def test_batch_validates_bar_sequence_and_result_type():
     data = _kline_data(4)
-
-    with pytest.raises(KeyError, match="missing required columns"):
-        KlineRSI({key: value for key, value in data.items() if key != "volume"}, 2)
-
-    uneven = dict(data)
-    uneven["volume"] = uneven["volume"][:-1]
-    with pytest.raises(ValueError, match="same length"):
-        KlineRSI(uneven, 2)
-
-    two_dimensional = dict(data)
-    two_dimensional["close"] = two_dimensional["close"][:, None]
-    with pytest.raises(ValueError, match="one-dimensional"):
-        KlineRSI(two_dimensional, 2)
-
-    with pytest.raises(ValueError, match="return_type must be one of"):
-        KlineRSI(data, 2, return_type="records")
-
+    bars = bars_from_columns(data)
+    with pytest.raises(TypeError, match="KlineBar"):
+        KlineRSI(data, 2)
+    with pytest.raises(ValueError, match="unsupported return_type"):
+        KlineRSI(bars, 2, return_type="records")
     with pytest.raises(TypeError, match="rSignal subclass"):
-        forward_signal_apply(data, object)
+        forward_signal_apply(bars, object)
 
 
-def test_batch_accepts_empty_finalized_table():
-    data = {key: values[:0] for key, values in _kline_data(2).items()}
-
-    result, meta = KlineRSI(data, 2, return_meta_info=True)
-
+def test_batch_accepts_empty_input():
+    result, meta = KlineRSI([], 2, return_meta_info=True)
     assert result["RSI(2)[close]"].shape == (0,)
     assert meta["g_index"] == -1
 

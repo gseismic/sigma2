@@ -10,9 +10,10 @@ class rTradeCumulativeSignedVolume(rTradeSignal):
     """当前输入流中买量减卖量的累计值。"""
 
     name = "trade_cumulative_signed_volume"
+
     def __init__(self, **kwargs) -> None:
         super().__init__(
-            window=1,
+            n_backward=0,
             schema={"total": Scalar(low=-np.inf, high=np.inf, dtype=np.float64)},
             **kwargs,
         )

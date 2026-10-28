@@ -65,6 +65,7 @@ def test_root_package_reexports_canonical_signals():
     )
     assert callable(resolve_pyta2_indicator)
 
+
 def test_core_exports_signal_base_classes_and_pyta2_base():
     from sigma2.core import (
         forward_signal_apply,
@@ -164,23 +165,23 @@ def test_kline_categories_export_single_canonical_implementation():
     assert rKlineReturn.__module__ == "sigma2.kline.price.return_"
 
 
-def test_target_package_is_canonical():
-    from sigma2.kline.target import (
+def test_outcome_package_is_canonical():
+    from sigma2.kline.outcome import (
         rKlineATRBoundTrigger,
         rKlineFutureChange,
         rKlineFutureHighLowChange,
         rKlineFutureReturn,
     )
-    from sigma2.kline.target.bound_trigger import (
+    from sigma2.kline.outcome.bound_trigger import (
         rKlineATRBoundTrigger as rKlineATRBoundTriggerFromFile,
     )
-    from sigma2.kline.target.future_change import (
+    from sigma2.kline.outcome.future_change import (
         rKlineFutureChange as rKlineFutureChangeFromFile,
     )
-    from sigma2.kline.target.future_high_low_change import (
+    from sigma2.kline.outcome.future_high_low_change import (
         rKlineFutureHighLowChange as rKlineFutureHighLowChangeFromFile,
     )
-    from sigma2.kline.target.future_return import (
+    from sigma2.kline.outcome.future_return import (
         rKlineFutureReturn as rKlineFutureReturnFromFile,
     )
 
@@ -188,13 +189,13 @@ def test_target_package_is_canonical():
     assert rKlineFutureChange is rKlineFutureChangeFromFile
     assert rKlineFutureHighLowChange is rKlineFutureHighLowChangeFromFile
     assert rKlineFutureReturn is rKlineFutureReturnFromFile
-    assert rKlineATRBoundTrigger.__module__ == "sigma2.kline.target.bound_trigger"
-    assert rKlineFutureChange.__module__ == "sigma2.kline.target.future_change"
+    assert rKlineATRBoundTrigger.__module__ == "sigma2.kline.outcome.bound_trigger"
+    assert rKlineFutureChange.__module__ == "sigma2.kline.outcome.future_change"
     assert (
         rKlineFutureHighLowChange.__module__
-        == "sigma2.kline.target.future_high_low_change"
+        == "sigma2.kline.outcome.future_high_low_change"
     )
-    assert rKlineFutureReturn.__module__ == "sigma2.kline.target.future_return"
+    assert rKlineFutureReturn.__module__ == "sigma2.kline.outcome.future_return"
 
 
 def test_market_family_packages_export_concrete_signals():

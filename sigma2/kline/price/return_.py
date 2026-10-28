@@ -17,8 +17,9 @@ class rKlineReturn(rKlineWindowSignal):
     def __init__(self, n: int = 1, **kwargs: Any) -> None:
         self.n = ensure_integer(n, "n", min_value=1)
         super().__init__(
-            window=self.n + 1,
             schema=[("return", Scalar(low=-np.inf, high=np.inf, dtype=np.float64))],
+            n_backward=self.n,
+            history_window=self.n + 1,
             **kwargs,
         )
 
@@ -26,9 +27,12 @@ class rKlineReturn(rKlineWindowSignal):
         if len(closes) <= self.n:
             return float("nan")
         previous = closes[-self.n - 1]
-        if previous == 0:
+        current = closes[-1]
+        if not (np.isfinite(previous) and np.isfinite(current)) or previous == 0:
             return float("nan")
-        return float(closes[-1] / previous - 1.0)
+        with np.errstate(over="ignore", invalid="ignore"):
+            output = current / previous - 1.0
+        return float(output) if np.isfinite(output) else float("nan")
 
     @property
     def full_name(self) -> str:
@@ -41,6 +45,7 @@ def KlineReturn(
     *,
     return_type: str = "dict",
     return_meta_info: bool = False,
+    symbol: str | None = None,
 ) -> Any:
     """批量 replay :class:`rKlineReturn`。"""
 
@@ -50,6 +55,7 @@ def KlineReturn(
         param_args=(n,),
         return_type=return_type,
         return_meta_info=return_meta_info,
+        symbol=symbol,
     )
 
 

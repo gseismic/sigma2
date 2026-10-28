@@ -1,48 +1,52 @@
-"""K 线 Signal 公共 API。"""
+"""单 symbol K 线数据及相关计算。"""
 
-from .momentum import KlineKDJ, KlineRSI, rKlineKDJ, rKlineRSI
-from .price import KlineGap, KlineReturn, rKlineGap, rKlineReturn
-from .target import (
-    rKlineATRBoundTrigger,
-    rKlineFutureChange,
-    rKlineFutureHighLowChange,
-    rKlineFutureReturn,
-)
-from .trend import (
-    KlineMA,
-    KlineMACD,
-    KlineMeanOfMean,
-    KlineMeanOfMeanV2,
-    rKlineMA,
-    rKlineMACD,
-    rKlineMeanOfMean,
-    rKlineMeanOfMeanV2,
-)
-from .volatility import KlineATR, KlineBoll, rKlineATR, rKlineBoll
+from importlib import import_module
+from typing import Any
 
-__all__ = [
-    "KlineATR",
-    "KlineBoll",
-    "KlineGap",
-    "KlineKDJ",
-    "KlineMA",
-    "KlineMACD",
-    "KlineMeanOfMean",
-    "KlineMeanOfMeanV2",
-    "KlineRSI",
-    "KlineReturn",
-    "rKlineATR",
-    "rKlineATRBoundTrigger",
-    "rKlineBoll",
-    "rKlineFutureChange",
-    "rKlineFutureHighLowChange",
-    "rKlineFutureReturn",
-    "rKlineGap",
-    "rKlineKDJ",
-    "rKlineMA",
-    "rKlineMACD",
-    "rKlineMeanOfMean",
-    "rKlineMeanOfMeanV2",
-    "rKlineRSI",
-    "rKlineReturn",
-]
+from .data import KlineBar
+
+_MODULES = {
+    "KlineATR": "volatility",
+    "KlineBoll": "volatility",
+    "rKlineATR": "volatility",
+    "rKlineBoll": "volatility",
+    "KlineGap": "price",
+    "KlineReturn": "price",
+    "rKlineGap": "price",
+    "rKlineReturn": "price",
+    "KlineKDJ": "momentum",
+    "KlineRSI": "momentum",
+    "rKlineKDJ": "momentum",
+    "rKlineRSI": "momentum",
+    "KlineMA": "trend",
+    "KlineMACD": "trend",
+    "KlineMeanOfMean": "trend",
+    "KlineMeanOfMeanV2": "trend",
+    "rKlineMA": "trend",
+    "rKlineMACD": "trend",
+    "rKlineMeanOfMean": "trend",
+    "rKlineMeanOfMeanV2": "trend",
+    "rKlineATRBoundTrigger": "outcome",
+    "rKlineFutureChange": "outcome",
+    "rKlineFutureHighLowChange": "outcome",
+    "rKlineFutureReturn": "outcome",
+    "rKlineSignal": "sigma2.core",
+    "rKlineOutcome": "sigma2.core",
+    "rKlineWindowSignal": "sigma2.core",
+    "rKlineWindowOutcome": "sigma2.core",
+}
+
+
+def __getattr__(name: str) -> Any:
+    """按需加载算子，避免数据类型与 core 初始化相互依赖。"""
+    if name not in _MODULES:
+        raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+    module_name = _MODULES[name]
+    if module_name != "sigma2.core":
+        module_name = f"{__name__}.{module_name}"
+    value = getattr(import_module(module_name), name)
+    globals()[name] = value
+    return value
+
+
+__all__ = ["KlineBar", *_MODULES]

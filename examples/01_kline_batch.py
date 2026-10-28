@@ -1,17 +1,12 @@
 """批量计算 K 线因子：从仓库根目录运行 python -m examples.01_kline_batch。"""
 
 from sigma2 import KlineMA, KlineMACD
+from examples._data import make_bars
 
 
 def main() -> None:
     closes = [10.0, 11.0, 12.0, 11.5, 13.0, 14.0, 13.5, 15.0]
-    bars = {
-        "open": [price - 0.2 for price in closes],
-        "high": [price + 0.5 for price in closes],
-        "low": [price - 0.5 for price in closes],
-        "close": closes,
-        "volume": [100.0 + 10 * index for index in range(len(closes))],
-    }
+    bars = make_bars(closes)
 
     ma_columns, ma_meta = KlineMA(bars, 3, ma_type="EMA", return_meta_info=True)
     volume_ma = KlineMA(bars, 3, ma_type="SMA", field="volume")

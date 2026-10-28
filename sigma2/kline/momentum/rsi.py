@@ -38,6 +38,7 @@ def KlineRSI(
     field: str = "close",
     return_type: str = "dict",
     return_meta_info: bool = False,
+    symbol: str | None = None,
 ) -> Any:
     """批量 replay :class:`rKlineRSI`。"""
 
@@ -48,6 +49,7 @@ def KlineRSI(
         param_kwargs={"field": field},
         return_type=return_type,
         return_meta_info=return_meta_info,
+        symbol=symbol,
     )
 
 

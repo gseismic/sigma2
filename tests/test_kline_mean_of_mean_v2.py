@@ -5,6 +5,7 @@ import math
 import numpy as np
 import pytest
 from pyta2.trend.ma.api import get_ma_class, get_ma_function
+from tests.helpers import bars_from_columns, make_bar
 
 from sigma2.kline import (
     KlineMeanOfMean,
@@ -28,8 +29,8 @@ def _data(length: int = 120) -> dict[str, np.ndarray]:
     }
 
 
-def _bar(value: float) -> dict[str, float]:
-    return {key: value for key in ("open", "high", "low", "close", "volume")}
+def _bar(value: float) -> object:
+    return make_bar(open=value, high=value, low=value, close=value, volume=value)
 
 
 @pytest.mark.parametrize("ma_type", _MA_TYPES)
@@ -38,15 +39,17 @@ def test_v2_matches_two_pyta2_ma_batch_calls(ma_type: str) -> None:
     inner = get_ma_class(ma_type)(5, buffer_size=0)
     outer = get_ma_class(ma_type)(5, buffer_size=0)
     inner_values = get_ma_function(ma_type)(data["close"], 5)
-    valid_start = inner.required_window - 1
+    valid_start = inner.min_periods - 1
     outer_values = get_ma_function(ma_type)(inner_values[valid_start:], 5)
     expected = np.concatenate((np.full(valid_start, np.nan), outer_values))
 
     signal = rKlineMeanOfMeanV2(5, 5, ma_type=ma_type)
-    actual = KlineMeanOfMeanV2(data, 5, 5, ma_type=ma_type, return_type="tuple")
+    actual = KlineMeanOfMeanV2(
+        bars_from_columns(data), 5, 5, ma_type=ma_type, return_type="tuple"
+    )
 
     np.testing.assert_allclose(actual, expected, rtol=1e-12, atol=1e-12, equal_nan=True)
-    assert signal.required_window == inner.required_window + outer.required_window - 1
+    assert signal.min_periods == inner.min_periods + outer.min_periods - 1
     assert signal.factor_names == [signal.full_name]
     assert signal.full_name.startswith(f"mean_of_mean_v2({inner.full_name},")
 
@@ -54,8 +57,10 @@ def test_v2_matches_two_pyta2_ma_batch_calls(ma_type: str) -> None:
 def test_sma_v2_matches_v1_but_has_distinct_factor_name() -> None:
     data = _data(20)
 
-    v1 = KlineMeanOfMean(data, 3, 4, return_type="tuple")
-    v2 = KlineMeanOfMeanV2(data, 3, 4, ma_type="SMA", return_type="tuple")
+    v1 = KlineMeanOfMean(bars_from_columns(data), 3, 4, return_type="tuple")
+    v2 = KlineMeanOfMeanV2(
+        bars_from_columns(data), 3, 4, ma_type="SMA", return_type="tuple"
+    )
 
     np.testing.assert_allclose(v2, v1, rtol=1e-12, atol=1e-12, equal_nan=True)
     assert rKlineMeanOfMeanV2(3, 4).full_name == (
@@ -68,15 +73,15 @@ def test_continued_steps_match_replay(ma_type: str) -> None:
     values = _data(90)["close"]
     signal = rKlineMeanOfMeanV2(5, 5, ma_type=ma_type, buffer_size=2)
     for value in values:
-        signal.step(**_bar(float(value)))
+        signal.step(_bar(float(value)))
 
-    continued = signal.step(**_bar(float(values[-1] + 3.0)))
+    continued = signal.step(_bar(float(values[-1] + 3.0)))
     assert signal.g_index == len(values)
     assert len(signal.outputs) == 2
 
     replay = rKlineMeanOfMeanV2(5, 5, ma_type=ma_type)
     for value in (*values, values[-1] + 3.0):
-        expected = replay.step(**_bar(float(value)))
+        expected = replay.step(_bar(float(value)))
 
     assert continued == pytest.approx(expected)
     assert signal._inner.g_index == len(values)
@@ -87,19 +92,19 @@ def test_continued_steps_match_replay(ma_type: str) -> None:
 def test_each_warmup_stage_matches_replay(count: int) -> None:
     signal = rKlineMeanOfMeanV2(3, 3, ma_type="EMA")
     for value in range(1, count + 1):
-        signal.step(**_bar(float(value)))
+        signal.step(_bar(float(value)))
 
-    actual = signal.step(**_bar(10.0))
+    actual = signal.step(_bar(10.0))
     replay = rKlineMeanOfMeanV2(3, 3, ma_type="EMA")
     for value in (*range(1, count + 1), 10.0):
-        expected = replay.step(**_bar(float(value)))
+        expected = replay.step(_bar(float(value)))
 
     if math.isnan(expected):
         assert math.isnan(actual)
     else:
         assert actual == pytest.approx(expected)
-    assert signal.step(**_bar(11.0)) == pytest.approx(
-        replay.step(**_bar(11.0)), nan_ok=True
+    assert signal.step(_bar(11.0)) == pytest.approx(
+        replay.step(_bar(11.0)), nan_ok=True
     )
 
 
@@ -108,7 +113,7 @@ def test_kama_advanced_params_field_and_identity() -> None:
     kwargs = {"n2": 3, "n3": 12, "stride": 2}
     signal = rKlineMeanOfMeanV2(5, 6, ma_type="kama", field="volume", ma_kwargs=kwargs)
     actual, meta = KlineMeanOfMeanV2(
-        data,
+        bars_from_columns(data),
         5,
         6,
         ma_type="kama",
@@ -122,7 +127,7 @@ def test_kama_advanced_params_field_and_identity() -> None:
     expected = np.concatenate((np.full(11, np.nan), outer_values))
 
     np.testing.assert_allclose(actual, expected, rtol=1e-12, atol=1e-12, equal_nan=True)
-    assert signal.required_window == 23
+    assert signal.min_periods == 23
     assert signal.full_name == (
         "mean_of_mean_v2(KAMA(5,3,12,stride=2),KAMA(6,3,12,stride=2))[volume]"
     )
@@ -131,7 +136,7 @@ def test_kama_advanced_params_field_and_identity() -> None:
 
 
 def test_v2_rejects_overriding_ma_lifecycle_params() -> None:
-    with pytest.raises(ValueError, match="must not override"):
+    with pytest.raises(ValueError, match="cannot override"):
         rKlineMeanOfMeanV2(3, 3, ma_kwargs={"buffer_size": 2})
     with pytest.raises(TypeError, match="must be a mapping"):
         rKlineMeanOfMeanV2(3, 3, ma_kwargs=[("n2", 2)])
@@ -147,4 +152,4 @@ def test_direct_forward_rejects_lifecycle_outside_step() -> None:
     assert signal._inner.g_index == -1
     assert signal._outer.g_index == -1
     assert not signal.is_faulted
-    assert math.isnan(signal.step(**_bar(1.0)))
+    assert math.isnan(signal.step(_bar(1.0)))

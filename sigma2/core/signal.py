@@ -1,97 +1,17 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from collections import OrderedDict
-from collections.abc import Iterator, Mapping
-from dataclasses import dataclass
+from collections.abc import Mapping
 from typing import Any
 
-import numpy as np
-from numpy.typing import DTypeLike
 from pyta2.base.schema import Schema
 from pyta2.utils.deque import DequeTable
 from pyta2.utils.space import Space
+from pyta2.utils.validation import ensure_integer
 
 
-_STEP_MODE = "step"
-
-
-@dataclass(frozen=True)
-class _DTypeField:
-    dtype: np.dtype[Any]
-
-
-class _DTypeSchema(Mapping[str, Space | _DTypeField]):
-    """只声明 dtype 的输出 schema；保留 pyta2 Space 的兼容入口。"""
-
-    def __init__(self, entries: list[tuple[str, Any]]) -> None:
-        fields: OrderedDict[str, Space | _DTypeField] = OrderedDict()
-        if not entries:
-            raise ValueError("schema must contain at least one field")
-        for entry in entries:
-            if not isinstance(entry, (list, tuple)) or len(entry) != 2:
-                raise TypeError(
-                    f"schema entries must be (key, dtype) pairs, got {entry!r}"
-                )
-            key, spec = entry
-            if not isinstance(key, str):
-                raise ValueError(f"schema key must be str, got {type(key)}")
-            if key in fields:
-                raise ValueError(
-                    f"schema key must be unique, got duplicate key {key!r}"
-                )
-            if isinstance(spec, Space):
-                fields[key] = spec
-                continue
-            if spec is None:
-                raise TypeError(f"schema dtype for {key!r} must not be None")
-            try:
-                fields[key] = _DTypeField(np.dtype(spec))
-            except (TypeError, ValueError) as exc:
-                raise TypeError(
-                    f"schema dtype for {key!r} is invalid: {spec!r}"
-                ) from exc
-        self._fields = fields
-
-    def __getitem__(self, key: str) -> Space | _DTypeField:
-        return self._fields[key]
-
-    def __iter__(self) -> Iterator[str]:
-        return iter(self._fields)
-
-    def __len__(self) -> int:
-        return len(self._fields)
-
-    def get_dtypes(self) -> dict[str, DTypeLike]:
-        return {key: field.dtype for key, field in self._fields.items()}
-
-
-def _normalize_schema(
-    schema: list[tuple[str, Space | DTypeLike]]
-    | Mapping[str, Space | DTypeLike]
-    | Schema
-    | _DTypeSchema,
-) -> Schema | _DTypeSchema:
-    if isinstance(schema, (Schema, _DTypeSchema)):
-        return schema
-    if isinstance(schema, Mapping):
-        entries = list(schema.items())
-    elif isinstance(schema, list):
-        entries = list(schema)
-    else:
-        raise TypeError(f"schema must be list, Mapping or Schema, got {type(schema)}")
-    if entries and all(
-        isinstance(entry, (list, tuple))
-        and len(entry) == 2
-        and isinstance(entry[1], Space)
-        for entry in entries
-    ):
-        return Schema(schema)
-    return _DTypeSchema(entries)
-
-
-class rSignal(ABC):
-    """轻量有状态 rolling signal 基类；schema 可用 Space 或 NumPy dtype。"""
+class rOperator(ABC):
+    """逐条推进的有状态算子，统一预热、结果位置和输出生命周期。"""
 
     name: str | None = None
     family: str | None = None
@@ -99,82 +19,84 @@ class rSignal(ABC):
 
     def __init__(
         self,
-        window: int,
-        schema: list[tuple[str, Space | DTypeLike]]
-        | Mapping[str, Space | DTypeLike]
-        | Schema,
+        schema: list[tuple[str, Space]] | Mapping[str, Space] | Schema,
         *,
-        buffer_size: int | None = None,
-        extra_window: int = 0,
+        n_backward: int,
+        n_forward: int,
+        buffer_size: int | None = 1,
         buffer_factor: int = 2,
         return_dict: bool = False,
-        name: str | None = None,
     ) -> None:
-        if buffer_size is not None and buffer_size <= 0:
-            raise ValueError(f"buffer_size must be greater than 0, got {buffer_size}")
-        if buffer_factor < 1:
-            raise ValueError(f"buffer_factor must be at least 1, got {buffer_factor}")
-        if name is not None:
-            self.name = name
-
-        self.set_window(window, extra_window)
-        self.schema = _normalize_schema(schema)
-        self.buffer_factor = buffer_factor
+        if not isinstance(schema, (list, Mapping, Schema)):
+            raise TypeError(
+                f"schema must be list, Mapping or Schema, got {type(schema)}"
+            )
+        self._n_backward = ensure_integer(n_backward, "n_backward", min_value=0)
+        self._n_forward = ensure_integer(n_forward, "n_forward", min_value=0)
+        if not isinstance(return_dict, bool):
+            raise TypeError(
+                f"return_dict must be bool, got {type(return_dict).__name__}"
+            )
+        self.schema = Schema(schema) if isinstance(schema, (list, Mapping)) else schema
         self.output_keys = list(self.schema.keys())
+        self.buffer_factor = buffer_factor
         self.return_dict = return_dict
         self.g_index = -1
-        self._outputs: DequeTable | None = None
-        self._lifecycle_mode: str | None = None
+        self._outputs: Any = None
         self._faulted = False
-
+        self._lifecycle_mode: str | None = None
         self.resize_buffer(buffer_size)
         self.reset()
 
+    @property
+    def n_backward(self) -> int:
+        return self._n_backward
+
+    @property
+    def n_forward(self) -> int:
+        return self._n_forward
+
+    @property
+    def min_periods(self) -> int:
+        return self.n_backward + 1 + self.n_forward
+
+    @property
+    def result_index(self) -> int:
+        return self.g_index - self.n_forward
+
+    def _new_output_table(self, maxlen: int | None) -> Any:
+        return DequeTable(
+            maxlen=maxlen,
+            dtypes=self.schema.get_dtypes(),
+            buffer_factor=self.buffer_factor,
+        )
+
     def resize_buffer(self, buffer_size: int | None) -> None:
-        """调整短输出缓存容量。"""
-
-        if buffer_size is not None and buffer_size <= 0:
-            raise ValueError(f"buffer_size must be greater than 0, got {buffer_size}")
-
-        self.buffer_size = buffer_size
-        if self._outputs is None:
-            self._outputs = DequeTable(
-                maxlen=self.buffer_size,
-                dtypes=self.schema.get_dtypes(),
-                buffer_factor=self.buffer_factor,
-            )
+        """调整输出缓存；0/None 关闭，-1 表示无限。"""
+        size = ensure_integer(buffer_size, "buffer_size", min_value=-1, allow_none=True)
+        size = 0 if size is None else size
+        self.buffer_size = size
+        if size == 0:
+            self._outputs = None
             return
-
-        self._outputs.resize(buffer_size)
-
-    def set_window(
-        self, window: int | None = None, extra_window: int | None = None
-    ) -> None:
-        """设置 warmup 窗口配置。"""
-
-        if window is not None:
-            if window <= 0:
-                raise ValueError(f"window must be greater than 0, got {window}")
-            self.window = window
-        if extra_window is not None:
-            if extra_window < 0:
-                raise ValueError(
-                    "extra_window must be greater than or equal to 0, "
-                    f"got {extra_window}"
-                )
-            self.extra_window = extra_window
+        maxlen = None if size == -1 else size
+        if self._outputs is None:
+            self._outputs = self._new_output_table(maxlen)
+        else:
+            self._outputs.resize(maxlen)
 
     def step(self, *args: Any, **kwargs: Any) -> Any:
-        """输入一个新的逻辑观测并推进 signal 状态。"""
-
+        """推进一个逻辑观测，失败后锁定实例，避免继续使用部分状态。"""
         self._ensure_healthy()
         previous_index = self.g_index
-        self.g_index = previous_index + 1
+        self.g_index += 1
         previous_mode = self._lifecycle_mode
-        self._lifecycle_mode = _STEP_MODE
+        self._lifecycle_mode = "step"
         try:
             output = self._step_forward(*args, **kwargs)
-            dict_output = self.make_dict_output(output)
+            dict_output = None
+            if self._outputs is not None or self.return_dict:
+                dict_output = self.make_dict_output(output)
             if self._outputs is not None:
                 self._outputs.append(dict_output)
         except Exception:
@@ -183,86 +105,81 @@ class rSignal(ABC):
             raise
         finally:
             self._lifecycle_mode = previous_mode
-
         return dict_output if self.return_dict else output
 
     def _step_forward(self, *args: Any, **kwargs: Any) -> Any:
         return self.forward(*args, **kwargs)
 
     def reset(self) -> None:
-        self.g_index = -1
-        self._lifecycle_mode = None
+        """清除全部运行状态；重置失败时继续锁定实例。"""
+        self._faulted = True
+        try:
+            self.g_index = -1
+            self._lifecycle_mode = None
+            if self._outputs is not None:
+                self._outputs.clear()
+            self.reset_extras()
+        except Exception:
+            self._faulted = True
+            raise
         self._faulted = False
-        if self._outputs is not None:
-            self._outputs.clear()
-        self.reset_extras()
+
+    def reset_extras(self) -> None:
+        """子类需要时重置自己的状态或子算子。"""
 
     def _ensure_healthy(self) -> None:
         if self._faulted:
             raise RuntimeError(
-                f"{self.full_name} is faulted after a failed state calculation; "
-                "call reset() and replay committed observations"
+                f"{self.full_name} is faulted; call reset() and replay confirmed inputs"
             )
 
     @abstractmethod
-    def reset_extras(self) -> None:
-        """重置子类扩展状态。"""
-
-    @abstractmethod
     def forward(self, *args: Any, **kwargs: Any) -> Any:
-        """只计算 signal 值，不推进 core 生命周期。"""
+        """计算钩子；调用方通过 step 推进生命周期。"""
 
     @property
     @abstractmethod
     def full_name(self) -> str:
-        """人可读的 signal 标识。"""
+        """含参数的计算身份。"""
 
     def make_dict_output(self, output: Any) -> dict[str, Any]:
-        """把标量、序列或 mapping 输出标准化到 schema keys。"""
-
+        """按 pyta2 语义将原始结果转换为 schema 字段映射。"""
         if len(self.output_keys) == 1:
             key = self.output_keys[0]
             if isinstance(output, Mapping):
                 self._validate_mapping_keys(output)
                 return {key: output[key]}
             return {key: output}
-
         if isinstance(output, Mapping):
             self._validate_mapping_keys(output)
             return {key: output[key] for key in self.output_keys}
-
         if isinstance(output, (str, bytes, bytearray)):
-            raise TypeError(
-                f"{self.full_name} output must not be string-like for schema keys "
-                f"{self.output_keys}, got {type(output)}"
-            )
-
+            raise TypeError(f"{self.full_name} output must not be string-like")
         try:
             values = list(output)
         except TypeError as exc:
-            raise TypeError(
-                f"{self.full_name} output must be iterable for schema keys "
-                f"{self.output_keys}, got {type(output)}"
-            ) from exc
-
+            raise TypeError(f"{self.full_name} output must be iterable") from exc
         if len(values) != len(self.output_keys):
             raise ValueError(
-                f"{self.full_name} output arity mismatch: schema keys {self.output_keys}, "
-                f"got {len(values)} values from {output!r}"
+                f"{self.full_name} output arity mismatch: schema keys "
+                f"{self.output_keys}, got {len(values)} values"
             )
         return dict(zip(self.output_keys, values))
 
     def _validate_mapping_keys(self, output: Mapping[str, Any]) -> None:
-        expected_keys = set(self.output_keys)
-        actual_keys = set(output.keys())
-        if actual_keys != expected_keys:
+        if set(output) != set(self.output_keys):
             raise ValueError(
                 f"{self.full_name} output keys mismatch: expected {self.output_keys}, "
-                f"got {list(output.keys())}"
+                f"got {list(output)}"
             )
 
     @property
-    def outputs(self) -> DequeTable | None:
+    def missing_output(self) -> Any:
+        values = [self.schema[name].null_value for name in self.output_keys]
+        return values[0] if len(values) == 1 else tuple(values)
+
+    @property
+    def outputs(self) -> Any:
         return self._outputs
 
     @property
@@ -270,10 +187,6 @@ class rSignal(ABC):
         if self._outputs is None or len(self._outputs) == 0:
             return None
         return self._outputs[-1]
-
-    @property
-    def required_window(self) -> int:
-        return self.window + self.extra_window
 
     @property
     def factor_names(self) -> list[str]:
@@ -294,9 +207,10 @@ class rSignal(ABC):
             "step_input_keys": self.step_input_keys,
             "schema": self.schema,
             "output_keys": self.output_keys,
-            "window": self.window,
-            "extra_window": self.extra_window,
-            "required_window": self.required_window,
+            "n_backward": self.n_backward,
+            "n_forward": self.n_forward,
+            "min_periods": self.min_periods,
+            "result_index": self.result_index,
             "factor_names": self.factor_names,
             "buffer_size": self.buffer_size,
             "buffer_factor": self.buffer_factor,
@@ -304,3 +218,23 @@ class rSignal(ABC):
             "g_index": self.g_index,
             "is_faulted": self.is_faulted,
         }
+
+
+class rSignal(rOperator):
+    """结果属于当前观测的算子；未来期固定为零。"""
+
+    def __init__(self, schema: Any, *, n_backward: int, **kwargs: Any) -> None:
+        super().__init__(schema, n_backward=n_backward, n_forward=0, **kwargs)
+
+
+class rOutcome(rOperator):
+    """等待固定后续观测后，输出属于历史锚点的结果。"""
+
+    def __init__(
+        self, schema: Any, *, n_backward: int, n_forward: int, **kwargs: Any
+    ) -> None:
+        n_forward = ensure_integer(n_forward, "n_forward", min_value=1)
+        super().__init__(schema, n_backward=n_backward, n_forward=n_forward, **kwargs)
+
+
+__all__ = ["rOperator", "rSignal", "rOutcome"]

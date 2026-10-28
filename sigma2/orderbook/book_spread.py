@@ -10,9 +10,10 @@ class rBookSpread(rOrderBookSignal):
     """订单簿快照的最优卖价减最优买价。"""
 
     name = "book_spread"
+
     def __init__(self, **kwargs) -> None:
         super().__init__(
-            window=1,
+            n_backward=0,
             schema=[("spread", Scalar(low=-np.inf, high=np.inf, dtype=np.float64))],
             **kwargs,
         )

@@ -14,10 +14,10 @@ class rEcho(rSignal):
     family = "test"
     step_input_keys = ("value",)
 
-    def __init__(self, window=1, **kwargs):
+    def __init__(self, n_backward=0, **kwargs):
         self.reset_count = 0
         super().__init__(
-            window=window,
+            n_backward=n_backward,
             schema=[("value", Scalar(low=-np.inf, high=np.inf, dtype=np.float64))],
             **kwargs,
         )
@@ -41,7 +41,7 @@ class rPair(rSignal):
     def __init__(self, mode="tuple", **kwargs):
         self.mode = mode
         super().__init__(
-            window=1,
+            n_backward=0,
             schema=[
                 ("left", Scalar(low=-np.inf, high=np.inf, dtype=np.float64)),
                 ("right", Scalar(low=-np.inf, high=np.inf, dtype=np.float64)),
@@ -144,15 +144,15 @@ def test_output_schema_mismatch_raises_clear_errors():
 
 
 def test_window_validation_and_meta_info():
-    signal = rEcho(extra_window=2, name="custom_echo")
+    signal = rEcho(n_backward=2)
 
-    assert signal.required_window == 3
-    assert signal.meta_info["name"] == "custom_echo"
+    assert signal.min_periods == 3
+    assert signal.meta_info["name"] == "echo"
     assert signal.meta_info["family"] == "test"
     assert signal.meta_info["step_input_keys"] == ("value",)
 
-    with pytest.raises(ValueError, match="window must be greater than 0"):
-        rEcho(window=0)
+    with pytest.raises(ValueError, match="n_backward"):
+        rEcho(n_backward=-1)
 
 
 def test_single_output_mapping_must_match_only_schema_key():
@@ -190,7 +190,10 @@ def test_non_pyta2_child_rolling_and_reset_match_replay():
     class rComposite(rSignal):
         def __init__(self):
             self.component = RunningSum()
-            super().__init__(window=1, schema={"sum": np.float64})
+            super().__init__(
+                n_backward=0,
+                schema={"sum": Scalar(low=-np.inf, high=np.inf, dtype=np.float64)},
+            )
 
         def reset_extras(self):
             self.component.reset()

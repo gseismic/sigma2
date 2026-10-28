@@ -11,21 +11,22 @@ from sigma2.utils.pyta2 import (
     resolve_pyta2_indicator,
 )
 
-from .kline import rKlineWindowSignal
+from ._indicator_factor import _rKlineIndicatorFactor
 
 
 def pyta2_signal(
     indicator: str | type,
     *,
+    history_window: int,
     params: dict[str, Any] | None = None,
     field: str | None = None,
     inputs: Sequence[str] | None = None,
     **kwargs: Any,
 ) -> "rPyta2Signal":
-    """用名称或 class 快捷构造 pyta2 适配信号。"""
-
+    """按名称或类构造 pyta2 桥接；历史长度由调用者明确。"""
     return rPyta2Signal(
         indicator,
+        history_window=history_window,
         params=params,
         field=field,
         inputs=inputs,
@@ -33,15 +34,14 @@ def pyta2_signal(
     )
 
 
-class rPyta2Signal(rKlineWindowSignal):
-    """把 pyta2 rolling indicator 适配成标准 K 线 step signal。"""
-
-    family = "kline"
+class rPyta2Signal(_rKlineIndicatorFactor):
+    """将支持有限历史窗口的 pyta2 指标应用于每个 symbol。"""
 
     def __init__(
         self,
         indicator: str | type,
         *,
+        history_window: int,
         params: dict[str, Any] | None = None,
         field: str | None = None,
         inputs: Sequence[str] | None = None,
@@ -50,76 +50,30 @@ class rPyta2Signal(rKlineWindowSignal):
     ) -> None:
         if field is not None and inputs is not None:
             raise ValueError("field and inputs cannot both be provided")
-
-        self.indicator_name = (
-            indicator if isinstance(indicator, str) else indicator.__name__
-        )
-        self.indicator_cls = resolve_pyta2_indicator(indicator)
-        if not issubclass(self.indicator_cls, rIndicator):
-            raise TypeError(
-                "indicator class must derive from pyta2 rIndicator, "
-                f"got {self.indicator_cls}"
-            )
-        self.indicator_params = dict(params or {})
-        self.inputs = self._resolve_inputs(indicator, field=field, inputs=inputs)
+        indicator_cls = resolve_pyta2_indicator(indicator)
+        if not issubclass(indicator_cls, rIndicator):
+            raise TypeError("indicator class must derive from pyta2 rIndicator")
+        options = dict(params or {})
+        if {"buffer_size", "return_dict"} & options.keys():
+            raise ValueError("params must not override component output settings")
+        component = indicator_cls(**options, buffer_size=0, return_dict=False)
+        if field is not None:
+            fields = normalize_pyta2_inputs((field,))
+        elif inputs is not None:
+            fields = normalize_pyta2_inputs(inputs)
+        else:
+            fields = resolve_pyta2_default_inputs(indicator) or ("close",)
         self._full_name = full_name
-        self._indicator = self._make_indicator()
-
+        self.indicator_params = options
         super().__init__(
-            window=self._indicator.window,
-            schema=self._indicator.schema,
-            extra_window=self._indicator.extra_window,
-            **kwargs,
+            component, fields=fields, history_window=history_window, **kwargs
         )
-
-    def reset_window_extras(self) -> None:
-        self._indicator.reset()
-
-    def forward(self, opens, highs, lows, closes, volumes) -> Any:
-        values = self._indicator_args_from_arrays(opens, highs, lows, closes, volumes)
-        return self._indicator.rolling(*values)
 
     @property
     def full_name(self) -> str:
         if self._full_name is not None:
             return self._full_name
-        return f"{self._indicator.full_name}[{','.join(self.inputs)}]"
+        return super().full_name
 
-    def _make_indicator(self):
-        params = dict(self.indicator_params)
-        params.setdefault("buffer_size", 0)
-        params["return_dict"] = False
-        return self.indicator_cls(**params)
 
-    def _indicator_args_from_arrays(
-        self,
-        opens,
-        highs,
-        lows,
-        closes,
-        volumes,
-    ) -> tuple[Any, ...]:
-        arrays = {
-            "open": opens,
-            "high": highs,
-            "low": lows,
-            "close": closes,
-            "volume": volumes,
-        }
-        return tuple(arrays[field] for field in self.inputs)
-
-    def _resolve_inputs(
-        self,
-        indicator: str | type,
-        *,
-        field: str | None,
-        inputs: Sequence[str] | None,
-    ) -> tuple[str, ...]:
-        if field is not None:
-            return normalize_pyta2_inputs((field,))
-        if inputs is not None:
-            return normalize_pyta2_inputs(inputs)
-        default_inputs = resolve_pyta2_default_inputs(indicator)
-        if default_inputs is not None:
-            return default_inputs
-        return ("close",)
+__all__ = ["pyta2_signal", "rPyta2Signal"]

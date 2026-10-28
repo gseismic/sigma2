@@ -10,9 +10,10 @@ class rTradeSignedVolume(rTradeSignal):
     """带方向成交量：buy 为正，sell 为负，未知方向为 0。"""
 
     name = "trade_signed_volume"
+
     def __init__(self, **kwargs) -> None:
         super().__init__(
-            window=1,
+            n_backward=0,
             schema=[
                 ("signed_volume", Scalar(low=-np.inf, high=np.inf, dtype=np.float64))
             ],

@@ -47,3 +47,14 @@ def test_trade_signal_rejects_unknown_side():
 
     with pytest.raises(ValueError, match="side must be"):
         signal.step(price=10.0, volume=3.0, side="unknown")
+
+
+def test_trade_batch_reads_pandas_columns_by_position():
+    pd = pytest.importorskip("pandas")
+    from sigma2 import forward_signal_apply
+
+    events = pd.DataFrame(
+        {"price": [10, 11], "volume": [3, 4], "side": ["buy", "sell"]}, index=[20, 21]
+    )
+    result = forward_signal_apply(events, rTradeSignedVolume, return_type="tuple")
+    assert result.tolist() == [3, -4]

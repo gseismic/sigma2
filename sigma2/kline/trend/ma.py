@@ -61,9 +61,7 @@ class rKlineMA(_rKlineIndicatorFactor):
     def full_name(self) -> str:
         component_name = self._indicator.full_name
         if self.ma_type == "KAMA" and self._indicator.stride != 1:
-            component_name = (
-                f"{component_name[:-1]},stride={self._indicator.stride})"
-            )
+            component_name = f"{component_name[:-1]},stride={self._indicator.stride})"
         return f"{component_name}[{','.join(self.fields)}]"
 
 
@@ -76,6 +74,7 @@ def KlineMA(
     ma_kwargs: Mapping[str, Any] | None = None,
     return_type: str = "dict",
     return_meta_info: bool = False,
+    symbol: str | None = None,
 ) -> Any:
     """批量 replay :class:`rKlineMA`。"""
 
@@ -90,6 +89,7 @@ def KlineMA(
         },
         return_type=return_type,
         return_meta_info=return_meta_info,
+        symbol=symbol,
     )
 
 

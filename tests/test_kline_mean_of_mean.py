@@ -6,16 +6,17 @@ import numpy as np
 import pytest
 
 from sigma2.kline import KlineMeanOfMean, rKlineMeanOfMean
+from tests.helpers import bars_from_columns, make_bar
 
 
-def _bar(close: float, *, volume: float | None = None) -> dict[str, float]:
-    return {
-        "open": close,
-        "high": close,
-        "low": close,
-        "close": close,
-        "volume": close if volume is None else volume,
-    }
+def _bar(close: float, *, volume: float | None = None) -> object:
+    return make_bar(
+        open=close,
+        high=close,
+        low=close,
+        close=close,
+        volume=close if volume is None else volume,
+    )
 
 
 def _expected(values: list[float], inner_n: int, outer_n: int) -> list[float]:
@@ -37,12 +38,12 @@ def test_two_stage_mean_matches_independent_formula(inner_n: int, outer_n: int) 
     values = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0]
     signal = rKlineMeanOfMean(inner_n, outer_n)
 
-    actual = [signal.step(**_bar(value)) for value in values]
+    actual = [signal.step(_bar(value)) for value in values]
 
     np.testing.assert_allclose(
         actual, _expected(values, inner_n, outer_n), equal_nan=True
     )
-    assert signal.required_window == inner_n + outer_n - 1
+    assert signal.min_periods == inner_n + outer_n - 1
     assert signal.output_keys == ["mean_of_mean"]
     assert signal.schema["mean_of_mean"].dtype == np.dtype("float64")
 
@@ -50,29 +51,29 @@ def test_two_stage_mean_matches_independent_formula(inner_n: int, outer_n: int) 
 def test_continuation_and_reset_match_replay() -> None:
     signal = rKlineMeanOfMean(2, 2, return_dict=True, buffer_size=2)
     for value in (1.0, 2.0, 3.0, 5.0):
-        signal.step(**_bar(value))
+        signal.step(_bar(value))
 
     assert signal.latest == {"mean_of_mean": pytest.approx(3.25)}
     assert signal.g_index == 3
     assert len(signal.outputs) == 2
 
-    continued = signal.step(**_bar(4.0))
+    continued = signal.step(_bar(4.0))
     replay = rKlineMeanOfMean(2, 2, return_dict=True)
     for value in (1.0, 2.0, 3.0, 5.0, 4.0):
-        expected = replay.step(**_bar(value))
+        expected = replay.step(_bar(value))
     assert continued == expected == {"mean_of_mean": pytest.approx(4.25)}
 
     signal.reset()
     assert signal.g_index == -1
     assert signal.latest is None
-    assert math.isnan(signal.step(**_bar(10.0))["mean_of_mean"])
+    assert math.isnan(signal.step(_bar(10.0))["mean_of_mean"])
 
 
 def test_missing_input_recovers_after_leaving_both_windows() -> None:
     values = [1.0, 2.0, float("nan"), 4.0, 5.0, 6.0, 7.0]
     signal = rKlineMeanOfMean(2, 2)
 
-    actual = [signal.step(**_bar(value)) for value in values]
+    actual = [signal.step(_bar(value)) for value in values]
 
     np.testing.assert_allclose(actual, _expected(values, 2, 2), equal_nan=True)
     assert actual[5] == pytest.approx(5.0)
@@ -83,7 +84,9 @@ def test_batch_uses_field_and_preserves_identity() -> None:
     data = {key: values for key in ("open", "high", "low", "close")}
     data["volume"] = [1.0, 2.0, 3.0, 4.0, 5.0]
 
-    columns, meta = KlineMeanOfMean(data, 2, 2, field="volume", return_meta_info=True)
+    columns, meta = KlineMeanOfMean(
+        bars_from_columns(data), 2, 2, field="volume", return_meta_info=True
+    )
 
     name = "mean_of_mean(2,2)[volume]"
     assert list(columns) == [name]
@@ -93,7 +96,7 @@ def test_batch_uses_field_and_preserves_identity() -> None:
     assert columns[name].dtype == np.dtype("float64")
     assert meta["factor_names"] == [name]
     assert meta["family"] == "kline"
-    assert meta["required_window"] == 3
+    assert meta["min_periods"] == 3
 
 
 @pytest.mark.parametrize("bad", [0, -1, 2.5, True])
