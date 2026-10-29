@@ -6,8 +6,8 @@ from typing import Any
 
 from pyta2.effect import rFutureATRBoundTrigger
 
-from sigma2.core import rKlineOutcome
-from sigma2.core._kline_data import input_value, numeric_values
+from sigma2.kline._internal.data import input_value, numeric_values
+from sigma2.kline.outcome_base import rKlineOutcome
 
 
 class _RetainedPrefix:

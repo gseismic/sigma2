@@ -6,7 +6,8 @@ import numpy as np
 import pytest
 from pyta2.utils.space import Scalar
 
-from sigma2.core import rKlineBundleSignal, rKlineSignal
+from sigma2.kline import rKlineSignal
+from sigma2.kline_bundle import rKlineBundleSignal
 from sigma2.kline_bundle import (
     KlineBundleFutureReturn,
     KlineBundleRank,

@@ -6,8 +6,7 @@ import numpy as np
 import pytest
 from pyta2.utils.space import Scalar
 
-from sigma2.core import rKlineSignal
-from sigma2.kline import rKlineGap, rKlineMA, rKlineReturn
+from sigma2.kline import rKlineGap, rKlineMA, rKlineReturn, rKlineSignal
 from tests.helpers import make_bar
 
 

@@ -7,12 +7,10 @@ import numpy as np
 from pyta2.utils.space import Scalar
 from pyta2.utils.validation import ensure_integer
 
-from sigma2.core import (
-    forward_signal_apply,
-    rKlineBundleSignal,
-    rKlineBundleWindowSignal,
-)
-from sigma2.core._kline_data import include_required_fields
+from sigma2.batch import forward_signal_apply
+from sigma2.kline._internal.data import include_required_fields
+from sigma2.kline_bundle.signal import rKlineBundleSignal
+from sigma2.kline_bundle.window import rKlineBundleWindowSignal
 from sigma2.utils.pyta2 import normalize_pyta2_inputs
 
 

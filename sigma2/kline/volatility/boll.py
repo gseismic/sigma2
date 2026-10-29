@@ -8,7 +8,7 @@ from typing import Any
 from pyta2.structure.channel import rBoll as _rPytaBoll
 from pyta2.utils.validation import ensure_integer
 
-from sigma2.core import forward_signal_apply
+from sigma2.batch import forward_signal_apply
 
 from .._internal.indicator_factor import _rKlineIndicatorFactor
 

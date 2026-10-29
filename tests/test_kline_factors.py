@@ -12,7 +12,7 @@ from pyta2.trend.ma.api import get_ma_function
 
 from sigma2 import KlineATR, KlineBoll, KlineKDJ, KlineMA, KlineMACD, KlineRSI
 from sigma2 import rKlineATR, rKlineBoll, rKlineKDJ, rKlineMA, rKlineMACD, rKlineRSI
-from sigma2.core import forward_signal_apply
+from sigma2.batch import forward_signal_apply
 from tests.helpers import bars_from_columns
 
 

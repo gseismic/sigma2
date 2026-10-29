@@ -9,9 +9,10 @@ from pyta2.trend.ma.api import get_ma_class
 from pyta2.utils.space import Scalar
 from pyta2.utils.validation import ensure_integer
 
-from sigma2.core import forward_signal_apply, rKlineWindowSignal
-from sigma2.core._indicator_factor import rolling_with_nan_recovery
-from sigma2.core._kline_data import include_required_fields
+from sigma2.batch import forward_signal_apply
+from sigma2.kline._internal.data import include_required_fields
+from sigma2.kline._internal.indicator_factor import rolling_with_nan_recovery
+from sigma2.kline.window import rKlineWindowSignal
 from sigma2.utils.pyta2 import normalize_pyta2_inputs
 
 

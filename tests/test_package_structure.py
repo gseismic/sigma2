@@ -66,21 +66,21 @@ def test_root_package_reexports_canonical_signals():
     assert callable(resolve_pyta2_indicator)
 
 
-def test_core_exports_signal_base_classes_and_pyta2_base():
-    from sigma2.core import (
-        forward_signal_apply,
-        pyta2_signal,
-        rKlineSignal,
-        rKlineWindowSignal,
-        rOrderBookSignal,
-        rPyta2Signal,
-        rSignal,
-        rTradeSignal,
-    )
+def test_core_and_family_packages_export_their_base_classes():
+    from sigma2.batch import forward_signal_apply
+    from sigma2.core import rOperator, rOutcome, rSignal
+    from sigma2.kline import rKlineSignal, rKlineWindowSignal
+    from sigma2.kline.pyta2 import pyta2_signal, rPyta2Signal
+    from sigma2.kline_bundle import rKlineBundleSignal
+    from sigma2.orderbook import rOrderBookSignal
+    from sigma2.trade import rTradeSignal
 
+    assert rOperator.__name__ == "rOperator"
+    assert rOutcome.__name__ == "rOutcome"
     assert rSignal.__name__ == "rSignal"
     assert rKlineSignal.__name__ == "rKlineSignal"
     assert rKlineWindowSignal.__name__ == "rKlineWindowSignal"
+    assert rKlineBundleSignal.__name__ == "rKlineBundleSignal"
     assert rOrderBookSignal.__name__ == "rOrderBookSignal"
     assert rTradeSignal.__name__ == "rTradeSignal"
     assert rPyta2Signal.__name__ == "rPyta2Signal"

@@ -6,13 +6,11 @@ from typing import Any
 
 import numpy as np
 
-from sigma2.core import (
-    rKlineBundleOutcome,
-    rKlineBundleSignal,
-    rKlineOutcome,
-    rKlineSignal,
-)
-from sigma2.core._kline_data import include_required_fields, input_value
+from sigma2.kline._internal.data import include_required_fields, input_value
+from sigma2.kline.outcome_base import rKlineOutcome
+from sigma2.kline.signal import rKlineSignal
+from sigma2.kline_bundle.outcome_base import rKlineBundleOutcome
+from sigma2.kline_bundle.signal import rKlineBundleSignal
 
 
 class _BundleMap:

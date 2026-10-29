@@ -38,21 +38,20 @@ _MODULES = {
     "rKlineFutureChange": "outcome",
     "rKlineFutureHighLowChange": "outcome",
     "rKlineFutureReturn": "outcome",
-    "rKlineSignal": "sigma2.core",
-    "rKlineOutcome": "sigma2.core",
-    "rKlineWindowSignal": "sigma2.core",
-    "rKlineWindowOutcome": "sigma2.core",
+    "rKlineSignal": "signal",
+    "rKlineOutcome": "outcome_base",
+    "rKlineWindowSignal": "window",
+    "rKlineWindowOutcome": "window",
+    "pyta2_signal": "pyta2",
+    "rPyta2Signal": "pyta2",
 }
 
 
 def __getattr__(name: str) -> Any:
-    """按需加载算子，避免数据类型与 core 初始化相互依赖。"""
+    """按需加载对应模块中的算子。"""
     if name not in _MODULES:
         raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
-    module_name = _MODULES[name]
-    if module_name != "sigma2.core":
-        module_name = f"{__name__}.{module_name}"
-    value = getattr(import_module(module_name), name)
+    value = getattr(import_module(f"{__name__}.{_MODULES[name]}"), name)
     globals()[name] = value
     return value
 

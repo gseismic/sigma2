@@ -7,8 +7,9 @@ from typing import Any
 import numpy as np
 from pyta2.utils.space import Scalar
 
-from sigma2.core import forward_signal_apply, rKlineSignal
-from sigma2.core._kline_data import include_required_fields
+from sigma2.batch import forward_signal_apply
+from sigma2.kline._internal.data import include_required_fields
+from sigma2.kline.signal import rKlineSignal
 
 _FIELD_INDEX = {"open": 0, "high": 1, "low": 2, "close": 3, "volume": 4}
 

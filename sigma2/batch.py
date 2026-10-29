@@ -7,12 +7,14 @@ from typing import Any
 
 import numpy as np
 
+from sigma2.kline._internal.data import normalize_key_map
+from sigma2.kline._internal.input import _KlineInput
 from sigma2.kline.data import KlineBar
+from sigma2.kline_bundle._internal.input import _KlineBundleInput
 
-from ._kline_data import normalize_key_map
-from .kline import _KlineInput
-from .kline_bundle import _KlineBundleInput
-from .signal import rOperator, rOutcome, rSignal
+from sigma2.core.operator import rOperator
+from sigma2.core.outcome import rOutcome
+from sigma2.core.signal import rSignal
 
 
 def forward_signal_apply(

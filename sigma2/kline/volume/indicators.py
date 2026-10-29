@@ -7,7 +7,7 @@ from pyta2.volume import rMFI as _rPytaMFI
 from pyta2.volume import rOBV as _rPytaOBV
 from pyta2.volume import rVWAP as _rPytaVWAP
 
-from sigma2.core import forward_signal_apply
+from sigma2.batch import forward_signal_apply
 
 from .._internal.indicator_factor import _rKlineIndicatorFactor
 

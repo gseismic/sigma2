@@ -6,8 +6,8 @@ import numpy as np
 from pyta2.utils.space import Scalar
 from pyta2.utils.validation import ensure_integer
 
-from sigma2.core import rKlineWindowOutcome
-from sigma2.core._kline_data import include_required_fields
+from sigma2.kline._internal.data import include_required_fields
+from sigma2.kline.window import rKlineWindowOutcome
 from sigma2.utils.pyta2 import normalize_pyta2_inputs
 
 

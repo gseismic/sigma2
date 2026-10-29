@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from abc import abstractmethod
-from collections import deque
 from collections.abc import Iterator, Mapping, Sequence
 from types import MappingProxyType
 from typing import Any
@@ -9,7 +7,7 @@ from typing import Any
 import numpy as np
 from pyta2.utils.validation import ensure_integer
 
-from ._kline_data import (
+from sigma2.kline._internal.data import (
     FieldView,
     input_value,
     normalize_field_names,
@@ -19,9 +17,9 @@ from ._kline_data import (
     numeric_values,
     require_fields,
 )
-from ._symbol_table import SymbolTable
-from .kline import prepare_kline_bar
-from .signal import rOutcome, rSignal
+from sigma2.kline._internal.input import prepare_kline_bar
+
+from .symbol_table import SymbolTable
 
 
 class _BundleView(Mapping[str, Any]):
@@ -219,65 +217,4 @@ class _KlineBundleInput:
         return info
 
 
-class rKlineBundleSignal(_KlineBundleInput, rSignal):
-    """每次处理一个 K 线截面，并计算当前时点的结果。"""
-
-
-class rKlineBundleOutcome(_KlineBundleInput, rOutcome):
-    """处理 K 线截面，结果等待固定后续快照后成熟。"""
-
-
-class _KlineBundleWindow:
-    """仅保留算法声明需要的快照窗口，与输出缓存分离。"""
-
-    def __init__(self, *args: Any, history_window: int, **kwargs: Any) -> None:
-        self._history_window = ensure_integer(
-            history_window, "history_window", min_value=1
-        )
-        super().__init__(*args, **kwargs)
-
-    def reset_extras(self) -> None:
-        self._window: deque[Any] = deque(maxlen=self.history_window)
-        self.reset_window_extras()
-
-    def reset_window_extras(self) -> None:
-        """子类可在此重置与输入窗口相关的状态。"""
-
-    def _step_forward(self, bundle: Mapping[str, Any]) -> Any:
-        self._window.append(bundle)
-        fields = ("open", "high", "low", "close", "volume")
-        arrays = tuple(
-            np.stack([item.field(field) for item in self._window], axis=0)
-            for field in fields
-        )
-        return self.forward(*arrays)
-
-    @property
-    def history_window(self) -> int:
-        return self._history_window
-
-    @property
-    def meta_info(self) -> dict[str, Any]:
-        info = super().meta_info
-        info["history_window"] = self.history_window
-        return info
-
-    @abstractmethod
-    def forward(self, opens, highs, lows, closes, volumes) -> Any:
-        """接收形状为 (历史时点, symbol) 的字段数组。"""
-
-
-class rKlineBundleWindowSignal(_KlineBundleWindow, rKlineBundleSignal):
-    """需要有限 K 线历史的 Signal。"""
-
-
-class rKlineBundleWindowOutcome(_KlineBundleWindow, rKlineBundleOutcome):
-    """需要有限 K 线历史的 Outcome。"""
-
-
-__all__ = [
-    "rKlineBundleSignal",
-    "rKlineBundleOutcome",
-    "rKlineBundleWindowSignal",
-    "rKlineBundleWindowOutcome",
-]
+__all__ = ["_BundleView", "_KlineBundleInput"]

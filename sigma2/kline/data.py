@@ -5,7 +5,7 @@ from datetime import datetime
 
 import numpy as np
 
-from sigma2.core._kline_data import utc_time
+from sigma2.kline._internal.data import utc_time
 
 
 @dataclass(frozen=True, slots=True)

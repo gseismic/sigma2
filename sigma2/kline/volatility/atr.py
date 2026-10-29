@@ -5,7 +5,7 @@ from typing import Any
 
 from pyta2.stats.atr import rATR as _rPytaATR
 
-from sigma2.core import forward_signal_apply
+from sigma2.batch import forward_signal_apply
 
 from .._internal.indicator_factor import _rKlineIndicatorFactor
 

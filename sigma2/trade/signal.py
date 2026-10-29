@@ -3,7 +3,7 @@ from __future__ import annotations
 from abc import abstractmethod
 from typing import Any, Literal
 
-from .signal import rSignal
+from sigma2.core.signal import rSignal
 
 TradeSide = Literal["buy", "sell"] | None
 
@@ -20,3 +20,6 @@ class rTradeSignal(rSignal):
     @abstractmethod
     def forward(self, price: float, volume: float, side: TradeSide = None) -> Any:
         raise NotImplementedError
+
+
+__all__ = ["TradeSide", "rTradeSignal"]

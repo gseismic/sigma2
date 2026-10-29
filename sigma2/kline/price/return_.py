@@ -7,7 +7,8 @@ import numpy as np
 from pyta2.utils.space import Scalar
 from pyta2.utils.validation import ensure_integer
 
-from sigma2.core import forward_signal_apply, rKlineWindowSignal
+from sigma2.batch import forward_signal_apply
+from sigma2.kline.window import rKlineWindowSignal
 
 
 class rKlineReturn(rKlineWindowSignal):

@@ -1,6 +1,6 @@
 # 计划执行索引
 
-更新时间：2026-10-28 18:05 CST
+更新时间：2026-10-29 14:55 CST
 
 ## 历史说明
 
@@ -45,6 +45,7 @@
 | 2026-10-28 17:50 CST | `PLAN-032-factor-identities.md` | `PLAN-032-factor-identities-OUTCOME.md` | 检查点二：KDJ、ATR、均线交叉和量能指标复用已迁移的 pyta2，并固定依赖版本。 |
 | 2026-10-28 17:50 CST | `PLAN-032-factor-identities.md` | `PLAN-032-factor-identities-OUTCOME.md` | 检查点三：ATR 边界 Outcome 以有限历史复用 pyta2 Effect，236 项测试通过；应用联调继续。 |
 | 2026-10-28 18:05 CST | `PLAN-032-factor-identities.md` | `PLAN-032-factor-identities-OUTCOME.md` | 检查点四完成：更新 KAMA 缺失恢复依赖、README 与使用 skill；237 项测试、10 个示例和因子入库联调通过。 |
+| 2026-10-29 14:55 CST | `PLAN-033-core-package-layout.md` | `PLAN-033-core-package-layout-OUTCOME.md` | 将 core 收敛为通用生命周期与身份工具，按数据类型迁移 K 线、Bundle、订单簿和成交实现，batch 移至顶层；删除旧导入路径，版本升至 0.11.0。 |
 
 ## 当前设计文档规则
 
@@ -71,3 +72,7 @@
 ## 2026-10-28 截面字典补充
 
 从 0.9.0 起，Bundle 字典的字段及 `Mapping` 协议以 `docs/design/bundle-snapshot-20261028-overview.md` 为准；其余字典输入契约继续参考 `step-mapping-20261028-overview.md`。
+
+## 2026-10-29 core 与数据类型目录
+
+`docs/design/core-package-layout-20261029-overview.md` 规定 core 仅保留通用算子生命周期和身份工具；K 线、Bundle、订单簿、成交 family 实现分别归入所属数据包，跨 family replay 由 `sigma2.batch` 提供。

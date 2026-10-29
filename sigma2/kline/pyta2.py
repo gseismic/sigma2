@@ -11,7 +11,7 @@ from sigma2.utils.pyta2 import (
     resolve_pyta2_indicator,
 )
 
-from ._indicator_factor import _rKlineIndicatorFactor
+from ._internal.indicator_factor import _rKlineIndicatorFactor
 
 
 def pyta2_signal(

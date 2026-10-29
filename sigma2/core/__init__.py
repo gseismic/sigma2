@@ -1,35 +1,8 @@
-from .batch import forward_outcome_apply, forward_signal_apply
-from sigma2.kline.data import KlineBar
-from .kline import rKlineOutcome, rKlineSignal, rKlineWindowOutcome, rKlineWindowSignal
-from .kline_bundle import (
-    rKlineBundleOutcome,
-    rKlineBundleSignal,
-    rKlineBundleWindowOutcome,
-    rKlineBundleWindowSignal,
-)
-from .orderbook import rOrderBookSignal
-from .pyta2 import pyta2_signal, rPyta2Signal
-from .signal import qualify_factor_name, rOperator, rOutcome, rSignal
-from .trade import rTradeSignal
+"""通用逐条算子生命周期。市场数据 family 位于各自的数据类型包。"""
 
-__all__ = [
-    "KlineBar",
-    "forward_outcome_apply",
-    "forward_signal_apply",
-    "pyta2_signal",
-    "qualify_factor_name",
-    "rKlineBundleOutcome",
-    "rKlineBundleSignal",
-    "rKlineBundleWindowOutcome",
-    "rKlineBundleWindowSignal",
-    "rKlineOutcome",
-    "rKlineSignal",
-    "rKlineWindowOutcome",
-    "rKlineWindowSignal",
-    "rOperator",
-    "rOrderBookSignal",
-    "rOutcome",
-    "rPyta2Signal",
-    "rSignal",
-    "rTradeSignal",
-]
+from .identity import qualify_factor_name
+from .operator import rOperator
+from .outcome import rOutcome
+from .signal import rSignal
+
+__all__ = ["qualify_factor_name", "rOperator", "rSignal", "rOutcome"]

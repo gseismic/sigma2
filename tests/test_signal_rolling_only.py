@@ -9,7 +9,6 @@ from pyta2.utils.deque import NumpyDeque
 from pyta2.utils.space import Scalar
 
 from sigma2 import rPyta2Signal, rSignal
-from sigma2.core import rOrderBookSignal
 from sigma2.kline import rKlineMA
 from sigma2.kline.outcome import (
     rKlineATRBoundTrigger,
@@ -17,7 +16,7 @@ from sigma2.kline.outcome import (
     rKlineFutureHighLowChange,
     rKlineFutureReturn,
 )
-from sigma2.orderbook import rBookSpread
+from sigma2.orderbook import rBookSpread, rOrderBookSignal
 from sigma2.trade import rTradeSignedVolume
 from tests.helpers import make_bar
 

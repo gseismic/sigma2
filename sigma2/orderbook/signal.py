@@ -4,7 +4,7 @@ from abc import abstractmethod
 from collections.abc import Sequence
 from typing import Any
 
-from .signal import rSignal
+from sigma2.core.signal import rSignal
 
 BookLevel = tuple[float, float]
 
@@ -21,3 +21,6 @@ class rOrderBookSignal(rSignal):
     @abstractmethod
     def forward(self, bids: Sequence[BookLevel], asks: Sequence[BookLevel]) -> Any:
         raise NotImplementedError
+
+
+__all__ = ["BookLevel", "rOrderBookSignal"]

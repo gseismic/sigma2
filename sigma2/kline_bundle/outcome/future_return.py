@@ -3,7 +3,7 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 from typing import Any
 
-from sigma2.core import forward_outcome_apply
+from sigma2.batch import forward_outcome_apply
 from sigma2.kline.outcome import rKlineFutureReturn
 
 from ..map import rKlineBundleMapOutcome
