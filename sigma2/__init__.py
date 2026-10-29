@@ -15,6 +15,8 @@ _GROUPS = {
     ),
     "kline": (
         "KlineBar",
+        "KlineATR",
+        "KlineBoll",
         "KlineGap",
         "KlineKDJ",
         "KlineMA",
@@ -43,8 +45,6 @@ _GROUPS = {
         "rKlineReturn",
         "rKlineSignal",
         "rKlineOutcome",
-        "rKlineWindowSignal",
-        "rKlineWindowOutcome",
         "pyta2_signal",
         "rPyta2Signal",
     ),

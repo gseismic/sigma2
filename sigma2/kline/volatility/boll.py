@@ -1,12 +1,14 @@
 from __future__ import annotations
 
 from collections import deque
+from collections.abc import Iterable, Mapping
 from numbers import Real
 from typing import Any
 
 import numpy as np
 from pyta2.structure.channel import rBoll
 
+from sigma2.core.utils import forward_step_apply
 from sigma2.kline.signal import rKlineSignal
 
 _FIELDS = frozenset({"open", "high", "low", "close", "volume"})
@@ -82,4 +84,22 @@ class rKlineBoll(rKlineSignal):
         return f"{self._state['indicator'].full_name}[{self.field}]"
 
 
-__all__ = ["rKlineBoll"]
+def KlineBoll(
+    data: Iterable[Mapping[str, Any]],
+    n: int = 20,
+    F: Real = 2.0,
+    *,
+    field: str = "close",
+    return_type: str = "dict",
+    return_meta_info: bool = False,
+) -> Any:
+    """逐条重放 K 线并输出布林带。"""
+    return forward_step_apply(
+        data,
+        rKlineBoll(n, F, field=field, buffer_size=0),
+        return_type=return_type,
+        return_meta_info=return_meta_info,
+    )
+
+
+__all__ = ["KlineBoll", "rKlineBoll"]

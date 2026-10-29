@@ -6,40 +6,53 @@ from typing import Any
 from pyta2.base.utils import get_outputs
 from pyta2.utils.vector import VectorTable
 
-from .signal import rSignal
+from .operator import rOperator
 
 
 def forward_step_apply(
     data: Iterable[Mapping[str, Any]],
-    signal: rSignal,
+    operator: rOperator,
     *,
     return_type: str = "dict",
     return_meta_info: bool = False,
 ) -> Any:
-    """从 Signal 当前状态逐条重放，并按逻辑观测整理标量输出。"""
-    if not isinstance(signal, rSignal):
-        raise TypeError("signal 必须是 rSignal 实例")
+    """从当前状态重放，按结果所属的逻辑观测整理标量输出。"""
+    if not isinstance(operator, rOperator):
+        raise TypeError("operator 必须是 rOperator 实例")
 
-    schema = signal.schema.get_dtypes() if signal.schema is not None else None
+    schema = None
+    missing = None
+    if operator.schema is not None:
+        schema = {
+            key: space.dtype if space.null_value is not None else object
+            for key, space in operator.schema.items()
+        }
+        missing = {key: space.null_value for key, space in operator.schema.items()}
     outputs = VectorTable(schema=schema)
+    first_index = None
     for inputs in data:
-        previous_index = signal.g_index
-        result = signal.step(**inputs)
+        previous_index = operator.g_index
+        result = operator.step(**inputs)
 
         # 未声明 schema 时不能根据首个结果推断数值类型。
         if schema is None and len(outputs) == 0:
             for name in result:
                 outputs.ensure_column(name, dtype=object)
+            missing = dict.fromkeys(result)
 
-        # 同一未结束观测的更新替换原结果。
-        if len(outputs) and signal.g_index == previous_index:
-            outputs.update_row(-1, result)
-        else:
-            outputs.append(result)
+        if first_index is None:
+            first_index = operator.g_index
+        if len(outputs) == 0 or operator.g_index != previous_index:
+            outputs.append(missing)
+
+        # Outcome 的结果属于历史锚点；之前的锚点不属于本次返回范围。
+        row = operator.result_index - first_index
+        if 0 <= row < len(outputs):
+            outputs.update_row(row, result)
 
     result = get_outputs(outputs, return_type=return_type)
     if return_meta_info:
-        return result, signal.meta_info
+        return result, operator.meta_info
     return result
 
 

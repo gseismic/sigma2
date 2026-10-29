@@ -5,6 +5,8 @@ from typing import Any
 
 _MODULES = {
     "KlineBar": "data",
+    "KlineATR": "volatility",
+    "KlineBoll": "volatility",
     "rKlineATR": "volatility",
     "rKlineBoll": "volatility",
     "KlineGap": "price",
@@ -33,8 +35,6 @@ _MODULES = {
     "rKlineFutureReturn": "outcome",
     "rKlineSignal": "signal",
     "rKlineOutcome": "outcome_base",
-    "rKlineWindowSignal": "window",
-    "rKlineWindowOutcome": "window",
     "pyta2_signal": "pyta2",
     "rPyta2Signal": "pyta2",
 }

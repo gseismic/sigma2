@@ -11,25 +11,22 @@ class rTradeSignedVolume(rTradeSignal):
 
     name = "trade_signed_volume"
 
-    def __init__(self, **kwargs) -> None:
+    def __init__(self, *, buffer_size: int = 1) -> None:
         super().__init__(
-            n_backward=0,
-            schema=[
-                ("signed_volume", Scalar(low=-np.inf, high=np.inf, dtype=np.float64))
-            ],
-            **kwargs,
+            schema={
+                "signed_volume": Scalar(low=-np.inf, high=np.inf, dtype=np.float64)
+            },
+            buffer_size=buffer_size,
+            used_fields=("volume", "side"),
         )
 
-    def reset_extras(self) -> None:
-        pass
-
-    def forward(self, price, volume, side=None) -> float:
+    def forward(self, price, volume, side=None) -> dict[str, float]:
         if side == "buy":
-            return float(volume)
+            return {"signed_volume": float(volume)}
         if side == "sell":
-            return float(-volume)
+            return {"signed_volume": float(-volume)}
         if side is None:
-            return 0.0
+            return {"signed_volume": 0.0}
         raise ValueError(f"side must be 'buy', 'sell' or None, got {side!r}")
 
     @property

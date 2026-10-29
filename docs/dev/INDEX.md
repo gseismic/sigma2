@@ -115,3 +115,9 @@ core 与 `rKlineMA` 的新接口和设计取舍见 `docs/design/kline-step-core-
 | 2026-10-30 06:11 CST | `PLAN-040-signal-step-batch.md` | `PLAN-040-signal-step-batch-OUTCOME.md` | 借鉴 pyta2 实施 Signal 逐条重放，恢复 MA、MACD 批量入口并更新报错示例；静态检查通过，未执行测试和示例。 |
 
 2026-10-30 06:17 CST：用户要求提交 PLAN-040 的实施改动；不编写或运行测试的要求继续有效。
+
+| 更新时间 | 计划文件 | 结果文件 | 摘要 |
+| --- | --- | --- | --- |
+| 2026-10-30 06:27 CST | `PLAN-041-data-families-step.md` | `PLAN-041-data-families-step-OUTCOME.md` | 迁移盘口、成交及其余单 K 线算子；旧实现归档，示例按分级编号改为自包含，静态检查通过，未运行测试或示例。 |
+
+2026-10-30 06:30 CST：用户要求提交 PLAN-041 的实施改动；不编写或运行测试的要求继续有效。

@@ -11,22 +11,19 @@ class rBookSpread(rOrderBookSignal):
 
     name = "book_spread"
 
-    def __init__(self, **kwargs) -> None:
+    def __init__(self, *, buffer_size: int = 1) -> None:
         super().__init__(
-            n_backward=0,
-            schema=[("spread", Scalar(low=-np.inf, high=np.inf, dtype=np.float64))],
-            **kwargs,
+            schema={"spread": Scalar(low=-np.inf, high=np.inf, dtype=np.float64)},
+            buffer_size=buffer_size,
+            used_fields=("bids", "asks"),
         )
 
-    def reset_extras(self) -> None:
-        pass
-
-    def forward(self, bids, asks) -> float:
+    def forward(self, bids, asks) -> dict[str, float]:
         if not bids or not asks:
-            return float("nan")
+            return {"spread": float("nan")}
         best_bid = bids[0][0]
         best_ask = asks[0][0]
-        return float(best_ask - best_bid)
+        return {"spread": float(best_ask - best_bid)}
 
     @property
     def full_name(self) -> str:

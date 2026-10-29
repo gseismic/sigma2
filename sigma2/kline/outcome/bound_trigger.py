@@ -6,14 +6,17 @@ from typing import Any
 
 from pyta2.effect import rFutureATRBoundTrigger
 
-from sigma2.kline._internal.data import input_value, numeric_values
 from sigma2.kline.outcome_base import rKlineOutcome
+
+_MA_TYPES = frozenset({"SMA", "EMA", "WMA", "HMA", "DEMA", "TEMA", "ZLEMA"})
 
 
 class _RetainedPrefix:
     """将有限历史呈现为 pyta2 按绝对下标访问的滚动前缀。"""
 
-    def __init__(self, history: Sequence[tuple[float, ...]], length: int, field: int) -> None:
+    def __init__(
+        self, history: Sequence[tuple[float, ...]], length: int, field: int
+    ) -> None:
         self._history, self._length, self._field = history, length, field
 
     def __len__(self) -> int:
@@ -29,41 +32,80 @@ class _RetainedPrefix:
 
 
 class rKlineATRBoundTrigger(rKlineOutcome):
-    """复用 pyta2 的固定未来窗口 ATR 边界扫描。"""
+    """使用锚点 ATR 扫描固定未来窗口的上下边界。"""
 
     name = "kline_atr_bound_trigger"
 
     def __init__(
-        self, x_unit_ub: float, x_unit_lb: float, n_forward: int, *,
-        symbol: str | None = None, atr_n: int = 20,
-        atr_ma_type: str = "EMA", **kwargs: Any,
+        self,
+        x_unit_ub: float,
+        x_unit_lb: float,
+        n_forward: int,
+        *,
+        atr_n: int = 20,
+        atr_ma_type: str = "EMA",
+        buffer_size: int = 1,
     ) -> None:
-        self._effect = rFutureATRBoundTrigger(
-            x_unit_ub, x_unit_lb, n_forward, n_atr=atr_n,
-            atr_ma_type=atr_ma_type, buffer_size=0, return_dict=False,
+        if not isinstance(atr_ma_type, str):
+            raise TypeError("atr_ma_type must be a string")
+        atr_ma_type = atr_ma_type.strip().upper()
+        if atr_ma_type not in _MA_TYPES:
+            raise ValueError(f"unsupported single-parameter MA: {atr_ma_type}")
+        effect = rFutureATRBoundTrigger(
+            x_unit_ub,
+            x_unit_lb,
+            n_forward,
+            n_atr=atr_n,
+            atr_ma_type=atr_ma_type,
+            buffer_size=0,
+            return_dict=True,
         )
-        self.x_unit_ub, self.x_unit_lb = self._effect.x_unit_ub, self._effect.x_unit_lb
-        self.atr_n, self.atr_ma_type = self._effect.n_atr, self._effect.atr_ma_type
         super().__init__(
-            schema=self._effect.schema, symbol=symbol,
-            n_backward=self._effect.n_backward, n_forward=self._effect.n_forward,
-            **kwargs,
+            schema=dict(effect.schema.items()),
+            n_backward=effect.n_backward,
+            n_forward=effect.n_forward,
+            buffer_size=buffer_size,
+            used_fields=("open", "high", "low", "close"),
+        )
+        self._state.update(
+            effect=effect, history=deque(maxlen=max(2, self.n_forward + 1))
         )
 
-    def reset_extras(self) -> None:
-        self._effect.reset()
-        self._history: deque[tuple[float, ...]] = deque(maxlen=max(2, self.n_forward + 1))
-
-    def forward(self, bar):
-        fields = ("open", "high", "low", "close")
-        values = numeric_values([input_value(bar, field) for field in fields], required=True)
-        self._history.append(tuple(values))
-        history = tuple(self._history)
+    def forward(
+        self,
+        open,
+        high,
+        low,
+        close,
+        volume=None,
+        *,
+        open_time=None,
+        is_closed=True,
+        is_missing=False,
+    ) -> dict[str, Any]:
+        history = self._state["history"]
+        history.append((open, high, low, close))
+        retained = tuple(history)
         prefixes = tuple(
-            _RetainedPrefix(history, self.g_index + 1, index)
-            for index in range(len(fields))
+            _RetainedPrefix(retained, self.g_index + 1, i) for i in range(4)
         )
-        return self._effect.rolling(*prefixes)
+        return self._state["effect"].rolling(*prefixes)
+
+    @property
+    def x_unit_ub(self) -> float:
+        return self._state["effect"].x_unit_ub
+
+    @property
+    def x_unit_lb(self) -> float:
+        return self._state["effect"].x_unit_lb
+
+    @property
+    def atr_n(self) -> int:
+        return self._state["effect"].n_atr
+
+    @property
+    def atr_ma_type(self) -> str:
+        return self._state["effect"].atr_ma_type
 
     @property
     def full_name(self) -> str:

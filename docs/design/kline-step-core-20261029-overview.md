@@ -8,6 +8,8 @@
 
 本轮只实施通用 `sigma2/core`、单 K 线 Signal 输入及 `sigma2/kline/trend/ma.py` 直接涉及的代码。Bundle、其他 K 线指标、订单簿、成交、Outcome 和通用 batch 暂不迁移；它们沿用旧接口，受 core 和 K 线基类变更影响的调用需要在后续工作中适配。本轮不能通过旧输入类或旧字段映射为新 MA 维持兼容。
 
+后续已迁移其他单 K 线算子、订单簿和成交，固定 K 线输入由 Signal 与 Outcome 共用；当前范围见 [数据类型迁移设计](data-families-step-20261030-overview.md)。Bundle 和旧 batch 仍待迁移。
+
 sigma2 复用 pyta2 的指标和 schema；用户从固定字段调用 `step`，逐条结果始终是字典。core 源码不导入 K 线等数据包，导入 `sigma2.core` 时也不应因根包聚合而加载数据包。
 
 ## 2. 主要场景

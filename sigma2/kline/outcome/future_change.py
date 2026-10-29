@@ -1,49 +1,68 @@
 from __future__ import annotations
 
+from collections import deque
 from typing import Any
 
 import numpy as np
 from pyta2.utils.space import Scalar
-from pyta2.utils.validation import ensure_integer
 
-from sigma2.kline._internal.data import include_required_fields
-from sigma2.kline.window import rKlineWindowOutcome
-from sigma2.utils.pyta2 import normalize_pyta2_inputs
+from sigma2.kline.outcome_base import rKlineOutcome
+
+_FIELDS = frozenset({"open", "high", "low", "close", "volume"})
 
 
-class rKlineFutureChange(rKlineWindowOutcome):
+class rKlineFutureChange(rKlineOutcome):
     """计算锚点到未来末端的绝对变化，要求完整未来区间有效。"""
 
     name = "kline_future_change"
 
-    def __init__(self, n_forward: int, *, field: str = "close", **kwargs: Any) -> None:
-        n_forward = ensure_integer(n_forward, "n_forward", min_value=1)
-        self.field = normalize_pyta2_inputs((field,))[0]
-        include_required_fields(kwargs, self.field)
+    def __init__(
+        self, n_forward: int, *, field: str = "close", buffer_size: int = 1
+    ) -> None:
+        if not isinstance(field, str) or field not in _FIELDS:
+            raise ValueError(f"unsupported K-line field: {field!r}")
+        self._field = field
         super().__init__(
             schema={"value": Scalar(low=-np.inf, high=np.inf, dtype=np.float64)},
-            n_backward=0,
             n_forward=n_forward,
-            history_window=n_forward + 1,
-            **kwargs,
+            buffer_size=buffer_size,
+            used_fields=(field,),
         )
+        self._state["values"] = deque(maxlen=self.n_forward + 1)
 
-    def forward(self, opens, highs, lows, closes, volumes) -> float:
-        if len(closes) <= self.n_forward:
-            return float("nan")
-        values = {
-            "open": opens,
-            "high": highs,
-            "low": lows,
-            "close": closes,
-            "volume": volumes,
+    def forward(
+        self,
+        open,
+        high,
+        low,
+        close,
+        volume=None,
+        *,
+        open_time=None,
+        is_closed=True,
+        is_missing=False,
+    ) -> dict[str, Any]:
+        value = {
+            "open": open,
+            "high": high,
+            "low": low,
+            "close": close,
+            "volume": volume,
         }[self.field]
-        anchor, end = values[0], values[-1]
-        if not np.all(np.isfinite(values)):
-            return float("nan")
+        values = self._state["values"]
+        values.append(float("nan") if value is None else value)
+        if len(values) <= self.n_forward:
+            return {"value": float("nan")}
+        window = np.asarray(values, dtype=float)
+        if not np.all(np.isfinite(window)):
+            return {"value": float("nan")}
         with np.errstate(over="ignore", invalid="ignore"):
-            output = end - anchor
-        return float(output) if np.isfinite(output) else float("nan")
+            result = window[-1] - window[0]
+        return {"value": float(result) if np.isfinite(result) else float("nan")}
+
+    @property
+    def field(self) -> str:
+        return self._field
 
     @property
     def full_name(self) -> str:

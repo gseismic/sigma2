@@ -1,9 +1,9 @@
 from sigma2.core.outcome import rOutcome
 
-from ._internal.input import _KlineInput
+from ._input import _KlineStep
 
 
-class rKlineOutcome(_KlineInput, rOutcome):
+class rKlineOutcome(_KlineStep, rOutcome):
     """处理单 symbol K 线，在固定后续步数后输出历史结果。"""
 
 
