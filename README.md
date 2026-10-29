@@ -4,7 +4,7 @@ sigma2 为金融市场事件提供逐条推进的 Signal 和 Outcome。Signal �
 
 项目按输入数据分包：`sigma2.kline` 处理单 symbol K 线，`sigma2.kline_bundle` 处理同一时点的多 symbol 截面，`sigma2.orderbook` 和 `sigma2.trade` 分别处理盘口快照和逐笔成交。
 
-> 2026-10-29：core 和单 K 线 `rKlineMA` 已改为新的 `step` 契约。其他指标、Bundle、订单簿、成交、Outcome 和通用批量接口尚未迁移，可能因 core 或 K 线基类变化而不能工作；本文这些部分的旧示例仅供后续迁移参考。本轮不提供 `KlineMA` 批量入口。新设计见 [core 与单 K 线 MA 设计](docs/design/kline-step-core-20261029-overview.md)。
+> 2026-10-30：core 和单 K 线 `rKlineMA`、`rKlineMACD`、`rKlineATR`、`rKlineBoll` 已改为新的 `step` 契约。其他指标、Bundle、订单簿、成交、Outcome 和通用批量接口尚未迁移，可能因 core 或 K 线基类变化而不能工作；本文这些部分的旧示例仅供后续迁移参考。当前不提供 MA、MACD、ATR 和 Boll 的批量入口。设计见 [core 与单 K 线 MA](docs/design/kline-step-core-20261029-overview.md)、[单 K 线 MACD](docs/design/kline-macd-20261030-overview.md)和[单 K 线波动指标](docs/design/kline-volatility-20261030-overview.md)。
 
 ## 安装
 
@@ -18,7 +18,7 @@ python -m pip install -e .
 
 ## 单 symbol K 线
 
-`rKlineMA` 接收固定的行情字段，每次返回一个字典。`volume` 可省略；`open_time`、`is_closed` 和 `is_missing` 为关键字参数。上游负责提供符合约定的数值和顺序。
+`rKlineMA`、`rKlineMACD`、`rKlineATR` 和 `rKlineBoll` 接收固定的行情字段，每次返回一个字典。`volume` 可省略；`open_time`、`is_closed` 和 `is_missing` 为关键字参数。上游负责提供符合约定的数值和顺序。
 
 ```python
 from sigma2.kline import rKlineMA
@@ -32,9 +32,42 @@ print(signal.g_index)         # 1：第二根 K 线只推进一次
 print(signal.meta_info["used_fields"])  # ('close',)
 ```
 
-`is_closed=False` 可以多次更新同一根尚未结束的 K 线；最后传入 `is_closed=True` 确认。若上一根尚未确认就收到不同的 `open_time`，或上一根已确认却再次收到相同的 `open_time`，算子会报错。省略 `open_time` 时，调用方须保证这些更新对应同一根 K 线。`is_missing=True` 表示整根 K 线缺失；选择 `field="volume"` 时，省略 volume 按缺失数值处理。`used_fields` 是随构造参数变化的元信息，不参与输入检查。
+`is_closed=False` 可以多次更新同一根尚未结束的 K 线；最后传入 `is_closed=True` 确认。若上一根尚未确认就收到不同的 `open_time`，或上一根已确认却再次收到相同的 `open_time`，算子会报错。省略 `open_time` 时，调用方须保证这些更新对应同一根 K 线。`is_missing=True` 表示整根 K 线缺失；选择 `field="volume"` 时，省略 volume 按缺失数值处理。`used_fields` 在构造时声明，仅作为元信息，不参与输入检查。
 
 均线只接受一个算法参数 `n`，类型支持 SMA、EMA、WMA、HMA、DEMA、TEMA 和 ZLEMA。每个实例消费一个 symbol 的输入流，标的由调用方管理。
+
+### MACD
+
+```python
+from sigma2.kline import rKlineMACD
+
+macd = rKlineMACD(fast=12, slow=26, signal=9, field="close")
+macd.step(100, 102, 99, 101, open_time=0)
+macd.step(101, 104, 100, 103, open_time=1, is_closed=False)
+result = macd.step(101, 105, 100, 104, open_time=1, is_closed=True)
+print(tuple(result))                   # ('dif', 'dea', 'macd')
+print(macd.full_name)                  # MACD(26,12,9)[close]
+print(macd.meta_info["used_fields"])  # ('close',)
+```
+
+`fast`、`slow`、`signal` 分别表示快线、慢线和信号线周期；预热和缺失后的恢复由 pyta2 决定。MACD 的数据字段、未结束 K 线和缓存规则与 MA 相同。
+
+### ATR 和 Boll
+
+```python
+from sigma2.kline import rKlineATR, rKlineBoll
+
+atr = rKlineATR(14, ma_type="EMA")
+boll = rKlineBoll(20, F=2, field="close")
+atr_result = atr.step(100, 105, 98, 102, open_time=0)
+boll_result = boll.step(100, 105, 98, 102, open_time=0)
+print(tuple(atr_result))               # ('atr',)
+print(tuple(boll_result))              # ('ub', 'mid', 'lb')
+print(atr.meta_info["used_fields"])   # ('high', 'low', 'close')
+print(boll.meta_info["used_fields"])  # ('close',)
+```
+
+ATR 使用 HLC 数据，均线类型与 `rKlineMA` 相同；Boll 使用指定的单个字段。预热、缺失处理和实际数值由 pyta2 决定。
 
 ### 公式名和使用字段
 
@@ -64,6 +97,9 @@ class rCandleBody(rKlineSignal):
 
 signal = rCandleBody()
 print(signal.step(100, 105, 98, 102))  # {'body': 2}
+
+declared = rCandleBody(used_fields=("open", "close"))
+print(declared.meta_info["used_fields"])  # ('open', 'close')
 ```
 
 未提供 schema 时，输出字段由首次结果确定，缓存使用 object 类型。需要保存计算状态的信号应将可变状态放进 `self._state` 并通过它读取；基类负责保存初始状态、重算未结束观测和 `reset()`。状态中的对象需要支持深复制，实例不保证并发或重入安全。
@@ -74,7 +110,7 @@ print(signal.step(100, 105, 98, 102))  # {'body': 2}
 
 ### 常用指标
 
-`sigma2.kline` 提供 `rKlineMA`、`rKlineRSI`、`rKlineMACD`、`rKlineBoll`、`rKlineKDJ`、`rKlineATR`、`rKlineMACross`、`rKlineOBV`、`rKlineMFI`、`rKlineVWAP` 及其 `KlineX` 批量函数。均线、指标公式和 ATR 边界扫描复用 pyta2；K 线输入、字段映射和逐条生命周期由 sigma2 管理。`KlineVWAP(n)` 是最近窗口的成交量加权典型价格，不按交易日重置；OBV、MFI、VWAP 需要 volume。
+历史上 `sigma2.kline` 还提供 `rKlineRSI`、`rKlineKDJ`、`rKlineMACross`、`rKlineOBV`、`rKlineMFI`、`rKlineVWAP` 等及其 `KlineX` 批量函数，现需适配新契约。指标公式和 ATR 边界扫描复用 pyta2；K 线输入、字段映射和逐条生命周期由 sigma2 管理。`KlineVWAP(n)` 是最近窗口的成交量加权典型价格，不按交易日重置；OBV、MFI、VWAP 需要 volume。
 
 批量接口按输入顺序重放同一个 `step()`，接受逐行字典序列、列式字典或 DataFrame，默认返回以 `factor_names` 为键的 NumPy 数组字典。`return_type` 还支持 `tuple`、`list`、`dataframe` 和 `pl.dataframe`；`return_meta_info=True` 返回结果和元信息。原有 `KlineBar` 输入仍可使用，其时间和 symbol 校验保持不变。
 
@@ -166,13 +202,6 @@ print(signal.min_periods)  # 20：包括结果所属的当前 K 线
 
 ## 示例与扩展
 
-安装项目及依赖后，在 `examples` 目录运行示例，例如：
-
-```bash
-cd examples
-python 09_kline_bundle.py
-```
-
-其余例子按 `01` 至 `08` 展示单 K 线、盘口、成交、未来结果、pyta2 组合和自定义 Signal；`10_mapping_inputs.py` 展示字典和字段映射。扩展时参考 [新增信号指南](skills/sigma2-usage/references/add-signals.md)、[截面字典结构](docs/design/bundle-snapshot-20261028-overview.md)、[字典输入设计](docs/design/step-mapping-20261028-overview.md)、[核心设计](docs/design/sigma2-operator-signal-outcome-20261028-overview.md) 和 [KlineBundle 设计](docs/design/kline-bundle-20261028-overview.md)。
+`examples` 中的例子展示旧版单 K 线、盘口、成交、未来结果、截面、自定义 Signal 和字段映射，尚未按当前接口迁移；其中 `07` 和 `08` 引用的两级均值类已删除。扩展时参考 [新增信号指南](skills/sigma2-usage/references/add-signals.md)及上方新设计，历史截面契约另见 [截面字典结构](docs/design/bundle-snapshot-20261028-overview.md)和 [KlineBundle 设计](docs/design/kline-bundle-20261028-overview.md)。
 
 通用 `pyta2_signal()` 需要显式 `history_window`；调用者应确认具体 pyta2 指标支持该有限窗口。部分 pyta2 指标和 effect 尚未迁移到新基类，不能假定它们均可用于桥接。

@@ -95,3 +95,17 @@ core 与 `rKlineMA` 的新接口和设计取舍见 `docs/design/kline-step-core-
 | 2026-10-30 05:39 CST | `PLAN-036-operator-naming.md` | `PLAN-036-operator-naming-OUTCOME.md` | 优化未确认观测的快照命名，补充算子接口职责注释，使误调用抽象 `step` 时明确报错；静态检查通过，未运行测试或提交。 |
 
 2026-10-30 05:43 CST：用户要求提交 PLAN-035 和 PLAN-036 的实施改动；不编写或运行测试的要求继续有效。
+
+| 更新时间 | 计划文件 | 结果文件 | 摘要 |
+| --- | --- | --- | --- |
+| 2026-10-30 05:46 CST | `PLAN-037-kline-macd.md` | `PLAN-037-kline-macd-OUTCOME.md` | MACD 按 MA 方式直接组合 pyta2，复用 core 生命周期并输出字典；更新设计、导出和说明，静态检查通过，未运行测试。 |
+
+| 更新时间 | 计划文件 | 结果文件 | 摘要 |
+| --- | --- | --- | --- |
+| 2026-10-30 05:54 CST | `PLAN-038-kline-volatility.md` | `PLAN-038-kline-volatility-OUTCOME.md` | 删除两级均值类，ATR 和 Boll 直接组合 pyta2 并复用 core 生命周期；更新导出与说明，静态检查通过，未运行测试。 |
+
+| 更新时间 | 计划文件 | 结果文件 | 摘要 |
+| --- | --- | --- | --- |
+| 2026-10-30 06:00 CST | `PLAN-039-used-fields-init.md` | `PLAN-039-used-fields-init-OUTCOME.md` | 将使用字段作为可选构造参数交给 core 保存，已迁移指标按实例配置声明；静态检查通过，未运行测试。 |
+
+2026-10-30 06:05 CST：用户要求提交 PLAN-037 至 PLAN-039 的实施改动；不编写或运行测试的要求继续有效。

@@ -18,6 +18,7 @@ class rOutcome(rOperator):
         schema: Mapping[str, Any] | None = None,
         n_backward: int = 0,
         buffer_size: int = 1,
+        used_fields: tuple[str, ...] | None = None,
     ) -> None:
         n_forward = ensure_integer(n_forward, "n_forward", min_value=1)
         super().__init__(
@@ -25,6 +26,7 @@ class rOutcome(rOperator):
             n_backward=n_backward,
             n_forward=n_forward,
             buffer_size=buffer_size,
+            used_fields=used_fields,
         )
 
 

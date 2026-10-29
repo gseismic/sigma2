@@ -19,7 +19,6 @@ class rOperator(ABC):
     name: str | None = None
     family: str | None = None
     full_name: str | None = None
-    used_fields: tuple[str, ...] | None = None
 
     def __init__(
         self,
@@ -28,6 +27,7 @@ class rOperator(ABC):
         n_backward: int = 0,
         n_forward: int = 0,
         buffer_size: int = 1,
+        used_fields: tuple[str, ...] | None = None,
     ) -> None:
         self.schema = Schema(schema) if schema is not None else None
         self.output_keys = (
@@ -36,6 +36,8 @@ class rOperator(ABC):
         self.n_backward = ensure_integer(n_backward, "n_backward", min_value=0)
         self.n_forward = ensure_integer(n_forward, "n_forward", min_value=0)
         self.buffer_size = ensure_integer(buffer_size, "buffer_size", min_value=-1)
+        # 字段声明仅用于元信息，不参与逐条检查。
+        self.used_fields = used_fields
 
         self._outputs = None
         if self.buffer_size != 0:

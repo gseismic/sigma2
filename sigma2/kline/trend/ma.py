@@ -35,11 +35,11 @@ class rKlineMA(rKlineSignal):
 
         indicator = get_ma_class(ma_type)(n, buffer_size=0, return_dict=False)
         self._field = field
-        self.used_fields = (field,)
         super().__init__(
             schema={"ma": indicator.schema[indicator.output_keys[0]]},
             n_backward=indicator.n_backward,
             buffer_size=buffer_size,
+            used_fields=(field,),
         )
         # 子指标及其输入窗口一起保存，盘中更新时恢复到同一时点。
         self._state.update(

@@ -15,11 +15,8 @@ _GROUPS = {
     ),
     "kline": (
         "KlineBar",
-        "KlineATR",
-        "KlineBoll",
         "KlineGap",
         "KlineKDJ",
-        "KlineMACD",
         "KlineMACross",
         "KlineMFI",
         "KlineOBV",

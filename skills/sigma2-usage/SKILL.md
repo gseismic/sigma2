@@ -5,6 +5,8 @@ description: 当用户询问安装或使用 sigma2、计算单 K 线或多 symbo
 
 # sigma2 使用与扩展
 
+> 2026-10-30：MA、MACD、ATR 和 Boll 已采用新的固定字段 `step`；其余 family 和批量接口尚未迁移。以下旧版接口说明和示例需对照当前源码，已删除的两级均值示例不能运行。
+
 先读仓库根目录 `README.md`、`sigma2/__init__.py` 和目标类源码；源码和实际导出优先于历史设计。当前接口以 [截面字典结构](../../docs/design/bundle-snapshot-20261028-overview.md)、[字典输入设计](../../docs/design/step-mapping-20261028-overview.md)、[Operator 设计](../../docs/design/sigma2-operator-signal-outcome-20261028-overview.md)和 [KlineBundle 设计](../../docs/design/kline-bundle-20261028-overview.md)为依据。新增算子时再读[扩展指南](references/add-signals.md)。
 
 | 任务 | 示例 |
@@ -13,7 +15,7 @@ description: 当用户询问安装或使用 sigma2、计算单 K 线或多 symbo
 | 盘口快照和逐笔成交 | [市场事件](../../examples/03_market_events.py) |
 | 未来结果及锚点位置 | [未来 Outcome](../../examples/04_future_outcome.py) |
 | 调用 pyta2 或编写自定义 Signal | [pyta2 桥接](../../examples/05_pyta2_bridge.py)、[自定义 Signal](../../examples/06_custom_signal.py) |
-| 自有或 pyta2 指标组合 | [均值组合](../../examples/07_mean_of_mean.py)、[均值组合 V2](../../examples/08_mean_of_mean_v2.py) |
+| 调用 pyta2 指标 | [MA 实现](../../sigma2/kline/trend/ma.py)、[MACD 实现](../../sigma2/kline/trend/macd.py) |
 | 多 symbol 截面、缺失和未来结果 | [KlineBundle](../../examples/09_kline_bundle.py) |
 | 字典输入及字段映射 | [字典与映射](../../examples/10_mapping_inputs.py) |
 

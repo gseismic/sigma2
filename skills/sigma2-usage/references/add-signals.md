@@ -1,6 +1,8 @@
 # 扩展 sigma2 算子
 
-先看仓库 `AGENTS.md`、目标 family 和 `sigma2/__init__.py`。公开接口需要新的设计取舍时先设计。现有模板包括 [`rKlineMeanOfMean`](../../../sigma2/kline/trend/mean_of_mean.py)、[`rKlineMeanOfMeanV2`](../../../sigma2/kline/trend/mean_of_mean_v2.py)和[自定义成交信号](../../../examples/06_custom_signal.py)。
+先看仓库 `AGENTS.md`、目标 family 和 `sigma2/__init__.py`。公开接口需要新的设计取舍时先设计。已迁移的单 K 线实现可参考 [`rKlineMA`](../../../sigma2/kline/trend/ma.py)、[`rKlineMACD`](../../../sigma2/kline/trend/macd.py)和 [ATR](../../../sigma2/kline/volatility/atr.py)。
+
+> 以下内容描述旧接口，其他 family 和批量接口尚未迁移；已迁移的单 K 线 Signal 以源码和 README 中的固定字段 `step`、字典输出及 `_state` 约定为准。
 
 ## 选择时间语义和输入
 

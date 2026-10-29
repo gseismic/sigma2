@@ -1,18 +1,18 @@
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections import deque
 from typing import Any
 
-from pyta2.momentum import rMACD as _rPytaMACD
-from pyta2.utils.validation import ensure_integer
+import numpy as np
+from pyta2.trend.macd import rMACD
 
-from sigma2.batch import forward_signal_apply
+from sigma2.kline.signal import rKlineSignal
 
-from .._internal.indicator_factor import _rKlineIndicatorFactor
+_FIELDS = frozenset({"open", "high", "low", "close", "volume"})
 
 
-class rKlineMACD(_rKlineIndicatorFactor):
-    """绑定到一个 K 线字段的 MACD Signal。"""
+class rKlineMACD(rKlineSignal):
+    """按指定 K 线字段计算 MACD，并支持末根 K 线重算。"""
 
     name = "MACD"
 
@@ -23,53 +23,74 @@ class rKlineMACD(_rKlineIndicatorFactor):
         signal: int = 9,
         *,
         field: str = "close",
-        **kwargs: Any,
+        buffer_size: int = 1,
     ) -> None:
-        self.fast = ensure_integer(fast, "fast", min_value=1)
-        self.slow = ensure_integer(slow, "slow", min_value=1)
-        self.signal = ensure_integer(signal, "signal", min_value=1)
-        if self.slow <= self.fast:
-            raise ValueError(
-                f"slow must be greater than fast, got slow={self.slow}, fast={self.fast}"
-            )
-        self.field = field
+        if not isinstance(field, str) or field not in _FIELDS:
+            raise ValueError(f"unsupported K-line field: {field!r}")
+
+        indicator = rMACD(
+            n1=slow,
+            n2=fast,
+            n3=signal,
+            buffer_size=0,
+            return_dict=True,
+        )
+        self._field = field
         super().__init__(
-            _rPytaMACD(
-                self.slow,
-                self.fast,
-                self.signal,
-                buffer_size=0,
-                return_dict=False,
-            ),
-            fields=(field,),
-            **kwargs,
+            schema=dict(indicator.schema.items()),
+            n_backward=indicator.n_backward,
+            buffer_size=buffer_size,
+            used_fields=(field,),
+        )
+        # 指标和输入窗口一起保存，盘中更新时恢复到同一时点。
+        self._state.update(
+            indicator=indicator,
+            values=deque(maxlen=indicator.min_periods),
         )
 
+    def forward(
+        self,
+        open,
+        high,
+        low,
+        close,
+        volume=None,
+        *,
+        open_time=None,
+        is_closed=True,
+        is_missing=False,
+    ) -> dict[str, Any]:
+        fields = {
+            "open": open,
+            "high": high,
+            "low": low,
+            "close": close,
+            "volume": volume,
+        }
+        value = fields[self.field]
+        values = self._state["values"]
+        values.append(float("nan") if value is None else value)
+        return self._state["indicator"].rolling(np.asarray(values, dtype=float))
 
-def KlineMACD(
-    data: Any,
-    fast: int = 12,
-    slow: int = 26,
-    signal: int = 9,
-    *,
-    field: str = "close",
-    return_type: str = "dict",
-    return_meta_info: bool = False,
-    symbol: str | None = None,
-    key_map: Mapping[str, str] | None = None,
-) -> Any:
-    """批量 replay :class:`rKlineMACD`。"""
+    @property
+    def field(self) -> str:
+        return self._field
 
-    return forward_signal_apply(
-        data,
-        rKlineMACD,
-        param_args=(fast, slow, signal),
-        param_kwargs={"field": field},
-        return_type=return_type,
-        return_meta_info=return_meta_info,
-        symbol=symbol,
-        key_map=key_map,
-    )
+    @property
+    def fast(self) -> int:
+        return self._state["indicator"].n2
+
+    @property
+    def slow(self) -> int:
+        return self._state["indicator"].n1
+
+    @property
+    def signal(self) -> int:
+        return self._state["indicator"].n3
+
+    @property
+    def full_name(self) -> str:
+        return f"{self._state['indicator'].full_name}[{self.field}]"
 
 
-__all__ = ["KlineMACD", "rKlineMACD"]
+__all__ = ["rKlineMACD"]
