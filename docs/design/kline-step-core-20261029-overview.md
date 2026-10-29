@@ -105,7 +105,7 @@ body.step(100, 105, 99, 103, open_time=1)  # {"body": 3}
 - 通用 core 的 `step` 返回字典；旧调用方可能仍假定标量、tuple 或旧参数。本轮不适配这些调用方，结果文件需明确列出影响。
 - 订单簿和成交的旧 Signal 仍通过 `super().step(...)` 调用原先的默认实现；core 的 `step` 已成为抽象接口，因此这些 family 需要后续迁移。
 - 只删除 MA 路径中的复杂继承和 KAMA 特判；其他指标的实现和其 KAMA 特判暂不修改。
-- MA 原有批量入口依赖尚未迁移的通用 batch；本轮不提供占位的 `KlineMA` 批量函数，不重构通用 batch。其他 batch 接口仍需后续迁移。
+- MA 原有批量入口依赖尚未迁移的通用 batch；本轮不提供占位的 `KlineMA` 批量函数，不重构通用 batch。后续 PLAN-040 恢复 MA 批量入口，使用固定字段逐条重放，详见 `signal-step-batch-20261030-overview.md`。
 - 保留根包的常用名称并按需加载，以保证 core 导入链不触发数据 family；仅调整与 core 和 MA 导入直接相关的聚合代码。
 
 ## 6. 三轮检查

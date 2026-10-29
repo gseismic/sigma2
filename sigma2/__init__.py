@@ -6,7 +6,7 @@ from typing import Any
 from pyta2.base.schema import Schema
 from pyta2.utils.space import Box, Scalar, Space
 
-from .core import qualify_factor_name, rOperator, rOutcome, rSignal
+from .core import forward_step_apply, qualify_factor_name, rOperator, rOutcome, rSignal
 
 _GROUPS = {
     "batch": (
@@ -17,6 +17,8 @@ _GROUPS = {
         "KlineBar",
         "KlineGap",
         "KlineKDJ",
+        "KlineMA",
+        "KlineMACD",
         "KlineMACross",
         "KlineMFI",
         "KlineOBV",
@@ -83,6 +85,7 @@ __all__ = [
     "Scalar",
     "Schema",
     "Space",
+    "forward_step_apply",
     "qualify_factor_name",
     "rOperator",
     "rOutcome",

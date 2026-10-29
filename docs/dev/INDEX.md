@@ -109,3 +109,9 @@ core 与 `rKlineMA` 的新接口和设计取舍见 `docs/design/kline-step-core-
 | 2026-10-30 06:00 CST | `PLAN-039-used-fields-init.md` | `PLAN-039-used-fields-init-OUTCOME.md` | 将使用字段作为可选构造参数交给 core 保存，已迁移指标按实例配置声明；静态检查通过，未运行测试。 |
 
 2026-10-30 06:05 CST：用户要求提交 PLAN-037 至 PLAN-039 的实施改动；不编写或运行测试的要求继续有效。
+
+| 更新时间 | 计划文件 | 结果文件 | 摘要 |
+| --- | --- | --- | --- |
+| 2026-10-30 06:11 CST | `PLAN-040-signal-step-batch.md` | `PLAN-040-signal-step-batch-OUTCOME.md` | 借鉴 pyta2 实施 Signal 逐条重放，恢复 MA、MACD 批量入口并更新报错示例；静态检查通过，未执行测试和示例。 |
+
+2026-10-30 06:17 CST：用户要求提交 PLAN-040 的实施改动；不编写或运行测试的要求继续有效。

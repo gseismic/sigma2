@@ -4,5 +4,12 @@ from .identity import qualify_factor_name
 from .operator import rOperator
 from .outcome import rOutcome
 from .signal import rSignal
+from .utils import forward_step_apply
 
-__all__ = ["qualify_factor_name", "rOperator", "rSignal", "rOutcome"]
+__all__ = [
+    "qualify_factor_name",
+    "rOperator",
+    "rSignal",
+    "rOutcome",
+    "forward_step_apply",
+]

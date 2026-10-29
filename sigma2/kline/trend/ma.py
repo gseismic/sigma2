@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 from collections import deque
+from collections.abc import Iterable, Mapping
 from typing import Any
 
 import numpy as np
 from pyta2.trend.ma.api import get_ma_class
 
+from sigma2.core.utils import forward_step_apply
 from sigma2.kline.signal import rKlineSignal
 
 _MA_TYPES = frozenset({"SMA", "EMA", "WMA", "HMA", "DEMA", "TEMA", "ZLEMA"})
@@ -89,4 +91,20 @@ class rKlineMA(rKlineSignal):
         return f"{self._state['indicator'].full_name}[{self.field}]"
 
 
-__all__ = ["rKlineMA"]
+def KlineMA(
+    data: Iterable[Mapping[str, Any]],
+    n: int,
+    *,
+    ma_type: str = "SMA",
+    field: str = "close",
+    return_type: str = "dict",
+    return_meta_info: bool = False,
+) -> Any:
+    """逐条重放 K 线并输出均线结果。"""
+    signal = rKlineMA(n, ma_type=ma_type, field=field, buffer_size=0)
+    return forward_step_apply(
+        data, signal, return_type=return_type, return_meta_info=return_meta_info
+    )
+
+
+__all__ = ["KlineMA", "rKlineMA"]

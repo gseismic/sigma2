@@ -4,7 +4,7 @@ sigma2 为金融市场事件提供逐条推进的 Signal 和 Outcome。Signal �
 
 项目按输入数据分包：`sigma2.kline` 处理单 symbol K 线，`sigma2.kline_bundle` 处理同一时点的多 symbol 截面，`sigma2.orderbook` 和 `sigma2.trade` 分别处理盘口快照和逐笔成交。
 
-> 2026-10-30：core 和单 K 线 `rKlineMA`、`rKlineMACD`、`rKlineATR`、`rKlineBoll` 已改为新的 `step` 契约。其他指标、Bundle、订单簿、成交、Outcome 和通用批量接口尚未迁移，可能因 core 或 K 线基类变化而不能工作；本文这些部分的旧示例仅供后续迁移参考。当前不提供 MA、MACD、ATR 和 Boll 的批量入口。设计见 [core 与单 K 线 MA](docs/design/kline-step-core-20261029-overview.md)、[单 K 线 MACD](docs/design/kline-macd-20261030-overview.md)和[单 K 线波动指标](docs/design/kline-volatility-20261030-overview.md)。
+> 2026-10-30：core 和单 K 线 `rKlineMA`、`rKlineMACD`、`rKlineATR`、`rKlineBoll` 已改为新的 `step` 契约，MA 和 MACD 提供批量入口。其他指标、Bundle、订单簿、成交、Outcome 和旧通用批量接口尚未迁移，可能因 core 或 K 线基类变化而不能工作；本文这些部分的旧示例仅供后续迁移参考。设计见 [core 与单 K 线 MA](docs/design/kline-step-core-20261029-overview.md)、[单 K 线 MACD](docs/design/kline-macd-20261030-overview.md)、[单 K 线波动指标](docs/design/kline-volatility-20261030-overview.md)和 [Signal 批量重放](docs/design/signal-step-batch-20261030-overview.md)。
 
 ## 安装
 
@@ -51,6 +51,25 @@ print(macd.meta_info["used_fields"])  # ('close',)
 ```
 
 `fast`、`slow`、`signal` 分别表示快线、慢线和信号线周期；预热和缺失后的恢复由 pyta2 决定。MACD 的数据字段、未结束 K 线和缓存规则与 MA 相同。
+
+### MA 和 MACD 批量计算
+
+输入是逐条 K 线字典，每条字典的字段与 `step` 的参数一致：
+
+```python
+from sigma2 import KlineMA, KlineMACD
+
+bars = [
+    {"open": 10, "high": 11, "low": 9, "close": 10, "open_time": 0},
+    {"open": 11, "high": 12, "low": 10, "close": 11, "open_time": 1},
+]
+ma, meta = KlineMA(bars, 2, ma_type="SMA", return_meta_info=True)
+macd = KlineMACD(bars, fast=2, slow=4, signal=2)
+print(ma["ma"], meta["full_name"])
+print(macd.keys())  # dict_keys(['dif', 'dea', 'macd'])
+```
+
+默认返回字段到 NumPy 数组的字典，也支持 `return_type="tuple"`、`"list"`、`"dataframe"` 和 `"pl.dataframe"`。同一根未结束 K 线的更新替换该观测的结果，不增加一行。通用重放可使用 `forward_step_apply(bars, signal)`，从 Signal 的当前状态继续；本轮已声明 schema 的批量输出覆盖标量字段。
 
 ### ATR 和 Boll
 
@@ -202,6 +221,6 @@ print(signal.min_periods)  # 20：包括结果所属的当前 K 线
 
 ## 示例与扩展
 
-`examples` 中的例子展示旧版单 K 线、盘口、成交、未来结果、截面、自定义 Signal 和字段映射，尚未按当前接口迁移；其中 `07` 和 `08` 引用的两级均值类已删除。扩展时参考 [新增信号指南](skills/sigma2-usage/references/add-signals.md)及上方新设计，历史截面契约另见 [截面字典结构](docs/design/bundle-snapshot-20261028-overview.md)和 [KlineBundle 设计](docs/design/kline-bundle-20261028-overview.md)。
+`examples/01_kline_batch.py` 演示当前的 MA、MACD 批量接口。其余例子展示旧版单 K 线、盘口、成交、未来结果、截面、自定义 Signal 和字段映射，尚未按当前接口迁移；其中 `07` 和 `08` 引用的两级均值类已删除。扩展时参考 [新增信号指南](skills/sigma2-usage/references/add-signals.md)及上方新设计，历史截面契约另见 [截面字典结构](docs/design/bundle-snapshot-20261028-overview.md)和 [KlineBundle 设计](docs/design/kline-bundle-20261028-overview.md)。
 
 通用 `pyta2_signal()` 需要显式 `history_window`；调用者应确认具体 pyta2 指标支持该有限窗口。部分 pyta2 指标和 effect 尚未迁移到新基类，不能假定它们均可用于桥接。

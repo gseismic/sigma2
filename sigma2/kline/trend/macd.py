@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 from collections import deque
+from collections.abc import Iterable, Mapping
 from typing import Any
 
 import numpy as np
 from pyta2.trend.macd import rMACD
 
+from sigma2.core.utils import forward_step_apply
 from sigma2.kline.signal import rKlineSignal
 
 _FIELDS = frozenset({"open", "high", "low", "close", "volume"})
@@ -93,4 +95,21 @@ class rKlineMACD(rKlineSignal):
         return f"{self._state['indicator'].full_name}[{self.field}]"
 
 
-__all__ = ["rKlineMACD"]
+def KlineMACD(
+    data: Iterable[Mapping[str, Any]],
+    fast: int = 12,
+    slow: int = 26,
+    signal: int = 9,
+    *,
+    field: str = "close",
+    return_type: str = "dict",
+    return_meta_info: bool = False,
+) -> Any:
+    """逐条重放 K 线并输出 MACD 结果。"""
+    indicator = rKlineMACD(fast, slow, signal, field=field, buffer_size=0)
+    return forward_step_apply(
+        data, indicator, return_type=return_type, return_meta_info=return_meta_info
+    )
+
+
+__all__ = ["KlineMACD", "rKlineMACD"]

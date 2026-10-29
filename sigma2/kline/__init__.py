@@ -16,6 +16,8 @@ _MODULES = {
     "rKlineKDJ": "momentum",
     "rKlineRSI": "momentum",
     "KlineMACross": "trend",
+    "KlineMA": "trend",
+    "KlineMACD": "trend",
     "rKlineMA": "trend",
     "rKlineMACD": "trend",
     "rKlineMACross": "trend",

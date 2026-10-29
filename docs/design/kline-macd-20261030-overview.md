@@ -37,7 +37,7 @@ step(open, high, low, close, volume=None, *,
 - `_state` 只包含一个 pyta2 `rMACD` 和一个长度为其 `min_periods` 的所选字段窗口；两者一起深复制。指标的三个 EMA 和 DIF 缓存在该指标内部。
 - 使用 pyta2 的输出 schema、`n_backward` 和公式名；其当前定义的 `n_backward = slow + signal - 2`，各输出是否已预热由 pyta2 判断。
 - 输出恒为 `{"dif": ..., "dea": ..., "macd": ...}`；缺失值和后续恢复完全由 pyta2 处理，sigma2 不增加算法特判。
-- 原 `KlineMACD` 依赖未迁移的通用 batch，本轮与 MA 一样移除该入口及直接导出，不提供不工作的包装。
+- 原 `KlineMACD` 依赖未迁移的通用 batch，本轮与 MA 一样移除该入口及直接导出。后续 PLAN-040 通过固定字段逐条重放恢复批量入口，详见 `signal-step-batch-20261030-overview.md`。
 
 ## 三轮检查
 
