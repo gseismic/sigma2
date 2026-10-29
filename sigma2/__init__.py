@@ -1,135 +1,95 @@
-"""sigma2 公共 API。"""
+"""sigma2 公共 API；数据类型按需加载。"""
+
+from importlib import import_module
+from typing import Any
 
 from pyta2.base.schema import Schema
 from pyta2.utils.space import Box, Scalar, Space
 
-from .batch import forward_outcome_apply, forward_signal_apply
-from .core import (
-    qualify_factor_name,
-    rOperator,
-    rOutcome,
-    rSignal,
-)
-from .kline.data import KlineBar
-from .kline import (
-    KlineATR,
-    KlineBoll,
-    KlineGap,
-    KlineKDJ,
-    KlineMA,
-    KlineMACD,
-    KlineMACross,
-    KlineMFI,
-    KlineOBV,
-    KlineVWAP,
-    KlineRSI,
-    KlineReturn,
-    rKlineATR,
-    rKlineATRBoundTrigger,
-    rKlineBoll,
-    rKlineFutureChange,
-    rKlineFutureHighLowChange,
-    rKlineFutureReturn,
-    rKlineGap,
-    rKlineKDJ,
-    rKlineMA,
-    rKlineMACD,
-    rKlineMACross,
-    rKlineMFI,
-    rKlineOBV,
-    rKlineVWAP,
-    rKlineRSI,
-    rKlineReturn,
-    rKlineSignal,
-    rKlineOutcome,
-    rKlineWindowSignal,
-    rKlineWindowOutcome,
-)
-from .kline.pyta2 import pyta2_signal, rPyta2Signal
-from .kline_bundle import (
-    KlineBundleFutureReturn,
-    KlineBundleMA,
-    KlineBundleRank,
-    KlineBundleReturnRank,
-    rKlineBundleMapOutcome,
-    rKlineBundleMapSignal,
-    rKlineBundleFutureReturn,
-    rKlineBundleMA,
-    rKlineBundleRank,
-    rKlineBundleReturnRank,
-    rKlineBundleSignal,
-    rKlineBundleOutcome,
-    rKlineBundleWindowSignal,
-    rKlineBundleWindowOutcome,
-)
-from .orderbook import rBookSpread, rOrderBookSignal
-from .trade import rTradeSignal, rTradeSignedVolume
-from .utils import register_pyta2_indicator, resolve_pyta2_indicator
+from .core import qualify_factor_name, rOperator, rOutcome, rSignal
+
+_GROUPS = {
+    "batch": (
+        "forward_outcome_apply",
+        "forward_signal_apply",
+    ),
+    "kline": (
+        "KlineBar",
+        "KlineATR",
+        "KlineBoll",
+        "KlineGap",
+        "KlineKDJ",
+        "KlineMA",
+        "KlineMACD",
+        "KlineMACross",
+        "KlineMFI",
+        "KlineOBV",
+        "KlineVWAP",
+        "KlineRSI",
+        "KlineReturn",
+        "rKlineATR",
+        "rKlineATRBoundTrigger",
+        "rKlineBoll",
+        "rKlineFutureChange",
+        "rKlineFutureHighLowChange",
+        "rKlineFutureReturn",
+        "rKlineGap",
+        "rKlineKDJ",
+        "rKlineMA",
+        "rKlineMACD",
+        "rKlineMACross",
+        "rKlineMFI",
+        "rKlineOBV",
+        "rKlineVWAP",
+        "rKlineRSI",
+        "rKlineReturn",
+        "rKlineSignal",
+        "rKlineOutcome",
+        "rKlineWindowSignal",
+        "rKlineWindowOutcome",
+        "pyta2_signal",
+        "rPyta2Signal",
+    ),
+    "kline_bundle": (
+        "KlineBundleFutureReturn",
+        "KlineBundleMA",
+        "KlineBundleRank",
+        "KlineBundleReturnRank",
+        "rKlineBundleMapOutcome",
+        "rKlineBundleMapSignal",
+        "rKlineBundleFutureReturn",
+        "rKlineBundleMA",
+        "rKlineBundleRank",
+        "rKlineBundleReturnRank",
+        "rKlineBundleSignal",
+        "rKlineBundleOutcome",
+        "rKlineBundleWindowSignal",
+        "rKlineBundleWindowOutcome",
+    ),
+    "orderbook": ("rBookSpread", "rOrderBookSignal"),
+    "trade": ("rTradeSignal", "rTradeSignedVolume"),
+    "utils": ("register_pyta2_indicator", "resolve_pyta2_indicator"),
+}
+_MODULES = {name: module for module, names in _GROUPS.items() for name in names}
+
+
+def __getattr__(name: str) -> Any:
+    """访问公共名称时才导入相应数据模块。"""
+    if name not in _MODULES:
+        raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+    value = getattr(import_module(f"{__name__}.{_MODULES[name]}"), name)
+    globals()[name] = value
+    return value
+
 
 __all__ = [
     "Box",
-    "KlineBar",
-    "KlineBundleFutureReturn",
-    "KlineBundleMA",
-    "KlineATR",
-    "KlineBoll",
-    "KlineGap",
-    "KlineKDJ",
-    "KlineMA",
-    "KlineMACD",
-    "KlineMACross",
-    "KlineMFI",
-    "KlineOBV",
-    "KlineVWAP",
-    "KlineRSI",
-    "KlineBundleRank",
-    "KlineReturn",
-    "KlineBundleReturnRank",
     "Scalar",
     "Schema",
     "Space",
-    "forward_outcome_apply",
-    "forward_signal_apply",
-    "pyta2_signal",
     "qualify_factor_name",
-    "register_pyta2_indicator",
-    "resolve_pyta2_indicator",
-    "rBookSpread",
-    "rKlineATR",
-    "rKlineATRBoundTrigger",
-    "rKlineBoll",
-    "rKlineFutureChange",
-    "rKlineFutureHighLowChange",
-    "rKlineFutureReturn",
-    "rKlineGap",
-    "rKlineKDJ",
-    "rKlineMA",
-    "rKlineMACD",
-    "rKlineMACross",
-    "rKlineMFI",
-    "rKlineOBV",
-    "rKlineVWAP",
-    "rKlineRSI",
-    "rKlineBundleRank",
-    "rKlineBundleFutureReturn",
-    "rKlineBundleMA",
-    "rKlineReturn",
-    "rKlineBundleReturnRank",
-    "rKlineBundleMapOutcome",
-    "rKlineBundleMapSignal",
-    "rKlineBundleOutcome",
-    "rKlineBundleSignal",
-    "rKlineBundleWindowOutcome",
-    "rKlineBundleWindowSignal",
-    "rKlineOutcome",
-    "rKlineSignal",
-    "rKlineWindowOutcome",
-    "rKlineWindowSignal",
     "rOperator",
-    "rOrderBookSignal",
     "rOutcome",
-    "rPyta2Signal",
     "rSignal",
-    "rTradeSignal",
-    "rTradeSignedVolume",
+    *_MODULES,
 ]

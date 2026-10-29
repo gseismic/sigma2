@@ -46,6 +46,7 @@
 | 2026-10-28 17:50 CST | `PLAN-032-factor-identities.md` | `PLAN-032-factor-identities-OUTCOME.md` | 检查点三：ATR 边界 Outcome 以有限历史复用 pyta2 Effect，236 项测试通过；应用联调继续。 |
 | 2026-10-28 18:05 CST | `PLAN-032-factor-identities.md` | `PLAN-032-factor-identities-OUTCOME.md` | 检查点四完成：更新 KAMA 缺失恢复依赖、README 与使用 skill；237 项测试、10 个示例和因子入库联调通过。 |
 | 2026-10-29 14:55 CST | `PLAN-033-core-package-layout.md` | `PLAN-033-core-package-layout-OUTCOME.md` | 将 core 收敛为通用生命周期与身份工具，按数据类型迁移 K 线、Bundle、订单簿和成交实现，batch 移至顶层；删除旧导入路径，版本升至 0.11.0。 |
+| 2026-10-29 16:38 CST | `PLAN-034-kline-step-core.md` | `PLAN-034-kline-step-core-OUTCOME.md` | 精简 core 与单 K 线 MA：逐步结果统一为字典，支持未结束 K 线重算和随参数变化的 `used_fields`；其他指标和 batch 暂未迁移，静态检查通过。 |
 
 ## 当前设计文档规则
 
@@ -76,3 +77,7 @@
 ## 2026-10-29 core 与数据类型目录
 
 `docs/design/core-package-layout-20261029-overview.md` 规定 core 仅保留通用算子生命周期和身份工具；K 线、Bundle、订单簿、成交 family 实现分别归入所属数据包，跨 family replay 由 `sigma2.batch` 提供。
+
+## 2026-10-29 core 与单 K 线 MA 新契约
+
+core 与 `rKlineMA` 的新接口和设计取舍见 `docs/design/kline-step-core-20261029-overview.md`；其他数据类型与 batch 的旧实现尚待迁移，不能将本轮变更视为全项目迁移完成。

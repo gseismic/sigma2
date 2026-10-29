@@ -4,6 +4,8 @@ sigma2 为金融市场事件提供逐条推进的 Signal 和 Outcome。Signal �
 
 项目按输入数据分包：`sigma2.kline` 处理单 symbol K 线，`sigma2.kline_bundle` 处理同一时点的多 symbol 截面，`sigma2.orderbook` 和 `sigma2.trade` 分别处理盘口快照和逐笔成交。
 
+> 2026-10-29：core 和单 K 线 `rKlineMA` 已改为新的 `step` 契约。其他指标、Bundle、Outcome 和通用批量接口尚未迁移，可能因 core 或 K 线基类变化而不能工作；本文这些部分的旧示例仅供后续迁移参考。`KlineMA` 批量入口暂不可用。新设计见 [core 与单 K 线 MA 设计](docs/design/kline-step-core-20261029-overview.md)。
+
 ## 安装
 
 需要 Python 3.10+。在仓库根目录安装：
@@ -16,45 +18,42 @@ python -m pip install -e .
 
 ## 单 symbol K 线
 
-一根 K 线可以直接用字典表示，`step(bar)` 接收整条数据。`open`、`high`、`low`、`close` 必须存在；`volume`、`symbol`、时间和其他字段可选。具体算子依赖的其他字段也必须提供，例如 `field="volume"` 时需要成交量。额外字段可以保留。
+`rKlineMA` 接收固定的行情字段，每次返回一个字典。`volume` 可省略；`open_time`、`is_closed` 和 `is_missing` 为关键字参数。上游负责提供符合约定的数值和顺序。
 
 ```python
-from sigma2.kline import KlineMA, rKlineMA
+from sigma2.kline import rKlineMA
 
-bars = [
-    {"open": 100, "high": 101, "low": 99, "close": 100, "open_time": 1},
-    {"open": 110, "high": 111, "low": 109, "close": 110, "open_time": 2},
-]
-signal = rKlineMA(2, return_dict=True)
-for bar in bars:
-    value = signal.step(bar)
-print(value)  # {'ma': 105.0}
-
-columns, meta = KlineMA(
-    bars, 2, key_map={"bar_time": "open_time"}, return_meta_info=True
-)
-print(columns[signal.factor_names[0]])  # [nan, 105.]
-print(meta["bar_times"])                # (1, 2)
+signal = rKlineMA(2, ma_type="EMA", field="close", symbol="BTCUSDT")
+signal.step(100, 101, 99, 100, open_time=1)
+preview = signal.step(100, 109, 99, 108, open_time=2, is_closed=False)
+result = signal.step(100, 111, 99, 110, open_time=2, is_closed=True)
+print(preview, result)        # {'ma': 104.0} {'ma': 105.0}
+print(signal.g_index)         # 1：第二根 K 线只推进一次
+print(signal.used_fields)     # ('close',)
 ```
 
-字段名默认使用同名键。`key_map` 的方向是**算子使用的逻辑字段 → 数据字典的实际字段**：例如 `{"date": "open_time"}` 让需要 `date` 的自定义算子读取输入的 `open_time`。均线不需要 `date`；映射不会使可选字段变为必需字段，也不会自动推断时间单位或可用时间。批量元信息需要行情时间时，可像上例一样显式映射 `bar_time`。
+`is_closed=False` 可以多次更新同一根尚未结束的 K 线；最后传入 `is_closed=True` 确认。省略 `open_time` 时，调用方须保证这些更新对应同一根 K 线。`is_missing=True` 表示整根 K 线缺失；选择 `field="volume"` 时，省略 volume 按缺失数值处理。`used_fields` 是随构造参数变化的元信息，不参与输入检查。
 
-每个单 K 线算子实例用于一个 symbol 的输入流；字典的顺序和所属 symbol 由上游管理。如果构造时指定 `symbol`，输入字典中一旦包含 `symbol` 就必须一致。映射信息保存在 `meta_info["key_map"]` 中；计算公式相同但数据来源不同的结果，需要在消费端用数据集或别名区分。
+均线只接受一个算法参数 `n`，类型支持 SMA、EMA、WMA、HMA、DEMA、TEMA 和 ZLEMA。每个实例消费一个 symbol 的输入流，`symbol` 用于构造因子名称。
 
 ### 公式名和因子名
 
 ```python
-from sigma2 import rKlineRSI
+from sigma2 import rKlineMA
 
-signal = rKlineRSI(14, symbol="BTCUSDT", return_dict=True)
-print(signal.full_name)      # RSI(14)[close]
-print(signal.formula_names)  # ['RSI(14)[close]']，物理表可共享的公式列名
-print(signal.factor_names)   # ['BTCUSDT:RSI(14)[close]']，带作用域的结果名
+signal = rKlineMA(14, symbol="BTCUSDT")
+print(signal.full_name)      # SMA(14)[close]
+print(signal.formula_names)  # ['SMA(14)[close]']，物理表可共享的公式列名
+print(signal.factor_names)   # ['BTCUSDT:SMA(14)[close]']，带作用域的结果名
 ```
 
-`return_dict=True` 的键仍是 schema 字段，例如 `rsi`；批量结果以 `factor_names` 为列名。作用域在构造时确定，不会根据每条字典中的 symbol 改变；未指定 symbol 时单 K 线算子使用未加前缀的公式名。截面算子的作用域默认为 `all`，也可设置 `scope="top100"` 区分不同全集。`formula_names` 的顺序与 schema 输出字段一致，多输出会在公式名后加 `.字段名`；截面每个输出仍保留独立的 symbol 轴，不会按 symbol 展开成多个 `factor_names`。
+逐步结果的键是 schema 字段，例如 `ma`。作用域在构造时确定；未指定 symbol 时单 K 线算子使用未加前缀的公式名。`formula_names` 的顺序与 schema 输出字段一致，多输出会在公式名后加 `.字段名`。
 
 按 `(symbol, open_time)` 保存行式数据时，可存储共享的 `formula_names`，在读取时通过 `qualify_factor_name(symbol, formula_name)` 组合训练列名。symbol、公式和数据来源应分别保存，不应靠拆分结果字符串恢复身份。
+
+### 以下为尚未迁移的历史说明
+
+下面的其他指标、截面、Outcome、批量与旧生命周期描述保留作迁移参考，尚不符合本次 core 的接口。
 
 ### 常用指标
 

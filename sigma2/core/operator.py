@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from collections.abc import Mapping
+from copy import deepcopy
 from typing import Any
 
 from pyta2.base.schema import Schema
@@ -28,7 +29,7 @@ class rOperator(ABC):
         scope: str | None = None,
         buffer_size: int | None = 1,
         buffer_factor: int = 2,
-        return_dict: bool = False,
+        state: dict[str, Any] | None = None,
     ) -> None:
         if not isinstance(schema, (list, Mapping, Schema)):
             raise TypeError(
@@ -38,14 +39,14 @@ class rOperator(ABC):
         self._scope = scope
         self._n_backward = ensure_integer(n_backward, "n_backward", min_value=0)
         self._n_forward = ensure_integer(n_forward, "n_forward", min_value=0)
-        if not isinstance(return_dict, bool):
-            raise TypeError(
-                f"return_dict must be bool, got {type(return_dict).__name__}"
-            )
+        if state is not None and not isinstance(state, dict):
+            raise TypeError("state must be a dict or None")
         self.schema = Schema(schema) if isinstance(schema, (list, Mapping)) else schema
         self.output_keys = list(self.schema.keys())
         self.buffer_factor = buffer_factor
-        self.return_dict = return_dict
+        # 显式声明的状态整体复制，用于恢复最近一条观测。
+        self._state = state
+        self._before_last: dict[str, Any] | None = None
         self.g_index = -1
         self._outputs: Any = None
         self._faulted = False
@@ -94,27 +95,63 @@ class rOperator(ABC):
         else:
             self._outputs.resize(maxlen)
 
-    def step(self, *args: Any, **kwargs: Any) -> Any:
-        """推进一个逻辑观测，失败后锁定实例，避免继续使用部分状态。"""
+    def step(self, *args: Any, **kwargs: Any) -> dict[str, Any]:
+        """推进一个逻辑观测，并始终返回输出字段字典。"""
+        return self._advance(False, *args, **kwargs)
+
+    def _advance(
+        self, save_state: bool, /, *args: Any, **kwargs: Any
+    ) -> dict[str, Any]:
+        """推进新观测；需要修订时保存推进前的计算状态。"""
         self._ensure_healthy()
+        if self._before_last is not None:
+            raise RuntimeError("the current observation is not closed")
+        if save_state and self._state is None:
+            raise RuntimeError("the operator has not declared state for revision")
+        checkpoint = deepcopy(self._state) if save_state else None
         previous_index = self.g_index
         self.g_index += 1
         previous_mode = self._lifecycle_mode
         self._lifecycle_mode = "step"
         try:
-            output = self._step_forward(*args, **kwargs)
-            dict_output = None
-            if self._outputs is not None or self.return_dict:
-                dict_output = self.make_dict_output(output)
+            output = self.make_dict_output(self._step_forward(*args, **kwargs))
             if self._outputs is not None:
-                self._outputs.append(dict_output)
+                self._outputs.append(output)
         except Exception:
             self.g_index = previous_index
             self._faulted = True
             raise
         finally:
             self._lifecycle_mode = previous_mode
-        return dict_output if self.return_dict else output
+        self._before_last = checkpoint
+        return output
+
+    def _replace_last(self, *args: Any, **kwargs: Any) -> dict[str, Any]:
+        """从原始快照重算当前观测，索引保持不变。"""
+        self._ensure_healthy()
+        if self._before_last is None:
+            raise RuntimeError("there is no unfinished observation to replace")
+        restored = deepcopy(self._before_last)
+        previous_mode = self._lifecycle_mode
+        self._lifecycle_mode = "step"
+        try:
+            self._state = restored
+            output = self.make_dict_output(self._step_forward(*args, **kwargs))
+            if self._outputs is not None:
+                if len(self._outputs):
+                    self._outputs.update_row(-1, output)
+                else:
+                    self._outputs.append(output)
+        except Exception:
+            self._faulted = True
+            raise
+        finally:
+            self._lifecycle_mode = previous_mode
+        return output
+
+    def _clear_checkpoint(self) -> None:
+        """当前观测结束后释放观测前状态。"""
+        self._before_last = None
 
     def _step_forward(self, *args: Any, **kwargs: Any) -> Any:
         return self.forward(*args, **kwargs)
@@ -125,6 +162,7 @@ class rOperator(ABC):
         try:
             self.g_index = -1
             self._lifecycle_mode = None
+            self._before_last = None
             if self._outputs is not None:
                 self._outputs.clear()
             self.reset_extras()
@@ -183,9 +221,8 @@ class rOperator(ABC):
             )
 
     @property
-    def missing_output(self) -> Any:
-        values = [self.schema[name].null_value for name in self.output_keys]
-        return values[0] if len(values) == 1 else tuple(values)
+    def missing_output(self) -> dict[str, Any]:
+        return {name: self.schema[name].null_value for name in self.output_keys}
 
     @property
     def outputs(self) -> Any:
@@ -212,6 +249,11 @@ class rOperator(ABC):
         return self._faulted
 
     @property
+    def used_fields(self) -> tuple[str, ...]:
+        """算法使用的输入字段，仅用于元信息。"""
+        return ()
+
+    @property
     def meta_info(self) -> dict[str, Any]:
         return {
             "name": self.name,
@@ -229,7 +271,7 @@ class rOperator(ABC):
             "formula_names": self.formula_names,
             "buffer_size": self.buffer_size,
             "buffer_factor": self.buffer_factor,
-            "return_dict": self.return_dict,
+            "used_fields": self.used_fields,
             "g_index": self.g_index,
             "is_faulted": self.is_faulted,
         }

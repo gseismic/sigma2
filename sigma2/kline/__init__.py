@@ -3,9 +3,8 @@
 from importlib import import_module
 from typing import Any
 
-from .data import KlineBar
-
 _MODULES = {
+    "KlineBar": "data",
     "KlineATR": "volatility",
     "KlineBoll": "volatility",
     "rKlineATR": "volatility",
@@ -56,4 +55,4 @@ def __getattr__(name: str) -> Any:
     return value
 
 
-__all__ = ["KlineBar", *_MODULES]
+__all__ = list(_MODULES)

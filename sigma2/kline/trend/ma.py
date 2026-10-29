@@ -1,18 +1,19 @@
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections import deque
 from typing import Any
 
+import numpy as np
 from pyta2.trend.ma.api import get_ma_class
-from pyta2.utils.validation import ensure_integer
 
-from sigma2.batch import forward_signal_apply
+from sigma2.kline.signal import rKlineSignal
 
-from .._internal.indicator_factor import _rKlineIndicatorFactor
+_MA_TYPES = frozenset({"SMA", "EMA", "WMA", "HMA", "DEMA", "TEMA", "ZLEMA"})
+_FIELDS = frozenset({"open", "high", "low", "close", "volume"})
 
 
-class rKlineMA(_rKlineIndicatorFactor):
-    """可选择均值类型与 K 线字段的通用移动平均 Signal。"""
+class rKlineMA(rKlineSignal):
+    """按指定 K 线字段计算单参数均线，并支持末根 K 线重算。"""
 
     name = "MA"
 
@@ -22,47 +23,79 @@ class rKlineMA(_rKlineIndicatorFactor):
         *,
         ma_type: str = "SMA",
         field: str = "close",
-        ma_kwargs: Mapping[str, Any] | None = None,
-        **kwargs: Any,
+        symbol: str | None = None,
+        buffer_size: int | None = 1,
     ) -> None:
-        self.n = ensure_integer(n, "n", min_value=1)
-        if ma_kwargs is not None and not isinstance(ma_kwargs, Mapping):
-            raise TypeError(
-                f"ma_kwargs must be a mapping or None, got {type(ma_kwargs).__name__}"
-            )
-        component_kwargs = dict(ma_kwargs or {})
-        forbidden = {
-            "buffer_size",
-            "return_dict",
-            "buffer_factor",
-            "extra_window",
-            "n",
-            "n1",
-        } & component_kwargs.keys()
-        if forbidden:
-            raise ValueError(
-                "ma_kwargs must not override lifecycle or primary window arguments: "
-                f"{sorted(forbidden)}"
-            )
+        if not isinstance(ma_type, str):
+            raise TypeError("ma_type must be a string")
+        ma_type = ma_type.strip().upper()
+        if ma_type not in _MA_TYPES:
+            raise ValueError(f"unsupported single-parameter MA: {ma_type}")
+        if not isinstance(field, str) or field not in _FIELDS:
+            raise ValueError(f"unsupported K-line field: {field!r}")
 
-        ma_cls = get_ma_class(ma_type)
-        indicator = ma_cls(
-            self.n,
-            buffer_size=0,
-            return_dict=False,
-            **component_kwargs,
+        indicator = get_ma_class(ma_type)(n, buffer_size=0, return_dict=False)
+        self._field = field
+        super().__init__(
+            schema={"ma": indicator.schema[indicator.output_keys[0]]},
+            n_backward=indicator.n_backward,
+            symbol=symbol,
+            buffer_size=buffer_size,
+            state={
+                # 子指标及其输入窗口一起保存，盘中更新时恢复到同一时点。
+                "indicator": indicator,
+                "values": deque(maxlen=indicator.min_periods),
+            },
         )
-        self.ma_type = str(indicator.name)
-        self.field = field
-        self.ma_kwargs = component_kwargs
-        super().__init__(indicator, fields=(field,), **kwargs)
+
+    def forward(
+        self,
+        open,
+        high,
+        low,
+        close,
+        volume=None,
+        *,
+        open_time=None,
+        is_closed=True,
+        is_missing=False,
+    ) -> dict[str, Any]:
+        fields = {
+            "open": open,
+            "high": high,
+            "low": low,
+            "close": close,
+            "volume": volume,
+        }
+        value = fields[self.field]
+        values = self._state["values"]
+        values.append(float("nan") if value is None else value)
+        result = self._state["indicator"].rolling(np.asarray(values, dtype=float))
+        return {"ma": result}
+
+    def reset_extras(self) -> None:
+        self._state["indicator"].reset()
+        self._state["values"].clear()
+
+    @property
+    def field(self) -> str:
+        return self._field
+
+    @property
+    def n(self) -> int:
+        return self._state["indicator"].n
+
+    @property
+    def ma_type(self) -> str:
+        return self._state["indicator"].name
+
+    @property
+    def used_fields(self) -> tuple[str, ...]:
+        return (self.field,)
 
     @property
     def full_name(self) -> str:
-        component_name = self._indicator.full_name
-        if self.ma_type == "KAMA" and self._indicator.stride != 1:
-            component_name = f"{component_name[:-1]},stride={self._indicator.stride})"
-        return f"{component_name}[{','.join(self.fields)}]"
+        return f"{self._state['indicator'].full_name}[{self.field}]"
 
 
 def KlineMA(
@@ -71,27 +104,13 @@ def KlineMA(
     *,
     ma_type: str = "SMA",
     field: str = "close",
-    ma_kwargs: Mapping[str, Any] | None = None,
     return_type: str = "dict",
     return_meta_info: bool = False,
     symbol: str | None = None,
-    key_map: Mapping[str, str] | None = None,
 ) -> Any:
-    """批量 replay :class:`rKlineMA`。"""
-
-    return forward_signal_apply(
-        data,
-        rKlineMA,
-        param_args=(n,),
-        param_kwargs={
-            "ma_type": ma_type,
-            "field": field,
-            "ma_kwargs": ma_kwargs,
-        },
-        return_type=return_type,
-        return_meta_info=return_meta_info,
-        symbol=symbol,
-        key_map=key_map,
+    """逐条 MA 已迁移；通用批量接口等待单独迁移。"""
+    raise NotImplementedError(
+        "KlineMA batch requires the separate batch migration; use rKlineMA.step"
     )
 
 

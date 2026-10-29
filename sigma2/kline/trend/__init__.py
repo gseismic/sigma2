@@ -1,18 +1,28 @@
-from .ma import KlineMA, rKlineMA
-from .cross import KlineMACross, rKlineMACross
-from .macd import KlineMACD, rKlineMACD
-from .mean_of_mean import KlineMeanOfMean, rKlineMeanOfMean
-from .mean_of_mean_v2 import KlineMeanOfMeanV2, rKlineMeanOfMeanV2
+"""按需导出 K 线趋势算子。"""
 
-__all__ = [
-    "KlineMA",
-    "KlineMACD",
-    "KlineMACross",
-    "KlineMeanOfMean",
-    "KlineMeanOfMeanV2",
-    "rKlineMA",
-    "rKlineMACD",
-    "rKlineMACross",
-    "rKlineMeanOfMean",
-    "rKlineMeanOfMeanV2",
-]
+from importlib import import_module
+from typing import Any
+
+_MODULES = {
+    "KlineMA": "ma",
+    "rKlineMA": "ma",
+    "KlineMACD": "macd",
+    "rKlineMACD": "macd",
+    "KlineMACross": "cross",
+    "rKlineMACross": "cross",
+    "KlineMeanOfMean": "mean_of_mean",
+    "rKlineMeanOfMean": "mean_of_mean",
+    "KlineMeanOfMeanV2": "mean_of_mean_v2",
+    "rKlineMeanOfMeanV2": "mean_of_mean_v2",
+}
+
+
+def __getattr__(name: str) -> Any:
+    if name not in _MODULES:
+        raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+    value = getattr(import_module(f"{__name__}.{_MODULES[name]}"), name)
+    globals()[name] = value
+    return value
+
+
+__all__ = list(_MODULES)
