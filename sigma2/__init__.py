@@ -19,7 +19,6 @@ _GROUPS = {
         "KlineBoll",
         "KlineGap",
         "KlineKDJ",
-        "KlineMA",
         "KlineMACD",
         "KlineMACross",
         "KlineMFI",

@@ -4,7 +4,6 @@ from importlib import import_module
 from typing import Any
 
 _MODULES = {
-    "KlineMA": "ma",
     "rKlineMA": "ma",
     "KlineMACD": "macd",
     "rKlineMACD": "macd",

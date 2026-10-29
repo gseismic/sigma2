@@ -4,7 +4,7 @@ sigma2 为金融市场事件提供逐条推进的 Signal 和 Outcome。Signal �
 
 项目按输入数据分包：`sigma2.kline` 处理单 symbol K 线，`sigma2.kline_bundle` 处理同一时点的多 symbol 截面，`sigma2.orderbook` 和 `sigma2.trade` 分别处理盘口快照和逐笔成交。
 
-> 2026-10-29：core 和单 K 线 `rKlineMA` 已改为新的 `step` 契约。其他指标、Bundle、Outcome 和通用批量接口尚未迁移，可能因 core 或 K 线基类变化而不能工作；本文这些部分的旧示例仅供后续迁移参考。`KlineMA` 批量入口暂不可用。新设计见 [core 与单 K 线 MA 设计](docs/design/kline-step-core-20261029-overview.md)。
+> 2026-10-29：core 和单 K 线 `rKlineMA` 已改为新的 `step` 契约。其他指标、Bundle、订单簿、成交、Outcome 和通用批量接口尚未迁移，可能因 core 或 K 线基类变化而不能工作；本文这些部分的旧示例仅供后续迁移参考。本轮不提供 `KlineMA` 批量入口。新设计见 [core 与单 K 线 MA 设计](docs/design/kline-step-core-20261029-overview.md)。
 
 ## 安装
 
@@ -23,33 +23,50 @@ python -m pip install -e .
 ```python
 from sigma2.kline import rKlineMA
 
-signal = rKlineMA(2, ma_type="EMA", field="close", symbol="BTCUSDT")
+signal = rKlineMA(2, ma_type="EMA", field="close")
 signal.step(100, 101, 99, 100, open_time=1)
 preview = signal.step(100, 109, 99, 108, open_time=2, is_closed=False)
 result = signal.step(100, 111, 99, 110, open_time=2, is_closed=True)
-print(preview, result)        # {'ma': 104.0} {'ma': 105.0}
+print(preview["ma"], result["ma"])  # 104.0 105.0
 print(signal.g_index)         # 1：第二根 K 线只推进一次
-print(signal.used_fields)     # ('close',)
+print(signal.meta_info["used_fields"])  # ('close',)
 ```
 
-`is_closed=False` 可以多次更新同一根尚未结束的 K 线；最后传入 `is_closed=True` 确认。省略 `open_time` 时，调用方须保证这些更新对应同一根 K 线。`is_missing=True` 表示整根 K 线缺失；选择 `field="volume"` 时，省略 volume 按缺失数值处理。`used_fields` 是随构造参数变化的元信息，不参与输入检查。
+`is_closed=False` 可以多次更新同一根尚未结束的 K 线；最后传入 `is_closed=True` 确认。若上一根尚未确认就收到不同的 `open_time`，或上一根已确认却再次收到相同的 `open_time`，算子会报错。省略 `open_time` 时，调用方须保证这些更新对应同一根 K 线。`is_missing=True` 表示整根 K 线缺失；选择 `field="volume"` 时，省略 volume 按缺失数值处理。`used_fields` 是随构造参数变化的元信息，不参与输入检查。
 
-均线只接受一个算法参数 `n`，类型支持 SMA、EMA、WMA、HMA、DEMA、TEMA 和 ZLEMA。每个实例消费一个 symbol 的输入流，`symbol` 用于构造因子名称。
+均线只接受一个算法参数 `n`，类型支持 SMA、EMA、WMA、HMA、DEMA、TEMA 和 ZLEMA。每个实例消费一个 symbol 的输入流，标的由调用方管理。
 
-### 公式名和因子名
+### 公式名和使用字段
 
 ```python
 from sigma2 import rKlineMA
 
-signal = rKlineMA(14, symbol="BTCUSDT")
-print(signal.full_name)      # SMA(14)[close]
-print(signal.formula_names)  # ['SMA(14)[close]']，物理表可共享的公式列名
-print(signal.factor_names)   # ['BTCUSDT:SMA(14)[close]']，带作用域的结果名
+signal = rKlineMA(14, field="volume")
+print(signal.full_name)                 # SMA(14)[volume]
+print(signal.meta_info["used_fields"])  # ('volume',)
 ```
 
-逐步结果的键是 schema 字段，例如 `ma`。作用域在构造时确定；未指定 symbol 时单 K 线算子使用未加前缀的公式名。`formula_names` 的顺序与 schema 输出字段一致，多输出会在公式名后加 `.字段名`。
+逐步结果的键是 schema 字段，例如 `ma`；`full_name` 描述使用的均线和行情字段。
 
-按 `(symbol, open_time)` 保存行式数据时，可存储共享的 `formula_names`，在读取时通过 `qualify_factor_name(symbol, formula_name)` 组合训练列名。symbol、公式和数据来源应分别保存，不应靠拆分结果字符串恢复身份。
+### 自定义 Signal
+
+简单的 K 线信号只需实现 `forward`，返回字典即可：
+
+```python
+from sigma2.kline import rKlineSignal
+
+class rCandleBody(rKlineSignal):
+    def forward(
+        self, open, high, low, close, volume=None, *,
+        open_time=None, is_closed=True, is_missing=False,
+    ):
+        return {"body": close - open}
+
+signal = rCandleBody()
+print(signal.step(100, 105, 98, 102))  # {'body': 2}
+```
+
+未提供 schema 时，输出字段由首次结果确定，缓存使用 object 类型。需要保存计算状态的信号应将可变状态放进 `self._state` 并通过它读取；基类负责保存初始状态、重算未结束观测和 `reset()`。状态中的对象需要支持深复制，实例不保证并发或重入安全。
 
 ### 以下为尚未迁移的历史说明
 

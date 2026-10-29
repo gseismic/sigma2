@@ -6,28 +6,9 @@ from sigma2.core.signal import rSignal
 
 
 class rKlineSignal(rSignal):
-    """单 symbol K 线算子：未结束的最后一根可以重复更新。"""
+    """处理一条 symbol 的 K 线序列，支持更新未结束的最后一根。"""
 
     family = "kline"
-    step_input_keys = (
-        "open",
-        "high",
-        "low",
-        "close",
-        "volume",
-        "open_time",
-        "is_closed",
-        "is_missing",
-    )
-
-    def __init__(
-        self, schema: Any, *, symbol: str | None = None, **kwargs: Any
-    ) -> None:
-        self.symbol = symbol
-        self._unfinished = False
-        self._unfinished_time = None
-        kwargs.setdefault("scope", symbol)
-        super().__init__(schema, **kwargs)
 
     def step(
         self,
@@ -41,9 +22,8 @@ class rKlineSignal(rSignal):
         is_closed=True,
         is_missing=False,
     ) -> dict[str, Any]:
-        self._ensure_healthy()
-        if self._unfinished and open_time != self._unfinished_time:
-            raise ValueError("the previous K-line is not closed")
+        if not isinstance(is_missing, bool):
+            raise TypeError("is_missing 必须是布尔值")
 
         if is_missing:
             open = high = low = close = volume = float("nan")
@@ -57,21 +37,8 @@ class rKlineSignal(rSignal):
             "is_closed": is_closed,
             "is_missing": is_missing,
         }
-        if self._unfinished:
-            result = self._replace_last(**inputs)
-        else:
-            result = self._advance(not is_closed, **inputs)
 
-        self._unfinished = not is_closed
-        self._unfinished_time = None if is_closed else open_time
-        if is_closed:
-            self._clear_checkpoint()
-        return result
-
-    def reset(self) -> None:
-        super().reset()
-        self._unfinished = False
-        self._unfinished_time = None
+        return self._step(inputs, is_final=is_closed, observation_id=open_time)
 
 
 __all__ = ["rKlineSignal"]
