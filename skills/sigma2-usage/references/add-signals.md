@@ -7,11 +7,12 @@
 | 输入和时间语义 | 基类 |
 | --- | --- |
 | 当前单 K 线结果 | `rKlineSignal` |
+| 当前 K 线截面结果 | `rKlineBundleSignal` |
 | 等待后续 K 线的结果 | `rKlineOutcome` |
 | 盘口快照 | `rOrderBookSignal` |
 | 逐笔成交 | `rTradeSignal` |
 
-Signal 只能使用当前及以前的数据。Outcome 的 `n_forward` 是固定后续观测数，`result_index` 是结果所属锚点；回填到锚点不代表当时可用。`kline_bundle` 尚未迁移，需要使用前先完成其迁移。
+Signal 只能使用当前及以前的数据。Outcome 的 `n_forward` 是固定后续观测数，`result_index` 是结果所属锚点；回填到锚点不代表当时可用。当前 Bundle 提供 Signal 基类、收益率排名和加权价格指数。
 
 ## 实现约定
 
@@ -21,5 +22,6 @@ Signal 只能使用当前及以前的数据。Outcome 的 `n_forward` 是固定�
 - `schema` 可使用 pyta2 `Space`；省略时按首个结果固定字段，缓存为 object 类型。输出必须是字典，键与 schema 一致。
 - K 线缺失由 `is_missing=True` 表示；算法使用可选 volume 时应处理 `None`。上游负责输入格式，不能添加逐字段必需检查。
 - `n_backward` 不含结果位置，`min_periods = n_backward + 1 + n_forward`。只保留算法实际需要的输入窗口；pyta2 的缺失处理交由 pyta2 自身负责。
+- 单周期技术指标使用 `n`；过去端点与当前观测相隔的步数使用 `lag`，调用参数和实例属性统一命名。多个指标周期按含义区分；时间参数说明见仓库 README。
 - 对外批量函数创建 `buffer_size=0` 的实例后调用 `forward_step_apply`，不要维护第二套公式；Outcome 的批量结果按锚点对齐。
 - 更新相关导出和独立示例；检查数据时点、缺失、状态重置和结果对齐。验证方式以用户要求和仓库指令为准。

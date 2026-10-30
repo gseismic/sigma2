@@ -4,7 +4,6 @@ from importlib import import_module
 from typing import Any
 
 _MODULES = {
-    "KlineBar": "data",
     "KlineATR": "volatility",
     "KlineBoll": "volatility",
     "rKlineATR": "volatility",

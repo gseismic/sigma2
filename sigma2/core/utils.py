@@ -16,7 +16,7 @@ def forward_step_apply(
     return_type: str = "dict",
     return_meta_info: bool = False,
 ) -> Any:
-    """从当前状态重放，按结果所属的逻辑观测整理标量输出。"""
+    """从当前状态重放，按结果所属的逻辑观测整理输出。"""
     if not isinstance(operator, rOperator):
         raise TypeError("operator 必须是 rOperator 实例")
 

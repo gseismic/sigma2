@@ -121,3 +121,31 @@ core 与 `rKlineMA` 的新接口和设计取舍见 `docs/design/kline-step-core-
 | 2026-10-30 06:27 CST | `PLAN-041-data-families-step.md` | `PLAN-041-data-families-step-OUTCOME.md` | 迁移盘口、成交及其余单 K 线算子；旧实现归档，示例按分级编号改为自包含，静态检查通过，未运行测试或示例。 |
 
 2026-10-30 06:30 CST：用户要求提交 PLAN-041 的实施改动；不编写或运行测试的要求继续有效。
+
+| 更新时间 | 计划文件 | 结果文件 | 摘要 |
+| --- | --- | --- | --- |
+| 2026-10-30 06:35 CST | `PLAN-042-retire-legacy-batch.md` | `PLAN-042-retire-legacy-batch-OUTCOME.md` | 归档旧 batch、旧 Bundle 和旧输入辅助，移除相关导出；更新当前文档，静态检查通过，未运行测试或示例。 |
+
+| 更新时间 | 计划文件 | 结果文件 | 摘要 |
+| --- | --- | --- | --- |
+| 2026-10-30 06:45 CST | `PLAN-043-kline-bundle-rank.md` | `PLAN-043-kline-bundle-rank-OUTCOME.md` | 按固定输入重建 Bundle Signal 和逐 symbol 价格排名，补充批量入口及独立示例；静态检查通过，未运行测试或示例。 |
+
+| 更新时间 | 计划文件 | 结果文件 | 摘要 |
+| --- | --- | --- | --- |
+| 2026-10-30 06:50 CST | `PLAN-044-kline-bundle-weighted-index.md` | `PLAN-044-kline-bundle-weighted-index-OUTCOME.md` | 实现固定权重和动态市值加权的截面价格平均值；补充批量入口、独立示例及缺失数据约定，静态检查通过，未运行测试或示例。 |
+
+| 更新时间 | 计划文件 | 结果文件 | 摘要 |
+| --- | --- | --- | --- |
+| 2026-10-30 15:03 CST | `PLAN-045-kline-bundle-return-rank.md` | `PLAN-045-kline-bundle-return-rank-OUTCOME.md` | 将截面价格排名改为 n 步收盘收益率排名，按共同时间轴处理缺失和动态 symbol；静态检查通过，未运行测试或示例。 |
+
+| 更新时间 | 计划文件 | 结果文件 | 摘要 |
+| --- | --- | --- | --- |
+| 2026-10-30 15:14 CST | `PLAN-046-time-parameter-naming.md` | `PLAN-046-time-parameter-naming-OUTCOME.md` | 将时间参数规范写入 README，单 K 线及截面收益率接口从 `n` 统一为 `lag`；静态检查通过，未运行测试或示例。 |
+
+| 更新时间 | 计划文件 | 结果文件 | 摘要 |
+| --- | --- | --- | --- |
+| 2026-10-30 15:20 CST | `PLAN-047-return-rank-stable-sort.md` | `PLAN-047-return-rank-stable-sort-OUTCOME.md` | 收益率排名改为稳定排序后逐一编号，补充类的计算原理与方法；静态检查通过，未运行测试或示例。 |
+
+| 更新时间 | 计划文件 | 结果文件 | 摘要 |
+| --- | --- | --- | --- |
+| 2026-10-30 15:34 CST | `PLAN-048-simplify-weighted-index.md` | `PLAN-048-simplify-weighted-index-OUTCOME.md` | 加权指数拆成固定权重和实时市值两个类及批量入口，完整截面不逐项校验；静态检查通过，未运行测试或示例。 |

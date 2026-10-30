@@ -6,15 +6,10 @@ from typing import Any
 from pyta2.base.schema import Schema
 from pyta2.utils.space import Box, Scalar, Space
 
-from .core import forward_step_apply, qualify_factor_name, rOperator, rOutcome, rSignal
+from .core import forward_step_apply, rOperator, rOutcome, rSignal
 
 _GROUPS = {
-    "batch": (
-        "forward_outcome_apply",
-        "forward_signal_apply",
-    ),
     "kline": (
-        "KlineBar",
         "KlineATR",
         "KlineBoll",
         "KlineGap",
@@ -49,20 +44,13 @@ _GROUPS = {
         "rPyta2Signal",
     ),
     "kline_bundle": (
-        "KlineBundleFutureReturn",
-        "KlineBundleMA",
-        "KlineBundleRank",
+        "KlineBundleFixedWeightIndex",
+        "KlineBundleMarketCapWeightedIndex",
         "KlineBundleReturnRank",
-        "rKlineBundleMapOutcome",
-        "rKlineBundleMapSignal",
-        "rKlineBundleFutureReturn",
-        "rKlineBundleMA",
-        "rKlineBundleRank",
+        "rKlineBundleFixedWeightIndex",
+        "rKlineBundleMarketCapWeightedIndex",
         "rKlineBundleReturnRank",
         "rKlineBundleSignal",
-        "rKlineBundleOutcome",
-        "rKlineBundleWindowSignal",
-        "rKlineBundleWindowOutcome",
     ),
     "orderbook": ("rBookSpread", "rOrderBookSignal"),
     "trade": ("rTradeSignal", "rTradeSignedVolume"),
@@ -86,7 +74,6 @@ __all__ = [
     "Schema",
     "Space",
     "forward_step_apply",
-    "qualify_factor_name",
     "rOperator",
     "rOutcome",
     "rSignal",

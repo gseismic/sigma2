@@ -13,19 +13,19 @@ from sigma2.kline.signal import rKlineSignal
 
 
 class rKlineReturn(rKlineSignal):
-    """基于 close 的 n 根 K 线收益率。"""
+    """基于 close 计算与 lag 步之前相比的收益率。"""
 
     name = "return"
 
-    def __init__(self, n: int = 1, *, buffer_size: int = 1) -> None:
-        self._n = ensure_integer(n, "n", min_value=1)
+    def __init__(self, lag: int = 1, *, buffer_size: int = 1) -> None:
+        self._lag = ensure_integer(lag, "lag", min_value=1)
         super().__init__(
             schema={"return": Scalar(low=-np.inf, high=np.inf, dtype=np.float64)},
-            n_backward=self.n,
+            n_backward=self.lag,
             buffer_size=buffer_size,
             used_fields=("close",),
         )
-        self._state["closes"] = deque(maxlen=self.n + 1)
+        self._state["closes"] = deque(maxlen=self.lag + 1)
 
     def forward(
         self,
@@ -41,7 +41,7 @@ class rKlineReturn(rKlineSignal):
     ) -> dict[str, float]:
         closes = self._state["closes"]
         closes.append(close)
-        if len(closes) <= self.n:
+        if len(closes) <= self.lag:
             return {"return": float("nan")}
         previous = closes[0]
         if not (np.isfinite(previous) and np.isfinite(close)) or previous == 0:
@@ -51,17 +51,17 @@ class rKlineReturn(rKlineSignal):
         return {"return": float(result) if np.isfinite(result) else float("nan")}
 
     @property
-    def n(self) -> int:
-        return self._n
+    def lag(self) -> int:
+        return self._lag
 
     @property
     def full_name(self) -> str:
-        return f"{self.name}({self.n})"
+        return f"{self.name}({self.lag})"
 
 
 def KlineReturn(
     data: Iterable[Mapping[str, Any]],
-    n: int = 1,
+    lag: int = 1,
     *,
     return_type: str = "dict",
     return_meta_info: bool = False,
@@ -69,7 +69,7 @@ def KlineReturn(
     """逐条重放 K 线并输出收益率。"""
     return forward_step_apply(
         data,
-        rKlineReturn(n, buffer_size=0),
+        rKlineReturn(lag=lag, buffer_size=0),
         return_type=return_type,
         return_meta_info=return_meta_info,
     )

@@ -10,7 +10,7 @@ def main() -> None:
         {"open": 13, "high": 14, "low": 12, "close": 13, "open_time": 2},
     ]
     print("跳空：", KlineGap(bars)["gap"])
-    print("两根收益率：", KlineReturn(bars, 2)["return"])
+    print("两步收益率：", KlineReturn(bars, lag=2)["return"])
 
 
 if __name__ == "__main__":
