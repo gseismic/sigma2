@@ -23,7 +23,7 @@ class rKlineGap(rKlineSignal):
             buffer_size=buffer_size,
             used_fields=("open", "close"),
         )
-        self._state["previous_close"] = float("nan")
+        self._previous_close = float("nan")
 
     def forward(
         self,
@@ -34,11 +34,10 @@ class rKlineGap(rKlineSignal):
         volume=None,
         *,
         open_time=None,
-        is_closed=True,
         is_missing=False,
     ) -> dict[str, float]:
-        previous = self._state["previous_close"]
-        self._state["previous_close"] = close
+        previous = self._previous_close
+        self._previous_close = close
         if not (np.isfinite(previous) and np.isfinite(open)) or previous == 0:
             return {"gap": float("nan")}
         with np.errstate(over="ignore", invalid="ignore"):

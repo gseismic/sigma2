@@ -14,7 +14,7 @@ _MA_TYPES = frozenset({"SMA", "EMA", "WMA", "HMA", "DEMA", "TEMA", "ZLEMA"})
 
 
 class rKlineATR(rKlineSignal):
-    """计算 ATR，并支持末根 K 线重算。"""
+    """使用最高、最低和收盘价计算 ATR。"""
 
     name = "ATR"
 
@@ -38,8 +38,9 @@ class rKlineATR(rKlineSignal):
             buffer_size=buffer_size,
             used_fields=("high", "low", "close"),
         )
+        self._indicator = indicator
         # ATR 需要当前 HLC 和上一根的收盘价。
-        self._state.update(indicator=indicator, values=deque(maxlen=2))
+        self._values = deque(maxlen=2)
 
     def forward(
         self,
@@ -50,25 +51,24 @@ class rKlineATR(rKlineSignal):
         volume=None,
         *,
         open_time=None,
-        is_closed=True,
         is_missing=False,
     ) -> dict[str, Any]:
-        values = self._state["values"]
+        values = self._values
         values.append((high, low, close))
         hlc = np.asarray(values, dtype=float)
-        return self._state["indicator"].rolling(hlc[:, 0], hlc[:, 1], hlc[:, 2])
+        return self._indicator.rolling(hlc[:, 0], hlc[:, 1], hlc[:, 2])
 
     @property
     def n(self) -> int:
-        return self._state["indicator"].n
+        return self._indicator.n
 
     @property
     def ma_type(self) -> str:
-        return self._state["indicator"].ma_type
+        return self._indicator.ma_type
 
     @property
     def full_name(self) -> str:
-        return f"{self._state['indicator'].full_name}[high,low,close]"
+        return f"{self._indicator.full_name}[high,low,close]"
 
 
 def KlineATR(

@@ -33,9 +33,8 @@ class rKlineKDJ(rKlineSignal):
             buffer_size=buffer_size,
             used_fields=("high", "low", "close"),
         )
-        self._state.update(
-            indicator=indicator, values=deque(maxlen=indicator.min_periods)
-        )
+        self._indicator = indicator
+        self._values = deque(maxlen=indicator.min_periods)
 
     def forward(
         self,
@@ -46,37 +45,36 @@ class rKlineKDJ(rKlineSignal):
         volume=None,
         *,
         open_time=None,
-        is_closed=True,
         is_missing=False,
     ) -> dict[str, Any]:
-        values = self._state["values"]
+        values = self._values
         values.append((high, low, close))
         hlc = np.asarray(values, dtype=float)
-        return self._state["indicator"].rolling(hlc[:, 0], hlc[:, 1], hlc[:, 2])
+        return self._indicator.rolling(hlc[:, 0], hlc[:, 1], hlc[:, 2])
 
     @property
     def n1(self) -> int:
-        return self._state["indicator"].n1
+        return self._indicator.n1
 
     @property
     def n2(self) -> int:
-        return self._state["indicator"].n2
+        return self._indicator.n2
 
     @property
     def n3(self) -> int:
-        return self._state["indicator"].n3
+        return self._indicator.n3
 
     @property
     def ktimes(self) -> int:
-        return self._state["indicator"].ktimes
+        return self._indicator.ktimes
 
     @property
     def dtimes(self) -> int:
-        return self._state["indicator"].dtimes
+        return self._indicator.dtimes
 
     @property
     def full_name(self) -> str:
-        return f"{self._state['indicator'].full_name}[high,low,close]"
+        return f"{self._indicator.full_name}[high,low,close]"
 
 
 def KlineKDJ(

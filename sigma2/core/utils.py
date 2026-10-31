@@ -30,7 +30,6 @@ def forward_step_apply(
     get_outputs(outputs, return_type=return_type)
     first_index = None
     for inputs in data:
-        previous_index = operator.g_index
         result = operator.step(**inputs)
 
         # 未声明 schema 时不能根据首个结果推断数值类型。
@@ -41,8 +40,7 @@ def forward_step_apply(
 
         if first_index is None:
             first_index = operator.g_index
-        if len(outputs) == 0 or operator.g_index != previous_index:
-            outputs.append(missing)
+        outputs.append(missing)
 
         # Outcome 的结果属于历史锚点；之前的锚点不属于本次返回范围。
         row = operator.result_index - first_index

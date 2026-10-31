@@ -67,9 +67,8 @@ class rKlineATRBoundTrigger(rKlineOutcome):
             buffer_size=buffer_size,
             used_fields=("open", "high", "low", "close"),
         )
-        self._state.update(
-            effect=effect, history=deque(maxlen=max(2, self.n_forward + 1))
-        )
+        self._effect = effect
+        self._history = deque(maxlen=max(2, self.n_forward + 1))
 
     def forward(
         self,
@@ -80,32 +79,31 @@ class rKlineATRBoundTrigger(rKlineOutcome):
         volume=None,
         *,
         open_time=None,
-        is_closed=True,
         is_missing=False,
     ) -> dict[str, Any]:
-        history = self._state["history"]
+        history = self._history
         history.append((open, high, low, close))
         retained = tuple(history)
         prefixes = tuple(
             _RetainedPrefix(retained, self.g_index + 1, i) for i in range(4)
         )
-        return self._state["effect"].rolling(*prefixes)
+        return self._effect.rolling(*prefixes)
 
     @property
     def x_unit_ub(self) -> float:
-        return self._state["effect"].x_unit_ub
+        return self._effect.x_unit_ub
 
     @property
     def x_unit_lb(self) -> float:
-        return self._state["effect"].x_unit_lb
+        return self._effect.x_unit_lb
 
     @property
     def atr_n(self) -> int:
-        return self._state["effect"].n_atr
+        return self._effect.n_atr
 
     @property
     def atr_ma_type(self) -> str:
-        return self._state["effect"].atr_ma_type
+        return self._effect.atr_ma_type
 
     @property
     def full_name(self) -> str:

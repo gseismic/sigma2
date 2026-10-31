@@ -1,4 +1,4 @@
-"""均线：逐条计算、更新未结束的 K 线，以及批量重放。"""
+"""均线：逐条计算已确定的 K 线，以及批量重放。"""
 
 from sigma2 import KlineMA, rKlineMA
 
@@ -9,19 +9,10 @@ def main() -> None:
         {"open": 20, "high": 20, "low": 20, "close": 20, "open_time": 1},
         {
             "open": 30,
-            "high": 30,
-            "low": 30,
-            "close": 30,
-            "open_time": 2,
-            "is_closed": False,
-        },
-        {
-            "open": 30,
             "high": 40,
             "low": 30,
             "close": 40,
             "open_time": 2,
-            "is_closed": True,
         },
     ]
 

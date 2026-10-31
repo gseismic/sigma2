@@ -15,7 +15,7 @@ class rTradeSignal(rSignal):
     def step(
         self, *, price: float, volume: float, side: TradeSide = None
     ) -> dict[str, Any]:
-        return self._step({"price": price, "volume": volume, "side": side})
+        return super().step(price=price, volume=volume, side=side)
 
 
 __all__ = ["TradeSide", "rTradeSignal"]

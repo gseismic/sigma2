@@ -16,7 +16,7 @@ class rOrderBookSignal(rSignal):
     def step(
         self, *, bids: Sequence[BookLevel], asks: Sequence[BookLevel]
     ) -> dict[str, Any]:
-        return self._step({"bids": bids, "asks": asks})
+        return super().step(bids=bids, asks=asks)
 
 
 __all__ = ["BookLevel", "rOrderBookSignal"]

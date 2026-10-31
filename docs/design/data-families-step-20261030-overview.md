@@ -1,5 +1,7 @@
 # 盘口、成交和单 K 线算子迁移设计
 
+> 生命周期以[算子单向推进设计](operator-single-pass-20261031-overview.md)为准；本文保留当时的实现记录。
+
 > 后续清理已归档本阶段暂留的旧 Bundle、旧 batch 及其辅助代码，见 [旧 batch 与遗留依赖清理](retire-legacy-batch-20261030-overview.md)。下文保留当时的设计范围。
 
 ## 目标和使用场景

@@ -25,7 +25,7 @@ class rKlineReturn(rKlineSignal):
             buffer_size=buffer_size,
             used_fields=("close",),
         )
-        self._state["closes"] = deque(maxlen=self.lag + 1)
+        self._closes = deque(maxlen=self.lag + 1)
 
     def forward(
         self,
@@ -36,10 +36,9 @@ class rKlineReturn(rKlineSignal):
         volume=None,
         *,
         open_time=None,
-        is_closed=True,
         is_missing=False,
     ) -> dict[str, float]:
-        closes = self._state["closes"]
+        closes = self._closes
         closes.append(close)
         if len(closes) <= self.lag:
             return {"return": float("nan")}

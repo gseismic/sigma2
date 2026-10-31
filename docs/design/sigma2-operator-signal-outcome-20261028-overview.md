@@ -1,5 +1,7 @@
 # sigma2 Operator、Signal 与 Outcome 设计
 
+> 生命周期以[算子单向推进设计](operator-single-pass-20261031-overview.md)为准；本文保留当时的实现记录。
+
 创建时间：2026-10-28 07:03 CST
 更新时间：2026-10-28 07:36 CST
 状态：确定方案，按 PLAN-027 实施。

@@ -42,7 +42,7 @@ class rKlineBundleReturnRank(rKlineBundleSignal):
             used_fields=("close",),
         )
         # 每一项属于一个完整截面，避免 symbol 缺席时改变回看时点。
-        self._state["closes"] = deque(maxlen=self.lag)
+        self._closes = deque(maxlen=self.lag)
 
     def forward(
         self,
@@ -51,7 +51,7 @@ class rKlineBundleReturnRank(rKlineBundleSignal):
         open_time: Any = None,
         has_missing: bool = False,
     ) -> dict[str, Any]:
-        history = self._state["closes"]
+        history = self._closes
         previous = history[0] if len(history) == self.lag else {}
         current = {}
         ranks = dict.fromkeys(bundle, float("nan"))

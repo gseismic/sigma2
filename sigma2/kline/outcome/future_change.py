@@ -28,7 +28,7 @@ class rKlineFutureChange(rKlineOutcome):
             buffer_size=buffer_size,
             used_fields=(field,),
         )
-        self._state["values"] = deque(maxlen=self.n_forward + 1)
+        self._values = deque(maxlen=self.n_forward + 1)
 
     def forward(
         self,
@@ -39,7 +39,6 @@ class rKlineFutureChange(rKlineOutcome):
         volume=None,
         *,
         open_time=None,
-        is_closed=True,
         is_missing=False,
     ) -> dict[str, Any]:
         value = {
@@ -49,7 +48,7 @@ class rKlineFutureChange(rKlineOutcome):
             "close": close,
             "volume": volume,
         }[self.field]
-        values = self._state["values"]
+        values = self._values
         values.append(float("nan") if value is None else value)
         if len(values) <= self.n_forward:
             return {"value": float("nan")}

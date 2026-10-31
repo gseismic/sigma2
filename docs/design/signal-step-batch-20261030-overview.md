@@ -1,5 +1,7 @@
 # Signal 的逐条重放与批量结果
 
+> 生命周期和批量观测语义以[算子单向推进设计](operator-single-pass-20261031-overview.md)为准。
+
 > 后续迁移已将 `forward_step_apply` 扩展到 Outcome，示例也已重新编号；新契约见 [盘口、成交和单 K 线算子迁移](data-families-step-20261030-overview.md)。下文记录本阶段的设计范围。
 
 - 创建时间：2026-10-30 06:08 CST

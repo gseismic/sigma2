@@ -26,7 +26,8 @@ class rKlineOBV(rKlineSignal):
             buffer_size=buffer_size,
             used_fields=("close", "volume"),
         )
-        self._state.update(indicator=indicator, closes=deque(maxlen=2))
+        self._indicator = indicator
+        self._closes = deque(maxlen=2)
 
     def forward(
         self,
@@ -37,19 +38,16 @@ class rKlineOBV(rKlineSignal):
         volume=None,
         *,
         open_time=None,
-        is_closed=True,
         is_missing=False,
     ) -> dict[str, Any]:
-        closes = self._state["closes"]
+        closes = self._closes
         closes.append(close)
         volume = float("nan") if volume is None else volume
-        return self._state["indicator"].rolling(
-            np.asarray(closes, dtype=float), (volume,)
-        )
+        return self._indicator.rolling(np.asarray(closes, dtype=float), (volume,))
 
     @property
     def full_name(self) -> str:
-        return f"{self._state['indicator'].full_name}[close,volume]"
+        return f"{self._indicator.full_name}[close,volume]"
 
 
 class rKlineMFI(rKlineSignal):
@@ -65,7 +63,7 @@ class rKlineMFI(rKlineSignal):
             buffer_size=buffer_size,
             used_fields=("high", "low", "close", "volume"),
         )
-        self._state["indicator"] = indicator
+        self._indicator = indicator
 
     def forward(
         self,
@@ -76,19 +74,18 @@ class rKlineMFI(rKlineSignal):
         volume=None,
         *,
         open_time=None,
-        is_closed=True,
         is_missing=False,
     ) -> dict[str, Any]:
         volume = float("nan") if volume is None else volume
-        return self._state["indicator"].rolling((high,), (low,), (close,), (volume,))
+        return self._indicator.rolling((high,), (low,), (close,), (volume,))
 
     @property
     def n(self) -> int:
-        return self._state["indicator"].n
+        return self._indicator.n
 
     @property
     def full_name(self) -> str:
-        return f"{self._state['indicator'].full_name}[high,low,close,volume]"
+        return f"{self._indicator.full_name}[high,low,close,volume]"
 
 
 class rKlineVWAP(rKlineSignal):
@@ -111,7 +108,7 @@ class rKlineVWAP(rKlineSignal):
             buffer_size=buffer_size,
             used_fields=("high", "low", "close", "volume"),
         )
-        self._state["indicator"] = indicator
+        self._indicator = indicator
 
     def forward(
         self,
@@ -122,23 +119,22 @@ class rKlineVWAP(rKlineSignal):
         volume=None,
         *,
         open_time=None,
-        is_closed=True,
         is_missing=False,
     ) -> dict[str, Any]:
         volume = float("nan") if volume is None else volume
-        return self._state["indicator"].rolling((high,), (low,), (close,), (volume,))
+        return self._indicator.rolling((high,), (low,), (close,), (volume,))
 
     @property
     def n(self) -> int:
-        return self._state["indicator"].n
+        return self._indicator.n
 
     @property
     def ma_type(self) -> str:
-        return self._state["indicator"].ma_type
+        return self._indicator.ma_type
 
     @property
     def full_name(self) -> str:
-        return f"{self._state['indicator'].full_name}[high,low,close,volume]"
+        return f"{self._indicator.full_name}[high,low,close,volume]"
 
 
 def KlineOBV(

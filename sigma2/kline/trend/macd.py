@@ -14,7 +14,7 @@ _FIELDS = frozenset({"open", "high", "low", "close", "volume"})
 
 
 class rKlineMACD(rKlineSignal):
-    """按指定 K 线字段计算 MACD，并支持末根 K 线重算。"""
+    """按指定 K 线字段计算 MACD。"""
 
     name = "MACD"
 
@@ -44,11 +44,8 @@ class rKlineMACD(rKlineSignal):
             buffer_size=buffer_size,
             used_fields=(field,),
         )
-        # 指标和输入窗口一起保存，盘中更新时恢复到同一时点。
-        self._state.update(
-            indicator=indicator,
-            values=deque(maxlen=indicator.min_periods),
-        )
+        self._indicator = indicator
+        self._values = deque(maxlen=indicator.min_periods)
 
     def forward(
         self,
@@ -59,7 +56,6 @@ class rKlineMACD(rKlineSignal):
         volume=None,
         *,
         open_time=None,
-        is_closed=True,
         is_missing=False,
     ) -> dict[str, Any]:
         fields = {
@@ -70,9 +66,9 @@ class rKlineMACD(rKlineSignal):
             "volume": volume,
         }
         value = fields[self.field]
-        values = self._state["values"]
+        values = self._values
         values.append(float("nan") if value is None else value)
-        return self._state["indicator"].rolling(np.asarray(values, dtype=float))
+        return self._indicator.rolling(np.asarray(values, dtype=float))
 
     @property
     def field(self) -> str:
@@ -80,19 +76,19 @@ class rKlineMACD(rKlineSignal):
 
     @property
     def fast(self) -> int:
-        return self._state["indicator"].n2
+        return self._indicator.n2
 
     @property
     def slow(self) -> int:
-        return self._state["indicator"].n1
+        return self._indicator.n1
 
     @property
     def signal(self) -> int:
-        return self._state["indicator"].n3
+        return self._indicator.n3
 
     @property
     def full_name(self) -> str:
-        return f"{self._state['indicator'].full_name}[{self.field}]"
+        return f"{self._indicator.full_name}[{self.field}]"
 
 
 def KlineMACD(

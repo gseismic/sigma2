@@ -80,9 +80,8 @@ class rPyta2Signal(rKlineSignal):
             buffer_size=buffer_size,
             used_fields=fields,
         )
-        self._state.update(
-            indicator=component, values=deque(maxlen=self.history_window)
-        )
+        self._indicator = component
+        self._values = deque(maxlen=self.history_window)
 
     def forward(
         self,
@@ -93,7 +92,6 @@ class rPyta2Signal(rKlineSignal):
         volume=None,
         *,
         open_time=None,
-        is_closed=True,
         is_missing=False,
     ) -> dict[str, Any]:
         fields = {
@@ -103,7 +101,7 @@ class rPyta2Signal(rKlineSignal):
             "close": close,
             "volume": volume,
         }
-        values = self._state["values"]
+        values = self._values
         values.append(
             tuple(
                 float("nan") if fields[name] is None else fields[name]
@@ -111,9 +109,7 @@ class rPyta2Signal(rKlineSignal):
             )
         )
         array = np.asarray(values, dtype=float)
-        return self._state["indicator"].rolling(
-            *(array[:, i] for i in range(len(self.fields)))
-        )
+        return self._indicator.rolling(*(array[:, i] for i in range(len(self.fields))))
 
     @property
     def fields(self) -> tuple[str, ...]:
@@ -127,7 +123,7 @@ class rPyta2Signal(rKlineSignal):
     def full_name(self) -> str:
         if self._full_name is not None:
             return self._full_name
-        return f"{self._state['indicator'].full_name}[{','.join(self.fields)}]"
+        return f"{self._indicator.full_name}[{','.join(self.fields)}]"
 
 
 __all__ = ["pyta2_signal", "rPyta2Signal"]

@@ -18,10 +18,7 @@ class rKlineBundleSignal(rSignal):
         open_time: Any = None,
         has_missing: bool = False,
     ) -> dict[str, Any]:
-        return self._step(
-            {"bundle": bundle, "open_time": open_time, "has_missing": has_missing},
-            observation_id=open_time,
-        )
+        return super().step(bundle, open_time=open_time, has_missing=has_missing)
 
 
 __all__ = ["rKlineBundleSignal"]

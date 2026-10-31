@@ -15,7 +15,7 @@ _FIELDS = frozenset({"open", "high", "low", "close", "volume"})
 
 
 class rKlineMA(rKlineSignal):
-    """按指定 K 线字段计算单参数均线，并支持末根 K 线重算。"""
+    """按指定 K 线字段计算单参数均线。"""
 
     name = "MA"
 
@@ -43,11 +43,8 @@ class rKlineMA(rKlineSignal):
             buffer_size=buffer_size,
             used_fields=(field,),
         )
-        # 子指标及其输入窗口一起保存，盘中更新时恢复到同一时点。
-        self._state.update(
-            indicator=indicator,
-            values=deque(maxlen=indicator.min_periods),
-        )
+        self._indicator = indicator
+        self._values = deque(maxlen=indicator.min_periods)
 
     def forward(
         self,
@@ -58,7 +55,6 @@ class rKlineMA(rKlineSignal):
         volume=None,
         *,
         open_time=None,
-        is_closed=True,
         is_missing=False,
     ) -> dict[str, Any]:
         fields = {
@@ -69,9 +65,9 @@ class rKlineMA(rKlineSignal):
             "volume": volume,
         }
         value = fields[self.field]
-        values = self._state["values"]
+        values = self._values
         values.append(float("nan") if value is None else value)
-        result = self._state["indicator"].rolling(np.asarray(values, dtype=float))
+        result = self._indicator.rolling(np.asarray(values, dtype=float))
         return {"ma": result}
 
     @property
@@ -80,15 +76,15 @@ class rKlineMA(rKlineSignal):
 
     @property
     def n(self) -> int:
-        return self._state["indicator"].n
+        return self._indicator.n
 
     @property
     def ma_type(self) -> str:
-        return self._state["indicator"].name
+        return self._indicator.name
 
     @property
     def full_name(self) -> str:
-        return f"{self._state['indicator'].full_name}[{self.field}]"
+        return f"{self._indicator.full_name}[{self.field}]"
 
 
 def KlineMA(

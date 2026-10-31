@@ -153,3 +153,7 @@ core 与 `rKlineMA` 的新接口和设计取舍见 `docs/design/kline-step-core-
 | 更新时间 | 计划文件 | 结果文件 | 摘要 |
 | --- | --- | --- | --- |
 | 2026-10-30 16:33 CST | `PLAN-049-fix-review-findings.md` | `PLAN-049-fix-review-findings-OUTCOME.md` | 修复审查指出的配置、缓存、依赖、重放、盘口和权重精度问题；静态检查通过，未运行测试或示例。 |
+
+| 更新时间 | 计划文件 | 结果文件 | 摘要 |
+| --- | --- | --- | --- |
+| 2026-10-31 14:25 CST | `PLAN-050-single-pass-operator.md` | `PLAN-050-single-pass-operator-OUTCOME.md` | 将算子收敛为单向推进和失败锁定，移除末根更新、状态快照和重置；迁移各数据类型、示例与使用说明，静态检查通过，未运行测试或示例。 |

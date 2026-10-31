@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from collections.abc import Mapping
-from copy import deepcopy
 from typing import Any
 
 from pyta2.base.schema import Schema
@@ -23,10 +22,7 @@ def _storage_dtypes(schema: Schema) -> dict[str, Any]:
 
 
 class rOperator(ABC):
-    """有状态逐条算子的通用生命周期。
-
-    数据类型实现 step 并调用 _step；具体算子实现 forward。
-    """
+    """逐条推进有状态算子，统一管理索引、输出缓存和失败锁定。"""
 
     name: str | None = None
     family: str | None = None
@@ -57,13 +53,6 @@ class rOperator(ABC):
             dtypes = _storage_dtypes(self.schema) if self.schema is not None else None
             self._outputs = DequeTable(maxlen=maxlen, dtypes=dtypes)
 
-        # 可变计算状态集中存放，以便重算和重置。
-        self._state: dict[str, Any] = {}
-        # 首次计算前的状态，用于重置。
-        self._initial_state: dict[str, Any] | None = None
-        # 未确认观测首次计算前的状态；None 表示没有未确认观测。
-        self._state_before_pending: dict[str, Any] | None = None
-        self._last_observation_id: Any = None
         self.g_index = -1
         self._faulted = False
 
@@ -112,17 +101,16 @@ class rOperator(ABC):
             info["used_fields"] = self.used_fields
         return info
 
-    @abstractmethod
     def step(self, *args: Any, **kwargs: Any) -> dict[str, Any]:
-        """数据类型定义固定输入，并调用 _step 管理生命周期。"""
-        raise NotImplementedError("请由数据类型实现 step() 并调用 _step()")
-
-    def _ensure_healthy(self) -> None:
+        """推进一个新观测；失败后须新建实例并重放。"""
         if self._faulted:
-            raise RuntimeError("计算状态异常，请 reset() 后重放数据")
+            raise RuntimeError("算子已失效，请新建实例并重放数据")
 
-    def _calculate(self, inputs: dict[str, Any]) -> dict[str, Any]:
-        result = self.forward(**inputs)
+        # 计算或缓存写入可能部分推进子对象，成功后才解除锁定。
+        self._faulted = True
+        self.g_index += 1
+        result = self.forward(*args, **kwargs)
+
         if not isinstance(result, dict):
             raise TypeError("forward() 必须返回字典")
         if self.output_keys is None:
@@ -134,92 +122,17 @@ class rOperator(ABC):
             raise ValueError(
                 f"输出字段不匹配：期望 {self.output_keys}，实际 {tuple(result)}"
             )
-        return result
 
-    def _step(
-        self,
-        inputs: dict[str, Any],
-        *,
-        is_final: bool = True,
-        observation_id: Any = None,
-    ) -> dict[str, Any]:
-        """根据观测标识和结束状态推进或重算最后一个观测。"""
-        self._ensure_healthy()
-        if not isinstance(is_final, bool):
-            raise TypeError("观测结束状态必须是布尔值")
-
-        if observation_id is not None and self._last_observation_id is not None:
-            if observation_id == self._last_observation_id:
-                if self._state_before_pending is None:
-                    raise ValueError("当前观测已结束；如需修订，请 reset() 后重放数据")
-            elif self._state_before_pending is not None:
-                raise ValueError("上一条观测尚未结束")
-
-        if self._initial_state is None:
-            self._initial_state = deepcopy(self._state)
-
-        if self._state_before_pending is None:
-            result = self._advance(inputs, save_state=not is_final)
-            self._last_observation_id = observation_id
-        else:
-            result = self._replace_last(inputs)
-            # 中间更新缺少 ID 时保留当前观测已知的 ID。
-            if observation_id is not None:
-                self._last_observation_id = observation_id
-
-        if is_final:
-            self._state_before_pending = None
-        return result
-
-    def _advance(self, inputs: dict[str, Any], *, save_state: bool) -> dict[str, Any]:
-        """推进新观测；需要修订时保存观测前状态。"""
-        checkpoint = deepcopy(self._state) if save_state else None
-        previous_index = self.g_index
-        self.g_index += 1
-        try:
-            result = self._calculate(inputs)
-            if self._outputs is not None:
-                self._outputs.append(result)
-        except Exception:
-            self.g_index = previous_index
-            self._faulted = True
-            raise
-
-        self._state_before_pending = checkpoint
-        return result
-
-    def _replace_last(self, inputs: dict[str, Any]) -> dict[str, Any]:
-        """从原始快照重算最后一个观测，不推进索引。"""
-        if self._outputs is not None and len(self._outputs) == 0:
-            raise RuntimeError("输出缓存中没有最后一条结果")
-
-        # 每次都从首次计算前的快照恢复，避免重复推进状态。
-        restored_state = deepcopy(self._state_before_pending)
-        try:
-            self._state = restored_state
-            result = self._calculate(inputs)
-            if self._outputs is not None:
-                self._outputs.update_row(-1, result)
-        except Exception:
-            self._faulted = True
-            raise
-        return result
-
-    def reset(self) -> None:
-        """清理计算状态和输出缓存，重置失败时保持锁定。"""
-        self._faulted = True
-        if self._initial_state is not None:
-            self._state = deepcopy(self._initial_state)
         if self._outputs is not None:
-            self._outputs.clear()
-        self._state_before_pending = None
-        self._last_observation_id = None
-        self.g_index = -1
+            self._outputs.append(result)
+
         self._faulted = False
+        return result
 
     @abstractmethod
-    def forward(self, **inputs: Any) -> dict[str, Any]:
-        """计算一个观测；可变计算状态需通过 _state 访问。"""
+    def forward(self, *args: Any, **kwargs: Any) -> dict[str, Any]:
+        """由具体算子计算一个观测。"""
+        raise NotImplementedError
 
 
 __all__ = ["rOperator"]
