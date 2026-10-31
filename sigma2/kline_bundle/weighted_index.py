@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 from collections.abc import Iterable, Mapping
+from fractions import Fraction
 from math import fsum, isfinite
+from sys import float_info
 from typing import Any
 
 import numpy as np
@@ -12,6 +14,33 @@ from sigma2.core.utils import forward_step_apply
 from .signal import rKlineBundleSignal
 
 _PRICE_FIELDS = frozenset({"open", "high", "low", "close"})
+
+
+def _weighted_average(
+    values: Iterable[tuple[float, float]], scale: float, total: float
+) -> float:
+    """精确累计极小贡献，避免过早转换为浮点。"""
+    precise = Fraction(0)
+
+    def contributions() -> Iterable[float]:
+        nonlocal precise
+        for price, weight in values:
+            share = weight / scale / total
+            contribution = price * share
+            if share >= float_info.min and (
+                price == 0 or abs(contribution) >= float_info.min
+            ):
+                yield contribution
+            else:
+                precise += (
+                    Fraction(float(price))
+                    * Fraction(float(weight))
+                    / Fraction(float(scale))
+                    / Fraction(float(total))
+                )
+
+    ordinary = fsum(contributions())
+    return float(Fraction(ordinary) + precise) if precise else ordinary
 
 
 class rKlineBundleFixedWeightIndex(rKlineBundleSignal):
@@ -44,13 +73,11 @@ class rKlineBundleFixedWeightIndex(rKlineBundleSignal):
         scale = max(copied.values())
         if scale == 0:
             raise ValueError("at least one weight must be positive")
-        scaled = {
-            symbol: weight / scale for symbol, weight in copied.items() if weight > 0
-        }
-        total = fsum(scaled.values())
         self._weights = tuple(
-            (symbol, weight / total) for symbol, weight in scaled.items()
+            (symbol, weight) for symbol, weight in copied.items() if weight > 0
         )
+        self._weight_scale = scale
+        self._weight_total = fsum(weight / scale for _, weight in self._weights)
         self._field = field
         super().__init__(
             schema={"index": Scalar(low=-np.inf, high=np.inf, dtype=np.float64)},
@@ -75,8 +102,13 @@ class rKlineBundleFixedWeightIndex(rKlineBundleSignal):
                     return {"index": float("nan")}
 
         return {
-            "index": fsum(
-                bundle[symbol][self.field] * weight for symbol, weight in self._weights
+            "index": _weighted_average(
+                (
+                    (bundle[symbol][self.field], weight)
+                    for symbol, weight in self._weights
+                ),
+                self._weight_scale,
+                self._weight_total,
             )
         }
 
@@ -86,7 +118,7 @@ class rKlineBundleFixedWeightIndex(rKlineBundleSignal):
 
     @property
     def weights(self) -> dict[str, float]:
-        """返回原始正权重成分的归一化副本。"""
+        """返回原始正权重成分的副本。"""
         return dict(self._weights)
 
     @property
@@ -134,10 +166,14 @@ class rKlineBundleMarketCapWeightedIndex(rKlineBundleSignal):
             return {"index": float("nan")}
         total = fsum(bar["market_cap"] / scale for bar in bundle.values())
         return {
-            "index": fsum(
-                bar[self.field] * (bar["market_cap"] / scale / total)
-                for bar in bundle.values()
-                if bar["market_cap"] != 0
+            "index": _weighted_average(
+                (
+                    (bar[self.field], bar["market_cap"])
+                    for bar in bundle.values()
+                    if bar["market_cap"] != 0
+                ),
+                scale,
+                total,
             )
         }
 

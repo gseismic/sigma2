@@ -6,7 +6,7 @@ from typing import Any
 from pyta2.base.utils import get_outputs
 from pyta2.utils.vector import VectorTable
 
-from .operator import rOperator
+from .operator import _storage_dtypes, rOperator
 
 
 def forward_step_apply(
@@ -23,12 +23,11 @@ def forward_step_apply(
     schema = None
     missing = None
     if operator.schema is not None:
-        schema = {
-            key: space.dtype if space.null_value is not None else object
-            for key, space in operator.schema.items()
-        }
+        schema = _storage_dtypes(operator.schema)
         missing = {key: space.null_value for key, space in operator.schema.items()}
     outputs = VectorTable(schema=schema)
+    # 在消费输入和推进算子前检查输出格式及所需依赖。
+    get_outputs(outputs, return_type=return_type)
     first_index = None
     for inputs in data:
         previous_index = operator.g_index

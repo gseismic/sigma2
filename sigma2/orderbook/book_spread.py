@@ -19,10 +19,10 @@ class rBookSpread(rOrderBookSignal):
         )
 
     def forward(self, bids, asks) -> dict[str, float]:
-        if not bids or not asks:
+        if len(bids) == 0 or len(asks) == 0:
             return {"spread": float("nan")}
-        best_bid = bids[0][0]
-        best_ask = asks[0][0]
+        best_bid = max(level[0] for level in bids)
+        best_ask = min(level[0] for level in asks)
         return {"spread": float(best_ask - best_bid)}
 
     @property

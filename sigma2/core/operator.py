@@ -10,6 +10,18 @@ from pyta2.utils.deque import DequeTable
 from pyta2.utils.validation import ensure_integer
 
 
+def _storage_dtypes(schema: Schema) -> dict[str, Any]:
+    """为多维输出和可空输出保留对象列。"""
+    return {
+        key: (
+            space.dtype
+            if space.null_value is not None and getattr(space, "shape", ()) == ()
+            else object
+        )
+        for key, space in schema.items()
+    }
+
+
 class rOperator(ABC):
     """有状态逐条算子的通用生命周期。
 
@@ -33,16 +45,16 @@ class rOperator(ABC):
         self.output_keys = (
             tuple(self.schema.keys()) if self.schema is not None else None
         )
-        self.n_backward = ensure_integer(n_backward, "n_backward", min_value=0)
-        self.n_forward = ensure_integer(n_forward, "n_forward", min_value=0)
-        self.buffer_size = ensure_integer(buffer_size, "buffer_size", min_value=-1)
+        self._n_backward = ensure_integer(n_backward, "n_backward", min_value=0)
+        self._n_forward = ensure_integer(n_forward, "n_forward", min_value=0)
+        self._buffer_size = ensure_integer(buffer_size, "buffer_size", min_value=-1)
         # 字段声明仅用于元信息，不参与逐条检查。
         self.used_fields = used_fields
 
         self._outputs = None
         if self.buffer_size != 0:
             maxlen = None if self.buffer_size == -1 else self.buffer_size
-            dtypes = self.schema.get_dtypes() if self.schema is not None else None
+            dtypes = _storage_dtypes(self.schema) if self.schema is not None else None
             self._outputs = DequeTable(maxlen=maxlen, dtypes=dtypes)
 
         # 可变计算状态集中存放，以便重算和重置。
@@ -54,6 +66,18 @@ class rOperator(ABC):
         self._last_observation_id: Any = None
         self.g_index = -1
         self._faulted = False
+
+    @property
+    def n_backward(self) -> int:
+        return self._n_backward
+
+    @property
+    def n_forward(self) -> int:
+        return self._n_forward
+
+    @property
+    def buffer_size(self) -> int:
+        return self._buffer_size
 
     @property
     def min_periods(self) -> int:

@@ -10,7 +10,7 @@ sigma2 为金融市场数据提供有状态的逐条算子。Signal 的结果属
 python -m pip install -e .
 ```
 
-项目依赖固定到 pyta2 提交 `93ab75884e137bc4133b9445bc900a0a8468624c`，安装时需要能够通过 SSH 访问对应仓库。
+项目依赖固定到 pyta2 提交 `65071a84099c30a4d9476c327232da7c057b2caa`，安装时需要能够通过 SSH 访问对应仓库。
 
 ## 单 symbol K 线
 
@@ -56,7 +56,7 @@ MA 及使用 MA 的指标支持 SMA、EMA、WMA、HMA、DEMA、TEMA 和 ZLEMA；
 
 例如，SMA 的 `n=5` 使用当前值及之前 4 个值；EMA 的 `n` 还决定平滑系数，递推状态可能受到更早数据影响。`lag=5` 则比较 `t` 与 `t-5` 两个位置的价格，跨越 6 个逻辑位置；中间价格缺失不改变端点。`lag` 按 K 线或 Bundle 截面推进的步数计算，不代表实际时长，`open_time` 不会自动补齐缺失时点。
 
-`n_backward` 和 `n_forward` 描述算法的时序依赖，`min_periods = n_backward + 1 + n_forward`；不能假定它们与所有指标的 `n` 或 `lag` 相等。多个指标周期按含义命名，例如 MACD 的 `fast`、`slow`、`signal`。KDJ 目前仍使用 `n1`、`n2`、`n3`，其具体命名另行确定。完整规范见[时间参数命名设计](docs/design/time-parameter-naming-20261030-overview.md)。
+`n_backward` 和 `n_forward` 描述算法的时序依赖，`min_periods = n_backward + 1 + n_forward`；不能假定它们与所有指标的 `n` 或 `lag` 相等。它们和 `buffer_size` 在构造时确定，运行中不可修改。多个指标周期按含义命名，例如 MACD 的 `fast`、`slow`、`signal`。KDJ 目前仍使用 `n1`、`n2`、`n3`，其具体命名另行确定。完整规范见[时间参数命名设计](docs/design/time-parameter-naming-20261030-overview.md)。
 
 ## 批量重放
 
@@ -73,7 +73,7 @@ columns, meta = KlineMA(bars, 2, return_meta_info=True)
 print(columns["ma"], meta["full_name"])
 ```
 
-`return_type` 还支持 `tuple`、`list`、`dataframe` 和 `pl.dataframe`。重放时同一未结束观测的多次更新只占一行。`forward_step_apply(bars, operator)` 也可用于自定义算子，并从传入实例的当前状态继续；未声明 schema 的结果按 object 列存储。
+`return_type` 还支持 `tuple`、`list`、`dataframe` 和 `pl.dataframe`。重放时同一未结束观测的多次更新只占一行。`forward_step_apply(bars, operator)` 也可用于自定义算子，并从传入实例的当前状态继续；输出格式和所需依赖会在重放前检查。未声明 schema、多维输出或以 `None` 表示缺失的字段按 object 列存储。
 
 ## 多 symbol 收益率排名
 
@@ -123,13 +123,13 @@ print(market_cap.step(bundle, open_time=1))  # {'index': 125.0}
 print(market_cap.meta_info["used_fields"])   # ('close', 'market_cap')
 ```
 
-固定权重自动归一化，必须非负且至少一个为正。`has_missing=False` 时，调用方保证参与成分的价格完整且为有限数值，市值模式还须保证市值完整、有限且非负；算子直接计算，不逐项检查。数据缺失或无效时，数据源须设置 `has_missing=True`。
+固定权重在计算时归一化，必须非负且至少一个为正；`weights` 属性返回原始正权重成分的副本。`has_missing=False` 时，调用方保证参与成分的价格完整且为有限数值，市值模式还须保证市值完整、有限且非负；算子直接计算，不逐项检查。数据缺失或无效时，数据源须设置 `has_missing=True`。
 
 `has_missing=True` 时，固定权重模式检查正权重成分，缺少成分、标记缺失或价格无效则返回 NaN；缺失的非成分不影响结果。市值模式直接返回 NaN，因为算子无法推断没有传入的 symbol；市值模式的空截面和全部市值为零也返回 NaN。零权重或零市值不参与加权，固定权重中没有的 symbol 不影响结果。
 
 结果与价格单位相同，不使用基点。市值和成分变化会影响结果，所以它不能直接当作只反映价格涨跌的收益指数。批量入口分别为 `KlineBundleFixedWeightIndex` 和 `KlineBundleMarketCapWeightedIndex`；完整示例见 `examples/402_bundle_weighted_index.py`。
 
-已知限制：权重数量级极端时，归一化可能发生下溢，导致数值贡献丢失；固定权重模式仍保留原始正权重成分用于缺失检查。
+权重比例或价格贡献极小时，使用精确分数累计这些贡献，再转成浮点；最终输出仍受浮点数的表示范围和舍入限制。
 
 ## 未来结果
 
@@ -158,6 +158,8 @@ print(spread.step(bids=[(100, 2)], asks=[(101, 1)]))  # {'spread': 1.0}
 volume = rTradeSignedVolume()
 print(volume.step(price=100, volume=3, side="sell"))  # {'signed_volume': -3.0}
 ```
+
+盘口价差使用最高买价和最低卖价，档位不必预先排序；任一侧为空时返回 NaN。
 
 自定义算子继承数据类型对应的基类并实现 `forward`，返回字典即可。需要保存的可变计算状态应放入 `self._state` 并通过它读取，基类负责初始状态、重算和 `reset()`；状态中的对象需要支持深复制。实例不保证并发或重入安全。可用 `schema`、`n_backward`、`buffer_size` 和 `used_fields` 指定元信息与缓存；不指定 schema 时，输出字段由首次结果确定，缓存使用 object 类型。
 

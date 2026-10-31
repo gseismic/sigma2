@@ -149,3 +149,7 @@ core 与 `rKlineMA` 的新接口和设计取舍见 `docs/design/kline-step-core-
 | 更新时间 | 计划文件 | 结果文件 | 摘要 |
 | --- | --- | --- | --- |
 | 2026-10-30 15:34 CST | `PLAN-048-simplify-weighted-index.md` | `PLAN-048-simplify-weighted-index-OUTCOME.md` | 加权指数拆成固定权重和实时市值两个类及批量入口，完整截面不逐项校验；静态检查通过，未运行测试或示例。 |
+
+| 更新时间 | 计划文件 | 结果文件 | 摘要 |
+| --- | --- | --- | --- |
+| 2026-10-30 16:33 CST | `PLAN-049-fix-review-findings.md` | `PLAN-049-fix-review-findings-OUTCOME.md` | 修复审查指出的配置、缓存、依赖、重放、盘口和权重精度问题；静态检查通过，未运行测试或示例。 |

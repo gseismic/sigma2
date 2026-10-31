@@ -11,7 +11,7 @@ requires-python = ">=3.10"
 dependencies = [
     "numpy>=1.24",
     "scipy>=1.10",
-    "pyta2 @ git+ssh://git@github.com/gseismic/pyta2.git@93ab75884e137bc4133b9445bc900a0a8468624c",
+    "pyta2 @ git+ssh://git@github.com/gseismic/pyta2.git@65071a84099c30a4d9476c327232da7c057b2caa",
 ]
 
 [project.optional-dependencies]
