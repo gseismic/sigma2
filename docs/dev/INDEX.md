@@ -186,3 +186,4 @@ core 与 `rKlineMA` 的新接口和设计取舍见 `docs/design/kline-step-core-
 | 更新时间 | 计划文件 | 结果文件 | 摘要 |
 | --- | --- | --- | --- |
 | 2026-11-12 01:20 CST | `PLAN-053-family-base-layout.md` | `PLAN-053-family-base-layout-OUTCOME.md` | 将 K 线截面、盘口与成交基础类迁入各自 base，并增加 utils 模块、路径迁移说明；保留入口契约和聚合导出，静态检查通过。 |
+| 2026-11-12 01:22 CST | `PLAN-054-generic-bundle.md` | `PLAN-054-generic-bundle-OUTCOME.md` | 实现通用 Bundle Signal 和独立输入入口，允许具体算子定义 value 和时间粒度，保留 K 线截面原入口；静态检查通过。 |

@@ -86,6 +86,26 @@ print(columns["ma"], meta["full_name"])
 
 `return_type` 还支持 `tuple`、`list`、`dataframe` 和 `pl.dataframe`。每条成功处理的输入对应一行。`forward_step_apply(bars, operator)` 也可用于自定义算子，并从传入实例的当前状态继续；输出格式和所需依赖会在重放前检查。批量整理过程中发生异常时，之前成功处理的输入已经推进算子。未声明 schema、多维输出或以 `None` 表示缺失的字段按 object 列存储。
 
+## 通用多 symbol 输入
+
+`rBundleSignal` 用于自定义多 symbol 信号，输入是 `{symbol: value}`；每个具体算子定义 value 的格式以及一次调用表示的采样、盘口快照或成交窗口。基类不校验、转换或自动同步数据。例如数值截面可以这样定义：
+
+```python
+from sigma2 import rBundleSignal
+
+class rCrossSectionTotal(rBundleSignal):
+    def forward(self, bundle, *, time=None):
+        return {"total": sum(bundle.values())}
+
+total = rCrossSectionTotal()
+total.step({"BTC": 1.5, "ETH": 2.0}, time=0)  # {'total': 3.5}
+total.step({}, time=1)  # {'total': 0}；空截面仍推进一步
+```
+
+盘口算子可以接收 `{symbol: book}`，成交窗口算子可以接收 `{symbol: trades}`。空成交列表只有在该算子约定下才表示已知窗口无成交；没有收到数据不应自动解释为空列表。`time` 是调用方提供的标签，不用于排序或去重；每次成功调用均推进一步。
+
+输入在调用期间按只读借用，算子需要跨调用保留数据时应复制所需内容；调用方可在调用结束后复用输入。返回结果及缓存可能共享嵌套对象，算子发布后和调用方读取时都应按只读使用；要修改时自行复制。已有 K 线截面入口继续使用扁平 Bar 和 `open_time`、`has_missing`。
+
 ## 多 symbol 收益率排名
 
 `rKlineBundleReturnRank` 按每个 symbol 的 `lag` 步收盘收益率排名，收益率为 `close_t / close_(t-lag) - 1`：

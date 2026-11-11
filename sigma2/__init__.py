@@ -9,6 +9,7 @@ from pyta2.utils.space import Box, Scalar, Space
 from .core import forward_step_apply, rOperator, rOutcome, rSignal
 
 _GROUPS = {
+    "bundle": ("rBundleSignal",),
     "kline": (
         "KlineATR",
         "KlineBoll",
