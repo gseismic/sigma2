@@ -20,7 +20,7 @@ Signal 只能使用当前及以前的数据。Outcome 的 `n_forward` 是固定�
 - 可在构造函数通过 `super().__init__` 指定 `schema`、`n_backward`、`buffer_size` 和 `used_fields`；Outcome 还需提供 `n_forward`。`used_fields` 根据构造参数声明，只用于元信息。
 - 子指标、输入窗口和递推数值使用普通实例属性。历史修订或计算失败时新建实例并重放；不要求对象支持深复制。
 - `schema` 可使用 pyta2 `Space`；省略时按首个结果固定字段，缓存为 object 类型。输出必须是字典，键与 schema 一致。
-- K 线缺失由 `is_missing=True` 表示；算法使用可选 volume 时应处理 `None`。上游负责输入格式，不能添加逐字段必需检查。
+- 单 K 线的 `is_missing` 原样传给 `forward()`，基类不自动改写价格；上游使用 NaN 表示缺失字段，自定义算子可自行解释标记。算法使用可选 volume 时应处理 `None`；上游负责输入格式，不能添加逐字段必需检查。
 - `n_backward` 不含结果位置，`min_periods = n_backward + 1 + n_forward`。只保留算法实际需要的输入窗口；pyta2 的缺失处理交由 pyta2 自身负责。
 - 单周期技术指标使用 `n`；过去端点与当前观测相隔的步数使用 `lag`，调用参数和实例属性统一命名。多个指标周期按含义区分；时间参数说明见仓库 README。
 - 对外批量函数创建 `buffer_size=0` 的实例后调用 `forward_step_apply`，不要维护第二套公式；Outcome 的批量结果按锚点对齐。

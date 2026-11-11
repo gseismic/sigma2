@@ -19,10 +19,6 @@ class _KlineStep:
         open_time=None,
         is_missing=False,
     ) -> dict[str, Any]:
-        if not isinstance(is_missing, bool):
-            raise TypeError("is_missing 必须是布尔值")
-        if is_missing:
-            open = high = low = close = volume = float("nan")
         return super().step(
             open,
             high,

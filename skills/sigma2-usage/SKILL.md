@@ -21,7 +21,7 @@ description: 回答 sigma2 的安装、单 K 线、截面收益率排名与加�
 
 ## 关键使用契约
 
-- 单 K 线使用 `step(open, high, low, close, volume=None, *, open_time=None, is_missing=False)`；每次处理一根新 K 线，上游负责提供已确定、按顺序且去重的数据。`open_time` 不用于检查观测身份。
+- 单 K 线使用 `step(open, high, low, close, volume=None, *, open_time=None, is_missing=False)`；每次处理一根新 K 线，上游负责提供已确定、按顺序且去重的数据。`open_time` 不用于检查观测身份；输入字段和 `is_missing` 原样传给算子，上游应使用 NaN 表示缺失字段。
 - K 线截面使用 `step(bundle, *, open_time=None, has_missing=False)`；`rKlineBundleReturnRank(lag=1)` 按 `close_t / close_(t-lag) - 1` 升序稳定排名，输出 `{"rank": {symbol: rank}}`；相同收益率按当前 Bundle 的输入顺序分配不同名次。历史不足、端点价格缺失或参考价格为零时为 NaN；每次 step 推进共同时间位置。
 - 单周期技术指标使用 `n`；`rKlineReturn` 和截面收益率排名使用 `lag` 表示参考观测相隔的逻辑步数。`n_backward`、`n_forward` 描述时序依赖，`history_window` 和 `buffer_size` 分别表示输入历史与输出缓存。
 - `rKlineBundleFixedWeightIndex(weights)` 使用固定成分权重，`weights` 属性返回原始正权重副本；`rKlineBundleMarketCapWeightedIndex()` 使用当前 Bundle 各 symbol 的 `market_cap`。输出 `{"index": ...}`，是价格加权平均值，不是基点收益指数。`has_missing=False` 由调用方保证参与数据完整有效，算子不逐项校验；`has_missing=True` 时，固定模式仅在实际成分缺失或价格无效时返回 NaN，市值模式直接返回 NaN。

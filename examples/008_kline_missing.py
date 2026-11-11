@@ -5,14 +5,16 @@ from sigma2 import rKlineMA
 
 def main() -> None:
     ma = rKlineMA(2, field="volume")
+    missing = float("nan")
     bars = [
         {"open": 10, "high": 10, "low": 10, "close": 10, "volume": 100, "open_time": 0},
         {"open": 11, "high": 11, "low": 11, "close": 11, "open_time": 1},
         {
-            "open": 0,
-            "high": 0,
-            "low": 0,
-            "close": 0,
+            "open": missing,
+            "high": missing,
+            "low": missing,
+            "close": missing,
+            "volume": missing,
             "open_time": 2,
             "is_missing": True,
         },

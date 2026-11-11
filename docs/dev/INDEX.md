@@ -165,3 +165,11 @@ core 与 `rKlineMA` 的新接口和设计取舍见 `docs/design/kline-step-core-
 | 更新时间 | 计划文件 | 结果文件 | 摘要 |
 | --- | --- | --- | --- |
 | 2026-11-11 21:05 CST | `PLAN-051-kline-base-utils.md` | `PLAN-051-kline-base-utils-OUTCOME.md` | 将 K 线共享输入和基类归入 `base/`、pyta2 桥接归入 `utils.py`；更新内部导入及说明，保留聚合入口并移除旧深层路径；静态检查通过，未运行测试或示例。 |
+
+## 2026-11-11 单 K 线缺失输入约定
+
+当前单 K 线的输入透传和缺失值约定见 `docs/design/kline-missing-input-20261111-overview.md`；此前各设计中基类自动处理整根缺失 K 线的描述属于历史行为。
+
+| 更新时间 | 计划文件 | 结果文件 | 摘要 |
+| --- | --- | --- | --- |
+| 2026-11-11 21:45 CST | `PLAN-052-kline-input-minimal.md` | `PLAN-052-kline-input-minimal-OUTCOME.md` | 单 K 线基类不再校验缺失标记或自动替换 OHLCV；保留 `super()` 生命周期调用及基类导出，更新缺失输入说明和示例；静态检查通过，未运行测试或示例。 |

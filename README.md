@@ -26,7 +26,7 @@ print(ma.step(30, 40, 30, 40, open_time=2))  # {'ma': 30.0}
 print(ma.g_index, ma.meta_info["used_fields"])  # 2 ('close',)
 ```
 
-`step(open, high, low, close, volume=None, *, open_time=None, is_missing=False)` 中，OHLC 必须提供，`volume` 可以省略；时间和缺失标记使用关键字。`is_missing=True` 表示整根 K 线缺失；选择成交量作为计算输入时，`volume=None` 也作为缺失值。数据格式由上游保证，`used_fields` 是元信息，不参与逐条校验。
+`step(open, high, low, close, volume=None, *, open_time=None, is_missing=False)` 中，OHLC 必须提供，`volume` 可以省略；时间和缺失标记使用关键字。输入字段和 `is_missing` 原样传给 `forward()`，基类不校验标记或自动替换字段。现有内置单 K 线算子不依据 `is_missing` 忽略价格；上游需要用 NaN 表示缺失字段，自定义算子也可以自行解释该标记。选择成交量作为计算输入时，`volume=None` 也作为缺失值。数据格式由上游保证，`used_fields` 是元信息，不参与逐条校验。
 
 每次 `step()` 都处理一根新 K 线。上游须按顺序提供已确定的数据，并过滤同一根 K 线的盘中更新和重复消息；`open_time` 不用于检查重复或顺序。历史数据修订时，创建新实例并从可靠数据重放。各实例独立处理一条 symbol 数据流。
 
