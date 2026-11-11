@@ -1,301 +1,285 @@
-# 通用多 symbol Bundle 与输入 schema 设计
+# 多 symbol Bundle 与按数据类型组织的输入设计
 
 - 创建时间：2026-11-11 22:08 CST
-- 状态：设计草案，供评审；尚未实施。
-- 范围：通用 Bundle 的输入和生命周期、输入 schema、现有 K 线截面算子的迁移。
+- 修订日期：2026-11-12
+- 状态：完成本轮设计优化，尚未实施运行时代码。
+- 范围：Bundle 输入模型、各数据包的职责、高频 K 线入口、时间粒度、缺失和迁移边界。
+- 配套设计：[core 与输入 schema](core-input-schema-20261112-overview.md)。本文件替代原稿中的通用入口、schema 实现和目录迁移建议。
 
-## 1. 背景和目标
+## 1. 目标与本轮澄清
 
-当前 `sigma2.kline_bundle` 的共同入口实际只把 symbol 到数据的映射交给 core，但名称、`open_time` 和基类限定在 K 线。盘口快照、多 symbol 成交以及跨品种信号也需要类似的截面入口。用户希望简化这一层，用 `bundle` 支持多种数据，并能通过类查询输入字段及其类型。
+工作区 `GOAL.md` 指定：sigma2 是按数据分类的量化交易信号库；core 是共同核心，每种 `step(self, ...)` 输入契约对应自己的数据目录，各数据包提供 `base/` 和 `utils.py`。其列举的现有类型包括 kline、trade、orderbook、kline-bundle。
 
-本设计采用用户选择的方向：**每次 `step()` 输入一个多 symbol 截面**。Bundle 只负责组织多个 symbol 的数据；各 symbol 的具体内容由使用它的算子说明。数据来源负责截面构造、时间对齐、完整性和去重，Bundle 不自动推断或转换数据。
+本轮进一步明确：
 
-这里的 Bundle 是一种**输入组织方式**，不是只能容纳 K 线的新行情记录类型。一个算子仍应明确它需要的是 K 线、盘口、成交序列还是组合记录，以便调用方知道怎样构造输入。
+1. Bundle 表达多 symbol，不规定每个 symbol 对应 value 的字段。
+2. “支持 kline、trade、orderbook 等”指支持多种输入格式，不要求一次输入同时包含这些数据。
+3. 各类数据的粒度不同；Bundle 不把 K 线、盘口、逐笔成交强制同步为同一种观测。
+4. K 线使用频率最高，不能为了通用性要求额外的 `kline` 包装层、模式参数或输入对象。
 
-## 2. 代表性使用场景
+因此，Bundle 的共同结构只有 `Mapping[str, T]`。具体算子规定 `T` 的结构和一次调用的业务含义。相同的外层结构不代表相同的字段、时间粒度或缺失规则。
 
-| 场景 | 输入 | 期望 |
-| --- | --- | --- |
-| K 线截面收益率排名 | 多个 symbol 的 K 线字段 | 每次推进一个共同截面，沿用 `lag` 步和现有缺失规则。 |
-| 固定权重价格指数 | K 线字段与构造时给定的权重 | 保留当前对成分和 `has_missing` 的约定。 |
-| 实时市值加权指数 | 每个 symbol 的价格和 `market_cap` | 保留当前市值、缺失和精度语义。 |
-| 盘口价差比较 | 每个 symbol 的 `bids`、`asks` | 一次返回各 symbol 的价差或截面统计。 |
-| 最近成交价截面 | 每个 symbol 的一条最近成交 | 用于价格比较；不把重复出现的成交自动当作新成交。 |
-| 时段成交量比较 | 每个 symbol 在一个时段内的成交序列 | 每个序列由上游按约定分窗并排序；空序列与未知数据区分。 |
-| 联合盘口与成交 | 每个 symbol 对应一个包含两类数据的组合记录 | 由具体算子声明结构；上游负责同一截面的时间口径。 |
-| 查询输入 | 通过算子类查询字段、类型、参数种类和嵌套结构 | 不需要实例化，也不触发逐条校验。 |
-| 自定义截面 Outcome | 一次输入一个截面，等待后续截面 | 结果属于固定步数之前的锚点截面。 |
+本轮不设计包含多种数据源的组合记录，也不建设跨数据源对齐器。以后确有联合计算需求时，另行确定输入与可得性契约；本轮的容器并不禁止自定义复杂 value，但不据此提前增加公共接口。
 
-## 3. 方案比较
+## 2. 用户与代表性场景
 
-| 方案 | 优点 | 问题与决定 |
-| --- | --- | --- |
-| 为 K 线、盘口、成交分别建立 Bundle 基类 | 每种输入的名称和字段直观 | 多份基类重复表达同一种多 symbol 截面；新增数据种类继续复制，暂不采用。 |
-| 一个通用 Bundle，根据字典字段自动判断数据类型 | 使用时不用声明类型 | 字段可能重叠，混合记录和空截面无法可靠识别；隐式推断不采用。 |
-| 一个通用 Bundle 基类，具体算子声明每个 symbol 的数据结构 | 入口浅，支持复用和不同数据；允许列表及组合记录 | 需要描述具体内容；**采用**。 |
-| 把逐笔事件流、跨 symbol 对齐和截面都纳入 Bundle | 接入事件源看似方便 | 引入缓存、分窗、迟到事件和同步状态；超出信号库的共同输入职责，不采用。 |
+频次为本轮需求的设计排序，不是运行统计。
 
-## 4. Bundle 的输入模型
+| 场景 | 频次 | 用户希望提供什么 | 设计要求 |
+| --- | --- | --- | --- |
+| 单 symbol K 线指标 | 最高 | 原有 OHLCV 参数 | 保持现有 `rKlineX.step()`。 |
+| 多 symbol K 线排名 | 高 | `{symbol: bar}` | 直接传 Bar 字段，不再包 `kline`。 |
+| 固定权重和市值加权 | 高 | `{symbol: bar}` 及现有配置 | 保持公式、成员和缺失行为。 |
+| 自定义 K 线截面 | 中 | 同一种 Bar 结构 | 继承 K 线截面基类，只实现 `forward()`。 |
+| 多 symbol 盘口采样 | 中 | `{symbol: book}` | 盘口字段由算子声明，不要求 OHLCV。 |
+| 多 symbol 成交窗口 | 中 | `{symbol: trades}` | 每个 value 是已分窗的序列；空序列有明确含义。 |
+| 数值截面 | 中 | `{symbol: number}` | 不为一个数字构造行情记录。 |
+| 查询输入格式 | 中 | 算子类 | 不实例化即可查参数、字段和类型。 |
+| 自定义未来截面结果 | 低 | 按固定粒度推进的截面序列 | 明确历史锚点和成员归属，有需求再实现基类。 |
+
+调用接口面向使用者，优先表达业务输入；core、输入描述和缓存接口面向扩展作者，优先明确状态、类型和所有权。
+
+## 3. 输入模型方案比较
+
+| 方案 | 优点 | 代价 | 决定 |
+| --- | --- | --- | --- |
+| 所有 value 固定为 OHLCV | K 线容易理解 | 无法自然表达盘口、成交序列和数值 | 不采用。 |
+| 所有 value 都是 `{kline, trade, orderbook}` | 可表达联合来源 | 高频 K 线多一层；不同粒度需要额外同步；不符合本轮意图 | 不采用。 |
+| 外层固定 symbol 映射，value 由具体算子声明 | K 线保持扁平，其他格式自然可达 | 每个算子必须交代输入和粒度 | **采用**。 |
+| 传入任意结构，由基类按字段自动判断格式 | 表面上不用声明 | 空输入、字段重名和不完整记录无法可靠判断 | 不采用。 |
+| 自动接收逐笔流、缓存并生成各类截面 | 接入层似乎更方便 | 引入同步、分窗、乱序和迟到数据状态 | 不属于信号库本轮职责。 |
+
+通用性来自不同算子可以使用不同的 `T`，不来自一个算子在运行中任意切换 value 格式。一个算子的输入结构应稳定；可选字段、可空值由该算子声明。
+
+## 4. 调用方式：先保证 K 线简单
+
+### 4.1 现有高频入口保持不变
 
 ```python
-bundle = {
-    "BTC": payload_for_btc,
-    "ETH": payload_for_eth,
-}
+from sigma2 import rKlineMA, rKlineBundleReturnRank
+
+ma = rKlineMA(5)
+ma.step(100, 103, 99, 102, 10, open_time=0)
+
+rank = rKlineBundleReturnRank(lag=1)
+rank.step({"BTC": {"close": 100}, "ETH": {"close": 200}}, open_time=0)
+result = rank.step(
+    {"BTC": {"close": 110}, "ETH": {"close": 190}},
+    open_time=1,
+)
+# result == {"rank": {"BTC": 2, "ETH": 1}}
 ```
 
-- 容器使用普通 `Mapping[str, Any]`，键是上游提供的 symbol；不要求构造专门的 Bundle 对象。
-- 单次输入中每个 value 的结构由具体算子约定。value 可以是 K 线字典、盘口字典、一条成交、成交序列，或明确声明的组合记录；基类不按字段猜测数据类型。
-- 同一个算子应对各 symbol 使用它声明的同一种 value 结构。组合记录可同时包含 `kline`、`orderbook`、`trades`，但对应数据的拼接与对齐仍由上游完成。
-- 未出现的 symbol 可能是未选入本次截面，也可能是缺失；通用 Bundle 不推断原因。具体算子若有固定成分或其他约束，应单独说明。
-- 知道某 symbol 在一个成交窗口内**没有成交**时可以传 `[]`；没有收到该 symbol 的数据不能静默转换为 `[]`，其语义由数据源和具体算子约定。
-- `is_missing` 等 value 内部字段没有全局魔法。现有 K 线收益率排名按自己的规则检查 Bar 的 `is_missing`；通用 Bundle 不替所有算子检查或改写它。
-- 跨交易所、重名代码的标识应由上游统一，例如使用带市场前缀的 symbol。Bundle 不内建符号解析或资产目录。
+不要求构造 `Bundle` 实例、传 `data_type="kline"`、写 `{"kline": bar}`，也不要求先查询 schema。已有类名、批量函数名、根级导出和 K 线时间参数继续使用。
 
-下面只是输入形状示例，不代表新增了这些算子：
+### 4.2 不同格式的 Bundle
+
+以下只是输入结构，不代表增加了对应内置算子：
 
 ```python
-# 每个 symbol 是一份盘口快照。
+# K 线：value 是一份 Bar。
+klines = {"BTC": {"close": 100}, "ETH": {"close": 200}}
+
+# 盘口：value 是一份盘口快照。
 books = {
-    "BTC": {"bids": [(99.0, 2.0)], "asks": [(101.0, 1.0)]},
-    "ETH": {"bids": [(49.0, 1.0)], "asks": [(50.0, 3.0)]},
+    "BTC": {"bids": [(99, 2)], "asks": [(101, 1)]},
+    "ETH": {"bids": [(49, 1)], "asks": [(50, 3)]},
 }
 
-# 每个 symbol 是一个窗口中的成交序列；ETH 已知无成交。
+# 成交窗口：value 是一个窗口内已排序的成交序列。
 trades = {
-    "BTC": [
-        {"price": 100.0, "volume": 2.0, "side": "buy"},
-        {"price": 101.0, "volume": 1.0, "side": "sell"},
-    ],
+    "BTC": [{"price": 100, "volume": 2, "side": "buy"}],
     "ETH": [],
 }
+
+# 数值截面：value 也可以直接是数字。
+values = {"BTC": 0.03, "ETH": -0.01}
 ```
 
-盘口档位顺序不由 Bundle 改写。成交是事件，不是天然连续的状态：最新成交截面可以在多个时点重复出现同一成交；窗口序列则应明确窗口边界、事件顺序和是否允许重叠。把重复成交重复累计、把无成交误认为缺失，都会改变因子含义，应由具体算子和上游协议避免。
+每种结构交给接受该结构的算子。基类不将它们互相转换；也不以首个 symbol 的 value 推断其余 value 类型。
 
-## 5. 基类接口与生命周期
+### 4.3 通用基类与专用入口
 
-建议使用与数据类型无关的入口：
+入口方案比较：
+
+| 方案 | 影响 | 决定 |
+| --- | --- | --- |
+| 全部算子迁到一个含所有可选参数的签名 | K 线缺失标记泄漏给其他数据；新增格式不断增加参数 | 不采用。 |
+| 全部强制改成 `step(bundle, *, time=None)` | 通用入口很小，但当前 K 线完整性信息无处表达 | 不直接替换现有 K 线入口。 |
+| 保留高频专用入口，新增最小通用入口 | 少量签名转发重复，用户不用迁移高频调用 | **采用**。 |
+
+目标通用入口为：
 
 ```python
 from collections.abc import Mapping
 from typing import Any
 
+from sigma2.core import rSignal
+
+
 class _BundleStep:
     family = "bundle"
 
     def step(
-        self,
-        bundle: Mapping[str, Any],
-        *,
-        time: Any = None,
-        has_missing: bool = False,
+        self, bundle: Mapping[str, Any], *, time: Any = None
     ) -> dict[str, Any]:
-        return super().step(bundle, time=time, has_missing=has_missing)
+        return super().step(bundle, time=time)
 
 class rBundleSignal(_BundleStep, rSignal):
     pass
-
-class rBundleOutcome(_BundleStep, rOutcome):
-    pass
 ```
 
-代码表达目标结构，尚未实现。`rBundleSignal` 和未来需要时的 `rBundleOutcome` 共享同一个输入层，分别继承 core 的 Signal 和 Outcome 生命周期；具体算子只需实现相同参数的 `forward()`。它们和现有 K 线因子均通过 `rOperator.step()` 推进，`forward_step_apply()` 也逐条调用该入口。当前没有 Bundle Outcome 因子，不必仅为对称性提前建立空实现。
+这是拟议接口，尚未实现。运行时 value 使用 `Any` 不表示所有算子都接受任何内容；具体类的输入 schema 和文档描述其 `T`。不为每种 `T` 建立动态注册表或工厂。
 
-| 参数 | 含义 |
-| --- | --- |
-| `bundle` | 必需；symbol 到算子所需记录或记录序列的映射，可按位置或关键字传入。 |
-| `time` | 可选且只能按关键字传入；本截面的时间标签，由调用方约定具体口径。 |
-| `has_missing` | 可选且只能按关键字传入；上游报告截面存在缺失或无效输入时为真。 |
-
-`time` 使用中性名称以支持多种数据。保留 `open_time` 作为所有 Bundle 的共同参数会把 K 线术语带入盘口和成交；同时维护 `time` / `open_time` 两套别名会增加冲突规则。本设计推荐统一 `time`，并在迁移中明确现有调用需要更名。
-
-例如，现有收益率排名迁移后的调用可以保持简短：
+现有 K 线截面入口继续是：
 
 ```python
-# 以下是目标接口示意；当前代码仍使用 open_time。
-rank = rKlineBundleReturnRank(lag=1)
-rank.step({"BTC": {"close": 100}, "ETH": {"close": 200}}, time=0)
-rank.step({"BTC": {"close": 110}, "ETH": {"close": 190}}, time=1)
-# 第二次结果：{"rank": {"BTC": 2, "ETH": 1}}
+step(bundle, *, open_time=None, has_missing=False)
 ```
 
-### 时间和可得性
+`rKlineBundleSignal` 和 `rBundleSignal` 都复用 `rSignal`、`rOperator`，分别通过自己的输入层转交参数。K 线入口不必继承通用 Bundle 基类：二者参数不同，强行建立该继承关系会引入参数翻译和缺失信息传递。十余行转发的重复小于隐藏协议的成本。
 
-1. 每次 `step()` 推进一个截面；`g_index` 和 `lag` 表示逻辑步数，不是实际时长。相同 `time` 的两次调用仍是两次观测。
-2. `time` 只是标签，不自动排序、去重、补齐时点、判断数据是否过期或推断真实可得时间。需要规律时间轴的因子由上游按约定提供截面，包括必要的空截面。
-3. 上游确定截面点或窗口边界，以及每个 symbol 的事件时间、接收时间和可使用时间。对研究或回测而言，只能使用决策时已经可得的数据；以 K 线开盘时间标记的最终收盘价不意味着开盘时已经可用。
-4. 对最新盘口或最新成交，上游应明确允许的陈旧程度；对成交窗口，应明确窗口是否重叠。Bundle 不前向填充，也不负责把窗口变成逐笔事件流。
+自定义算子通常只实现所选基类对应的 `forward()`。需要不同时间或输入参数的另一种稳定协议时，在自己的数据包中定义入口，不向所有算子增加 `**metadata`。
 
-### 缺失和输出
+现阶段只增加有明确扩展用途的通用 Signal 入口；`rBundleOutcome` 在出现具体 Outcome 需求时再增加，并复用同一个 `_BundleStep`。
 
-- `has_missing=False` 不是自动证明所有市场 symbol 都已到齐；具体算子可以要求调用方保证所需范围完整。`True` 只能表示上游报告有缺失，不能推断缺少哪个 symbol 或字段。
-- 通用基类不校验类型、不自动填充、不修改 value；各算子自行规定空截面、缺失字段和无效值如何计算。现有固定权重和市值加权类继续维持各自的分支行为。
-- Signal 结果属于当前截面；Outcome 的 `result_index = g_index - n_forward`，结果属于历史锚点截面。成员变化时如何对齐锚点成员由具体 Outcome 定义，不能默认套用当前成员。
-- 结果仍是以输出字段为键的字典。例如横截面结果可为 `{"spread": {"BTC": 2.0, "ETH": 1.0}}`，聚合结果可为 `{"index": 150.0}`。结果、schema 和缓存规则继续由 core 管理；嵌套可变结果可能与缓存共享引用，应视为只读。
-- 批量使用 `forward_step_apply()`，每条输入为 `{"bundle": ..., "time": ..., "has_missing": ...}`，只返回本次输入范围并沿用 Outcome 对齐；不引入第二套 Bundle 批处理框架。时间标签不会自动成为结果索引。
-- 基类不为每个 symbol 自动保存子算子或整份历史，额外状态由具体算子决定。已有输出缓存仍可能持有结果引用；计算失败后实例按 core 规则锁定，需要新建实例并重放。实例不保证并发或重入安全。
+## 5. 时间粒度：共同推进规则，各自业务单位
 
-## 6. 输入 schema
+| 输入类别 | 一次 `step()` 的含义 | 上游应说明 |
+| --- | --- | --- |
+| K 线截面 | 同一周期的一轮 Bar | 周期、缺席成员、已确认数据和时间轴。 |
+| 盘口截面 | 某次决策或采样时可用的盘口集合 | 采样规则、允许陈旧程度、各记录的可得性。 |
+| 最近成交截面 | 各 symbol 当时已知的最近一笔成交 | 同一成交可能重复出现，不等同于新增成交事件。 |
+| 成交窗口截面 | 各 symbol 在某个窗口内的成交序列 | 窗口边界、开闭区间、排序和是否重叠。 |
+| 数值截面 | 一次采样中的数值集合 | 数值的来源和时间口径。 |
 
-### 为什么独立于输出 schema
+所有算子共享的规则仅为：一次成功 `step()` 推进一个逻辑位置。`lag=5` 表示该算子输入序列的五步，不统一解释成五根 K 线、五秒或五笔成交。
 
-当前 `rOperator.schema` 是输出 schema，使用 pyta2 的 `Schema` / `Space`；它的字段值必须是 `Space`，不直接描述 `step()` 的参数种类或 symbol 到嵌套记录的映射。本设计使用独立的 **`input_schema()`** 描述输入，保留现有输出 `schema` 的含义。
+- `time` / `open_time` 是所属入口的时间标签，core 不根据它们排序、去重、补时点或检查可得性。相同标签调用两次仍推进两步。
+- 需要规则时间轴的算子由上游按规则提交，包括必要的空截面；不提交和提交空截面不同。
+- K 线按一分钟推进，盘口按另一采样频率推进，成交按自己的窗口推进；它们不需要共用一条时间轴。
+- 一个截面内部是否要求事件时间完全相等，由具体算子决定。盘口采样通常表达同一决策时点的可用状态，不意味着每个盘口的最近更新时间相同。
+- 最新成交重复出现在多个截面时，不能自动当成多笔成交累计。计数类算子优先接收不重叠的窗口；特殊去重由具体算法或上游承担。
+- 最终收盘价的开盘时间标签不代表该价格在开盘时已可得；研究和回测由上游保证使用当时可得的数据。
 
-### 类级接口
+## 6. 成员与缺失
+
+通用基类不定义保留字段，不校验行情、不改写值，不推断完整成员集合。每个具体算子必须说明计算范围、缺失表达和输出影响。
+
+| 情况 | 通用层可以知道什么 | 具体算子需要规定什么 |
+| --- | --- | --- |
+| symbol 未出现 | 该键不在本次输入 | 未选入还是所需成员缺失；不能无依据推断。 |
+| 空映射 `{}` | 本次没有提供成员，仍推进一步 | 输出空映射、NaN 或输入错误。 |
+| value 为 `None` | 调用方提供了一个空值 | 是否接受整份记录未知；基类不会自动替换为字典。 |
+| 某字段为 None/NaN 或字段缺省 | 具体 payload 的信息 | 是否视为缺失、忽略还是错误。 |
+| 成交序列 `[]` | 若契约如此约定，已知窗口内无成交 | 不能把未收到数据静默变成空序列。 |
+| value 带 `is_missing` | 普通字段 | 只有声明消费它的算子才解释它。 |
+
+`has_missing` 不进入新的通用 Bundle 签名。它在现有 K 线入口中的含义保留：
+
+| 现有算子 | 成员范围 | 现有行为，迁移不得改变 |
+| --- | --- | --- |
+| 收益率排名 | 当前输入成员，参考共同时间轴上的历史截面 | 忽略全局 `has_missing`；按各 Bar 的标记、close 和参考端点判断；无效成员排名为 NaN。 |
+| 固定权重指数 | 构造时正权重成员 | 标记为真时检查所需成员并在缺失时返回 NaN；为假时信任调用方保证输入有效。 |
+| 市值加权指数 | 调用方提供且声明完整的当期集合 | 标记为真时返回 NaN；为假时直接计算；空集合或全零市值返回 NaN。 |
+
+这些是已有算法契约，不是推荐所有新算子采用的通用缺失模式。未来要改变 K 线缺失 API，应单独评估调用方和性能，不随目录整理改变。
+
+## 7. 所有权、输出和状态
+
+1. 输入在本次同步调用期间只读借用。调用方在调用期间不得并发修改，算子不得原地修改。基类不做深复制。
+2. 调用结束后，调用方可以复用原输入。算子若跨调用保存历史，负责提取数值或保存必要的独立快照，不能仅保存随后会被外部改写的嵌套引用。当前排名保存自己的 close 字典，符合这一规则。
+3. `forward()` 返回字段字典。顶层字段在输出 schema 或首次结果中确定，后续固定；嵌套的 symbol 集合可以随截面变化。
+4. 输出沿用 `{"rank": {symbol: rank}}`、`{"index": value}` 等形式。嵌套对象可能与在线缓存和批量结果共享引用，调用方应只读使用；需要修改时自行复制。算子发布结果后也不得在后续调用中原地改写已发布的可变内容。
+5. Signal 属于当前截面。将来 Outcome 按 `result_index = g_index - n_forward` 归属历史锚点，其成员应由该具体算法按锚点定义，不能直接借用当前成员。
+6. 不自动为每个 symbol 创建子算子、保存全量历史或前向填充。额外状态由算法持有，历史窗口按共同截面而非各成员出现次数推进。
+7. 实例不支持并发或重入；计算、输出检查和在线缓存失败后按 core 规则锁定，新建实例并重放。
+
+批量仍使用 `forward_step_apply()`：K 线输入行保留 `bundle/open_time/has_missing`，通用 Bundle 输入行使用 `bundle/time`。每行调用对应实例的实际 `step()`，不引入第二套 Bundle replay。时间标签不自动成为结果索引。
+
+## 8. 输入 schema 与实际需求
+
+保留无须实例化的查询入口：
 
 ```python
 rKlineSignal.input_schema()
-rBundleSignal.input_schema()
 rKlineBundleReturnRank.input_schema()
+rBundleSignal.input_schema()
 ```
 
-- `rOperator` 提供 `@classmethod input_schema()`；不创建实例，不推进算子，不要求数据输入。
-- 返回普通字典，schema 字典及嵌套结构是独立副本，调用方修改它们不会改写类声明。签名中的任意 `default` 保留原对象以保持其身份，不承诺复制，调用方应视为只读。schema 是元信息，不自动校验或转换每条输入。
-- 顶层 `parameters` 按 `step()` 定义顺序列出参数，排除实例接收者；每项描述 `kind`、`required`、可选 `default` 和值的 `schema`。
-- `kind` 保留 Python 的位置限定、位置或关键字、仅关键字以及可变参数区别。`required` 表示调用时是否必须提供，和一个字段是否允许 `None` 分别表示。
-- 参数名、调用方式与默认值从实际 `step()` 签名取得，不再手写另一套参数列表。对于 `*args` 和 `**kwargs`，如实返回对应可变参数种类，不将它们当作必需字段。
-- 具体值的类型、可空性及嵌套结构由数据类型或具体算子声明。显式声明优先；没有声明时可采用能可靠解析的类型注解，未标注、注解为 `Any` 或无法解析时为 `unknown`，不猜测。类型注解在源码中可能因延迟求值而是字符串；无法解析时仍返回 `unknown`，不把字符串误认作实际 Python 类型。
-- 建议使用 `input_schema_details` 类属性按参数名声明值结构；它只补充值本身的信息，不重复声明顶层参数的 `kind`、`required` 或 `default`。派生类可为 `bundle` 声明更具体的 value schema。声明中不存在于实际签名的参数，应在查询 schema 时报告定义错误，而不是悄悄发布不一致信息；`step()` 不做这一检查。
-- `rOperator.step(*args, **kwargs)` 本身没有固定市场字段；查询该基类时应如实报告可变参数，不能伪造 K 线字段。覆盖 `step()` 的自定义类应同步其值结构声明。
-- 简单自定义算子仍可只实现 `forward()`；不声明额外结构不影响计算，对应 schema 如实保留基类已知信息和 `unknown`，不强迫每个算子编写 schema。
+以上方法尚待实施。通用 Bundle 的 `bundle` 描述为字符串键映射、value 为 `unknown`；具体算子可将 value 声明为 Bar、盘口、成交序列或 number。查询不会扫描输入或推断类型。
 
-建议 schema 的最小类型词汇覆盖 `unknown`、`number`、`boolean`、`string`、`mapping`、`object`、`sequence` 和固定项 `tuple`；`number` 表示数值语义，不强制数据转换或逐条类型检查，也不代表数值一定有限，NaN 的含义由算法约定。对象字段记录自身 schema 及是否必需；映射有 key/value schema；序列有 item schema。`nullable` 与缺省是不同概念，未声明 `nullable` 时其可空性未知。有可靠解析且与显式声明相容的 Python 类型注解时，以 `python_type` 附加对应类型或 typing 对象，供程序查询；它同样不代表运行时检查。例如 `has_missing: bool` 可提供 `python_type: bool`。返回值是 Python 字典，不保证可直接 JSON 序列化，不急于引入额外的 schema 框架。
+schema 只回答调用参数和结构类型，不能单独证明输入足以计算：
 
-### 单 K 线 schema 示意
+- 单 K 线 OHLC 是签名必需参数；排名 Bar 的 `close` 可以缺省并得到缺失结果。这两种必需性不能直接复制。
+- 固定权重实例选择 `field="open"` 后需要该字段，不能用类级通用 Bar 描述推导该实例的全部需求。
+- `used_fields` 继续描述实例读取字段；固定成员、条件缺失规则、采样粒度仍属于具体算子契约。
 
-下面是 `rKlineSignal.input_schema()` 的目标形态，字段值类型由 `_KlineStep` 声明，参数调用方式和默认值由其 `step()` 签名取得；现有代码尚未提供该方法：
+查询机制、声明格式、继承和错误规则统一见 [core 与输入 schema 设计](core-input-schema-20261112-overview.md)。本轮不增加自动输入校验、实例级需求推理或 schema 注册服务。
 
-```python
-{
-    "parameters": {
-        "open":  {"kind": "positional_or_keyword", "required": True, "schema": {"type": "number"}},
-        "high":  {"kind": "positional_or_keyword", "required": True, "schema": {"type": "number"}},
-        "low":   {"kind": "positional_or_keyword", "required": True, "schema": {"type": "number"}},
-        "close": {"kind": "positional_or_keyword", "required": True, "schema": {"type": "number"}},
-        "volume": {
-            "kind": "positional_or_keyword", "required": False, "default": None,
-            "schema": {"type": "number", "nullable": True},
-        },
-        "open_time": {
-            "kind": "keyword_only", "required": False, "default": None,
-            "schema": {"type": "unknown", "nullable": True},
-        },
-        "is_missing": {
-            "kind": "keyword_only", "required": False, "default": False,
-            "schema": {"type": "boolean", "python_type": bool},
-        },
-    },
-}
-```
+## 9. 目录、命名和兼容性
 
-`is_missing` 的 `python_type: bool` 示例要求在目标实现中提供可解析的类型注解或明确类型声明；当前 `_KlineStep` 尚未标注它。字段类型只描述约定，仍由上游提供数据，不恢复此前删除的类型检查或 NaN 自动替换。
-
-### Bundle schema 示意
-
-以下表示 **K 线类截面的输入结构**，省略部分已知字段的具体类型描述；不是已实现的 API：
-
-```python
-{
-    "parameters": {
-        "bundle": {
-            "kind": "positional_or_keyword",
-            "required": True,
-            "schema": {
-                "type": "mapping",
-                "keys": {"type": "string"},
-                "values": {
-                    "type": "object",
-                    "fields": {
-                        "close": {
-                            "required": False,
-                            "schema": {"type": "number", "nullable": True},
-                        },
-                        "market_cap": {
-                            "required": False,
-                            "schema": {"type": "number"},
-                        },
-                        "is_missing": {
-                            "required": False,
-                            "schema": {"type": "boolean"},
-                        },
-                        # open、high、low、volume 等按同一方式描述。
-                    },
-                    "allow_extra": True,
-                },
-            },
-        },
-        "time": {
-            "kind": "keyword_only", "required": False, "default": None,
-            "schema": {"type": "unknown", "nullable": True},
-        },
-        "has_missing": {
-            "kind": "keyword_only", "required": False, "default": False,
-            "schema": {"type": "boolean"},
-        },
-    },
-}
-```
-
-`rBundleSignal` 的通用 value 类型是 `unknown`；需要盘口的算子可声明 value 是含 `bids`、`asks` 的对象，每档是价格和数量组成的二元组。成交窗口算子可声明 value 是成交对象的序列。需要混合数据时，value 是显式声明了多个子字段的对象，不依赖自动识别。
-
-例如，Bundle 基类的 `input_schema_details` 可只描述 `bundle` 是字符串键映射且 value 为 `unknown`；K 线截面算子通过同名声明提供更具体的 K 线 value 结构。`time` 和 `has_missing` 的调用方式与默认值仍从实际签名获得；必要的额外类型信息由注解或显式声明补充。各类声明应视为只读，子类需要更改时创建自己的声明，不原地修改父类字典。
-
-例如，程序可以查询 `rKlineBundleReturnRank.input_schema()["parameters"]["bundle"]["schema"]["values"]["fields"]["close"]`，得到上面 `close` 的类型及是否必需。单 K 线的 `open`、`high`、`low`、`close`、`volume` 也应在 `_KlineStep` 中声明值类型；它们的参数种类、必需性和 `volume=None` 默认值来自实际签名。
-
-K 线字段的**类型描述**可以复用，但必需性不能简单复制：单 K 线 `step()` 的 OHLC 是必需参数，现有 Bundle 收益率排名允许某个 Bar 缺少 `close` 并输出缺失；市值加权在 `has_missing=False` 时需要所用价格和 `market_cap`。上述 Bundle 示例的可选字段表示共同结构，不承诺任意具体算子都能在所有字段缺失时正常计算。
-
-类级 schema 描述输入结构；`used_fields` 继续描述具体实例实际使用的字段，例如某个价格指数构造时选择 `field="close"`。`used_fields` 不是完整校验规则：固定成分、`has_missing` 和成员范围也会影响实际需求；若以后需要实例级输入需求，再单独设计，不预先把它塞进类级 schema。
-
-## 7. 目录、命名与迁移
-
-建议目录：
+采用与 `GOAL.md` 一致的按输入契约分包。保留高频 `kline_bundle`，不迁入 `bundle/kline`；新增 `bundle` 是不绑定固定行情字段的多 symbol 入口。
 
 ```text
 sigma2/
-  core/                      # 通用生命周期和 input_schema() 机制
-  kline/                     # 单 symbol K 线
-  orderbook/                 # 单 symbol 盘口
-  trade/                     # 单 symbol 逐笔成交
+  core/                       # 通用生命周期、描述机制、输出存储和 replay
+  kline/
+    base/                     # 已有单 K 线输入、Signal、Outcome
+    utils.py                  # 已有 K 线工具与桥接
+    ...
+  kline_bundle/
+    base/
+      _input.py               # 现有 K 线截面签名
+      signal.py               # rKlineBundleSignal
+      __init__.py
+    utils.py                  # K 线截面工具入口
+    return_rank.py
+    weighted_index.py
+    __init__.py
+  orderbook/
+    base/                     # 单 symbol 盘口输入和基类
+    utils.py
+    book_spread.py
+    __init__.py
+  trade/
+    base/                     # 单 symbol 成交输入和基类
+    utils.py
+    trade_signed_volume.py
+    __init__.py
   bundle/
     base/
-      _input.py              # 共同截面输入
-      signal.py              # rBundleSignal
-      outcome.py             # 有 Bundle Outcome 需求时再增加
-    utils.py                 # 需要共享时的 Bundle schema 辅助
-    kline/
-      return_rank.py
-      weighted_index.py
+      _input.py               # step(bundle, *, time=None)
+      signal.py               # rBundleSignal
+      __init__.py
+    utils.py
+    __init__.py
 ```
 
-K 线截面因子仍是 K 线语义，保留 `rKlineBundleReturnRank`、`rKlineBundleFixedWeightIndex`、`rKlineBundleMarketCapWeightedIndex` 及其批量函数名；它们放到 `sigma2.bundle.kline`，由 `sigma2.bundle` 和根级 `sigma2` 导出。盘口或成交截面有实际算子时再增加相应目录，不先建立空实现或镜像整个单 symbol 指标库。
+- `base/` 放输入契约和基类。各类的 schema 声明随其输入层放置；core 不导入这些声明。
+- `utils.py` 放该数据类型实际需要的工具，可依赖 base。没有工具时只保留模块说明，不为了目录对称新增空函数、基类或适配器。base 不反向依赖可能导入它的 utils。
+- 数据包和根包继续导出常用类。用户正常使用无需知道 `base/` 的内部文件。
+- `family` 表示公开的数据契约，不由继承路径或目录名自动推导。现有 `kline/orderbook/trade/kline_bundle` 保留；新通用入口使用 `bundle`。
+- 不预建 `trade_bundle`、`orderbook_bundle` 或镜像指标目录；先用具体算子验证通用入口，确有独立稳定契约时再讨论分包。
 
-| 当前入口或行为 | 建议目标 | 影响 |
-| --- | --- | --- |
-| `rKlineBundleSignal` | `rBundleSignal` | 自定义子类需要改基类名和导入。 |
-| `sigma2.kline_bundle` | `sigma2.bundle` / `sigma2.bundle.kline` | 直接导入旧包路径的代码需迁移。 |
-| `sigma2.rKlineBundleReturnRank` 等具体因子 | 保留根级具体因子名 | 常用类名不必更改。 |
-| `open_time=...` | `time=...` | 逐条调用及批量字典中的字段名均需修改。 |
-| `meta_info["family"] == "kline_bundle"` | `"bundle"` | 按 family 分支的调用方需调整。 |
-| 类或实例按旧模块路径序列化 | 实际 `__module__` 迁至新包 | 旧序列化数据可能需要迁移。 |
+相较原稿，本轮取消强制删除 `kline_bundle`、删除 `rKlineBundleSignal`、把其 `open_time` 改成 `time`、把其 family 改成 `bundle` 的方案。K 线具体算法和数据身份不变。
 
-结合此前直接迁移旧路径的偏好，建议不长期保留旧包转发；这属于本次设计建议，不代表旧包已经移除。是否需要短期兼容、何时切换应在实施前结合实际调用方决定。无论迁移方式如何，不改动现有因子的公式、输出字段、排序、窗口长度、缺失和数值精度行为。
+内部基础类移入 base 后，`kline_bundle.signal`、`orderbook.signal`、`trade.signal` 的直接导入路径变更；按照此前直接迁移方式，不增加长期转发模块。实施时同步仓内引用并列出迁移表。包级导出不变不代表完全兼容：旧模块路径的序列化实例可能受影响，不能承诺自动迁移。
 
-## 8. 实施边界与验证要点
+## 10. 分阶段落地与验收
 
-设计落地可分为：先完成 core 的输入 schema 查询和各数据类型声明，再建立通用 Bundle Signal 基类，最后迁移现有 K 线截面因子及其调用方；有明确需求时再增加 Bundle Outcome。单 symbol 因子不因为引入 Bundle 而改造成统一包装器。
+1. **先整理已存在的输入类型**：按 base/utils 布局迁移 K 线截面、盘口和成交基类，保持签名、family、算法和根级导出。无需等待 schema 完成。
+2. **建立最小通用 Bundle**：提供 `step(bundle, *, time=None)`，用非 K 线输入和数值截面验证扩展体验；不建设自动同步或所有数据类型的 Bundle 包装器。
+3. **独立实现输入 schema 与必要 core 优化**：按配套设计落实，不将查询代码放进逐条热路径。
 
-需要覆盖的要点：
+每阶段实施前建立 PLAN，实施后记录 OUTCOME，并将计划与结果对应写入 INDEX。本轮仅更新设计，不表示上述阶段已经实施。
 
-1. 类级 schema：不实例化即可查询；位置或关键字、仅关键字、必需、默认值、可空和嵌套动态键分别正确；未声明字段不被猜测。
-2. 基类：Bundle 输入按原值进入 core；时间标签、缺失标志和空映射不触发自动改写。将来增加 Outcome 时复用同一输入层。
-3. 旧 K 线因子：排名结果、相等值排序、`lag`、动态成员、空截面、固定成分缺失和极小权重数值与当前约定一致。
-4. 盘口和成交：盘口空档与缺 symbol 区分；成交空序列、缺失、重复最新成交及窗口序列分别有明确行为；不假设逐 symbol 事件同步。
-5. 批量和 Outcome：继续按一个截面一行推进，保留嵌套输出、空输入、已有实例续放及历史锚点对齐；输入字典使用新的 `time` 字段。
-6. 迁移：根级具体因子导出、直接模块路径、`family`、时间参数和序列化变化均有清晰说明；不得将旧路径移除伪装成完全兼容。
+验收应覆盖：高频调用代码无需修改、不同 value 格式、空截面推进、成交空序列与未知数据、排名共同时间轴、固定权重和极小权重行为、输入复用不改写历史、发布结果不复用可变容器、批量与逐条一致、类级 schema 查询和错误声明。
 
-## 9. 三轮查漏补缺
+现有 `tests/test_kline_bundle.py`、`tests/test_bundle_snapshot.py` 仍引用已移除的历史 API，不能直接视为当前行为的验证依据。实施阶段需明确迁移哪些有效契约；本轮不运行历史测试或示例。
 
-1. **概念与接口**：Bundle 只表示截面组织；K 线、盘口和成交 payload 不被合并成同一个固定记录。参数调用方式从真实签名得到，嵌套结构另行声明，类级结构与实例 `used_fields` 分开。
-2. **时间与缺失**：`time` 不等于事件发生或数据可得时间；不自动补齐、去重或前向填充。空成交序列、空截面、未选入成员和缺失成员不能混为一谈。
-3. **现有行为与复杂度**：现有 K 线因子保留算法和输出，显式列出 `family`、模块路径和 `open_time` 的破坏性迁移；不引入 Bundle 实例、自动类型识别、事件同步器或强制逐条校验。
+## 11. 三轮查漏补缺
+
+1. **使用体验**：分别走查单 K 线、多 K 线、盘口和成交窗口。K 线无新增包装层；“支持不同格式”未写成“同时拼接多种来源”；不强迫用户认识泛型或 schema 才能调用。
+2. **时间与数据正确性**：确认每种输入自有粒度，空截面推进、无成交、缺 symbol、重复最新成交含义不同；基类不从时间标签推断可得性。跨调用历史与已发布输出的引用责任明确。
+3. **内部边界与迁移**：高频专用入口和通用入口共享 core 生命周期，参数不强行合并；保留已有缺失行为和 family，schema 无逐条副作用；目录迁移、运行时功能和未来联合输入分别说明，未把设计当作实现。

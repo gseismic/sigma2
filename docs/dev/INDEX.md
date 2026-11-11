@@ -173,3 +173,12 @@ core 与 `rKlineMA` 的新接口和设计取舍见 `docs/design/kline-step-core-
 | 更新时间 | 计划文件 | 结果文件 | 摘要 |
 | --- | --- | --- | --- |
 | 2026-11-11 21:45 CST | `PLAN-052-kline-input-minimal.md` | `PLAN-052-kline-input-minimal-OUTCOME.md` | 单 K 线基类不再校验缺失标记或自动替换 OHLCV；保留 `super()` 生命周期调用及基类导出，更新缺失输入说明和示例；静态检查通过，未运行测试或示例。 |
+
+## 2026-11-12 Bundle 设计优化与 core 审查
+
+2026-11-12 00:51 CST：结合工作区 GOAL.md、api-design-zh 和用户对数据格式及粒度的澄清，完成设计优化；本轮仅修改设计与索引，未实施运行时代码，没有对应实施 PLAN / OUTCOME。
+
+- 修订 `docs/design/bundle-20261111-overview.md`：Bundle 仅约定 symbol 到 value 的映射，具体算子声明 value 格式和每步粒度；支持多种格式不表示同时拼接多种来源。保留最高频的单 K 线与 K 线截面调用、kline_bundle 目录、open_time 和既有缺失语义；规划各数据包的 base/utils 布局及最小通用 Bundle 入口。
+- 新增 `docs/design/core-input-schema-20261112-overview.md`：记录 core 源码审查，保留单向推进与失败锁定；提出独立输入 schema 查询、只读配置与状态、在线/批量共同输出存储配置、首次输出字符串键检查，并明确输入借用、结果发布和批量错误边界。
+- 两份设计均包含场景排序、方案比较、兼容性、分阶段实施边界和三轮查漏补缺。输入查询采用真实 step 签名与显式值结构，普通类属性继承，不自动解析和合并注解，也不增加逐条校验。
+- 后续实现按这两份设计分别制定计划；当前运行行为仍以既有实现与 PLAN-050 至 PLAN-052 的记录为准。现有测试含过时 API，本轮只进行文档与源码静态审查，未运行测试或示例。
