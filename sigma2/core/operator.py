@@ -8,19 +8,8 @@ from pyta2.base.schema import Schema
 from pyta2.utils.deque import DequeTable
 from pyta2.utils.validation import ensure_integer
 
+from ._output import inferred_storage, schema_storage
 from .input_schema import describe_input
-
-
-def _storage_dtypes(schema: Schema) -> dict[str, Any]:
-    """为多维输出和可空输出保留对象列。"""
-    return {
-        key: (
-            space.dtype
-            if space.null_value is not None and getattr(space, "shape", ()) == ()
-            else object
-        )
-        for key, space in schema.items()
-    }
 
 
 class rOperator(ABC):
@@ -45,24 +34,42 @@ class rOperator(ABC):
         buffer_size: int = 1,
         used_fields: tuple[str, ...] | None = None,
     ) -> None:
-        self.schema = Schema(schema) if schema is not None else None
-        self.output_keys = (
-            tuple(self.schema.keys()) if self.schema is not None else None
+        self._schema = Schema(schema) if schema is not None else None
+        self._output_keys = (
+            tuple(self._schema.keys()) if self._schema is not None else None
+        )
+        self._output_dtypes, self._output_missing = (
+            schema_storage(self._schema) if self._schema is not None else (None, None)
         )
         self._n_backward = ensure_integer(n_backward, "n_backward", min_value=0)
         self._n_forward = ensure_integer(n_forward, "n_forward", min_value=0)
         self._buffer_size = ensure_integer(buffer_size, "buffer_size", min_value=-1)
         # 字段声明仅用于元信息，不参与逐条检查。
-        self.used_fields = used_fields
+        self._used_fields = tuple(used_fields) if used_fields is not None else None
 
         self._outputs = None
         if self.buffer_size != 0:
             maxlen = None if self.buffer_size == -1 else self.buffer_size
-            dtypes = _storage_dtypes(self.schema) if self.schema is not None else None
-            self._outputs = DequeTable(maxlen=maxlen, dtypes=dtypes)
+            self._outputs = DequeTable(maxlen=maxlen, schema=self._output_dtypes)
 
-        self.g_index = -1
+        self._g_index = -1
         self._faulted = False
+
+    @property
+    def schema(self) -> Schema | None:
+        return self._schema
+
+    @property
+    def output_keys(self) -> tuple[str, ...] | None:
+        return self._output_keys
+
+    @property
+    def used_fields(self) -> tuple[str, ...] | None:
+        return self._used_fields
+
+    @property
+    def g_index(self) -> int:
+        return self._g_index
 
     @property
     def n_backward(self) -> int:
@@ -116,16 +123,17 @@ class rOperator(ABC):
 
         # 计算或缓存写入可能部分推进子对象，成功后才解除锁定。
         self._faulted = True
-        self.g_index += 1
+        self._g_index += 1
         result = self.forward(*args, **kwargs)
 
         if not isinstance(result, dict):
             raise TypeError("forward() 必须返回字典")
         if self.output_keys is None:
-            self.output_keys = tuple(result)
+            self._output_dtypes, self._output_missing = inferred_storage(result)
+            self._output_keys = tuple(self._output_dtypes)
             if self._outputs is not None:
-                for name in self.output_keys:
-                    self._outputs.ensure_column(name, dtype=object)
+                for name, dtype in self._output_dtypes.items():
+                    self._outputs.ensure_column(name, dtype=dtype)
         elif set(result) != set(self.output_keys):
             raise ValueError(
                 f"输出字段不匹配：期望 {self.output_keys}，实际 {tuple(result)}"

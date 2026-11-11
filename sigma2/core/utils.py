@@ -6,7 +6,7 @@ from typing import Any
 from pyta2.base.utils import get_outputs
 from pyta2.utils.vector import VectorTable
 
-from .operator import _storage_dtypes, rOperator
+from .operator import rOperator
 
 
 def forward_step_apply(
@@ -20,12 +20,10 @@ def forward_step_apply(
     if not isinstance(operator, rOperator):
         raise TypeError("operator 必须是 rOperator 实例")
 
-    schema = None
-    missing = None
-    if operator.schema is not None:
-        schema = _storage_dtypes(operator.schema)
-        missing = {key: space.null_value for key, space in operator.schema.items()}
-    outputs = VectorTable(schema=schema)
+    declared_schema = operator.schema is not None
+    dtypes = operator._output_dtypes if declared_schema else None
+    missing = operator._output_missing if declared_schema else None
+    outputs = VectorTable(schema=dtypes)
     # 在消费输入和推进算子前检查输出格式及所需依赖。
     get_outputs(outputs, return_type=return_type)
     first_index = None
@@ -33,10 +31,10 @@ def forward_step_apply(
         result = operator.step(**inputs)
 
         # 未声明 schema 时不能根据首个结果推断数值类型。
-        if schema is None and len(outputs) == 0:
-            for name in result:
-                outputs.ensure_column(name, dtype=object)
-            missing = dict.fromkeys(result)
+        if not declared_schema and len(outputs) == 0:
+            for name, dtype in operator._output_dtypes.items():
+                outputs.ensure_column(name, dtype=dtype)
+            missing = operator._output_missing
 
         if first_index is None:
             first_index = operator.g_index

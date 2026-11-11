@@ -1,7 +1,7 @@
 # core 职责、输出契约与输入 schema 设计
 
 - 创建日期：2026-11-12
-- 状态：设计建议完成，尚未实施运行时代码。
+- 状态：已实施，详见 `docs/dev/PLAN-055-input-schema-OUTCOME.md` 和 `docs/dev/PLAN-056-core-output-contract-OUTCOME.md`。文中“拟议”及“尚未实施”保留设计提出时的语境。
 - 依据：工作区 `GOAL.md`、`api-design-zh`、当前 HEAD `1cc2460` 的 core 与输入基类，以及本轮用户对 Bundle 格式和数据粒度的澄清。
 - 配套设计：[多 symbol Bundle](bundle-20261111-overview.md)。
 - 适用边界：本文件提出下一阶段的优化；当前生命周期仍以 [单向推进设计](operator-single-pass-20261031-overview.md) 和现有代码为准。

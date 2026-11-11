@@ -188,3 +188,4 @@ core 与 `rKlineMA` 的新接口和设计取舍见 `docs/design/kline-step-core-
 | 2026-11-12 01:20 CST | `PLAN-053-family-base-layout.md` | `PLAN-053-family-base-layout-OUTCOME.md` | 将 K 线截面、盘口与成交基础类迁入各自 base，并增加 utils 模块、路径迁移说明；保留入口契约和聚合导出，静态检查通过。 |
 | 2026-11-12 01:22 CST | `PLAN-054-generic-bundle.md` | `PLAN-054-generic-bundle-OUTCOME.md` | 实现通用 Bundle Signal 和独立输入入口，允许具体算子定义 value 和时间粒度，保留 K 线截面原入口；静态检查通过。 |
 | 2026-11-12 01:27 CST | `PLAN-055-input-schema.md` | `PLAN-055-input-schema-OUTCOME.md` | 实现类级输入描述查询及各数据入口声明，按用户要求补充关键契约测试；6 项针对性测试通过，记录历史全套基线问题。 |
+| 2026-11-12 01:34 CST | `PLAN-056-core-output-contract.md` | `PLAN-056-core-output-contract-OUTCOME.md` | 收口只读配置与在线/批量共享的输出存储规则，补充引用和 replay 说明；本地及固定版本 pyta2 各 15 项针对性测试通过，历史套件问题另行记录。 |

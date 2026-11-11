@@ -86,6 +86,8 @@ print(columns["ma"], meta["full_name"])
 
 `return_type` 还支持 `tuple`、`list`、`dataframe` 和 `pl.dataframe`。每条成功处理的输入对应一行。`forward_step_apply(bars, operator)` 也可用于自定义算子，并从传入实例的当前状态继续；输出格式和所需依赖会在重放前检查。批量整理过程中发生异常时，之前成功处理的输入已经推进算子。未声明 schema、多维输出或以 `None` 表示缺失的字段按 object 列存储。
 
+批量接口消费有限输入并保存本次全部输出；持续数据流请使用 `step()`。输入迭代器或结果整理失败不会撤销之前成功的推进；需要恢复时，调用方应保存可靠输入并新建实例重放。空输入不会推进实例：声明输出 schema 时返回对应空列，未声明时返回空字典。
+
 ## 通用多 symbol 输入
 
 `rBundleSignal` 用于自定义多 symbol 信号，输入是 `{symbol: value}`；每个具体算子定义 value 的格式以及一次调用表示的采样、盘口快照或成交窗口。基类不校验、转换或自动同步数据。例如数值截面可以这样定义：
@@ -209,6 +211,8 @@ print(volume.step(price=100, volume=3, side="sell"))  # {'signed_volume': -3.0}
 
 自定义算子继承数据类型对应的基类并实现 `forward`，返回字典即可；子指标、输入窗口和递推数值使用普通实例属性。`step()` 中的计算、输出字段检查或缓存写入失败后，实例被锁定，应新建实例并重放；失败实例的索引和缓存不保证可用。数据类型入口在推进前拒绝的输入不会锁定实例。实例不保证并发或重入安全。可用 `schema`、`n_backward`、`buffer_size` 和 `used_fields` 指定元信息与缓存；不指定 schema 时，输出字段由首次结果确定，缓存使用 object 类型。
 
+`schema`、`output_keys`、`used_fields` 和 `g_index` 为只读属性；`schema` 中的 Space、`meta_info` 返回的描述及 `outputs` 表也应只读使用，不支持原地修改。输出顶层必须是字符串键字典，字段由输出 schema 或首次结果确定，之后必须保持一致；首次返回空字典也会固定为空字段集合。缓存和批量输出使用实例确定的同一组存储配置。在线缓存按调用顺序保存返回值，未来结果的批量表按历史锚点回填，两者行位置并不相同。
+
 ## pyta2 桥接
 
 `pyta2_signal()` 和 `rPyta2Signal` 可将其他 pyta2 `rIndicator` 绑定到 K 线字段。调用者指定指标参数、输入字段和 `history_window`，并负责确认该指标支持所提供的有限窗口。桥接不额外修改指标的缺失处理。
@@ -217,4 +221,4 @@ print(volume.step(price=100, volume=3, side="sell"))  # {'signed_volume': -3.0}
 
 `examples/001_kline_ma.py` 是均线示例；其余示例分别展示趋势、动量、波动、量价、价格变化、缺失数据、盘口成交、未来结果、pyta2 桥接、自定义信号、ATR 边界、截面排名和加权价格指数。文件名按 K 线、盘口、成交、未来结果和截面分级编号，每个示例自带数据，可以独立运行。
 
-旧 `sigma2.batch`、旧 Bundle 实现及相关输入辅助已归档至 `docs/backup/v-0.11/`；当前 Bundle 提供 Signal 基类、收益率排名和加权价格指数。现有 `tests/` 仍使用旧接口，尚未迁移到当前契约。设计见[算子单向推进与失败锁定](docs/design/operator-single-pass-20261031-overview.md)、[K 线截面收益率排名](docs/design/kline-bundle-return-rank-20261030-overview.md)、[加权价格指数](docs/design/kline-bundle-weighted-index-20261030-overview.md)及[旧 batch 与遗留依赖清理](docs/design/retire-legacy-batch-20261030-overview.md)。
+旧 `sigma2.batch`、旧 Bundle 实现及相关输入辅助已归档至 `docs/backup/v-0.11/`；当前 Bundle 提供通用 Signal 基类和 K 线截面的收益率排名、加权价格指数。`tests/` 中的 `*_current.py` 覆盖本轮关键契约，其余历史测试仍含已移除接口。设计见[通用 Bundle](docs/design/bundle-20261111-overview.md)、[core 与输入 schema](docs/design/core-input-schema-20261112-overview.md)、[算子单向推进与失败锁定](docs/design/operator-single-pass-20261031-overview.md)、[K 线截面收益率排名](docs/design/kline-bundle-return-rank-20261030-overview.md)及[加权价格指数](docs/design/kline-bundle-weighted-index-20261030-overview.md)。
