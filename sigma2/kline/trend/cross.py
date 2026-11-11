@@ -44,7 +44,6 @@ class rKlineMACross(rKlineSignal):
             schema=dict(indicator.schema.items()),
             n_backward=indicator.n_backward,
             buffer_size=buffer_size,
-            used_fields=(field,),
         )
         self._indicator = indicator
         self._values = deque(maxlen=indicator.min_periods)
@@ -66,34 +65,14 @@ class rKlineMACross(rKlineSignal):
             "low": low,
             "close": close,
             "volume": volume,
-        }[self.field]
+        }[self._field]
         values = self._values
         values.append(float("nan") if value is None else value)
         return self._indicator.rolling(np.asarray(values, dtype=float))
 
     @property
-    def field(self) -> str:
-        return self._field
-
-    @property
-    def fast(self) -> int:
-        return self._indicator.l
-
-    @property
-    def slow(self) -> int:
-        return self._indicator.xl
-
-    @property
-    def ma_type(self) -> str:
-        return self._indicator.ma_type
-
-    @property
-    def stride(self) -> int:
-        return self._indicator.stride
-
-    @property
     def full_name(self) -> str:
-        return f"{self._indicator.full_name}[{self.field}]"
+        return f"{self._indicator.full_name}[{self._field}]"
 
 
 def KlineMACross(

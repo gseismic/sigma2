@@ -15,7 +15,6 @@ class rBookSpread(rOrderBookSignal):
         super().__init__(
             schema={"spread": Scalar(low=-np.inf, high=np.inf, dtype=np.float64)},
             buffer_size=buffer_size,
-            used_fields=("bids", "asks"),
         )
 
     def forward(self, bids, asks) -> dict[str, float]:

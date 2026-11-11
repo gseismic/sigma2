@@ -19,7 +19,6 @@ def main() -> None:
     ma = rKlineMA(2, ma_type="SMA")
     for bar in bars:
         print("逐条均线：", ma.step(**bar), "观测索引：", ma.g_index)
-    print("使用字段：", ma.meta_info["used_fields"])
 
     columns = KlineMA(bars, 2, ma_type="SMA")
     print("批量均线：", columns["ma"])

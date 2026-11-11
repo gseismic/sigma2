@@ -1,139 +1,57 @@
 # sigma2 交接文档
 
-更新时间：2026-09-23 09:41 CST
+> 2026-11-12 02:59 CST 进展：本交接的 MA 属性及其他类的类似配置只读属性已移除；下文“尚未修改”描述的是交接时状态。执行结果、兼容性影响及验证见 `docs/plans/PLAN-20261112-002-model-unknown-remove-redundant-properties-OUTCOME.md`。
 
-## 项目背景
+- 更新时间：2026-11-12 02:23 CST
+- 更新模型：Codex，环境标示基于 GPT-6；未提供可核实的完整模型 ID。
+- 范围：`WORKTREE`，基准提交 `b6b73b76e727de7e54d025f103057330c41e9c1a`。工作区包含本会话未提交的代码、示例和文档，以及任务前已有的改动和未跟踪文件；详见下文。当前状态尚未固定为提交。
 
-sigma2 是面向市场事件的有状态 Signal 与机器学习因子库。稳定核心类似 `pyta2.base.rIndicator` 的继承式体系：每个新观测调用 `step()`，最后观测修订调用 `update_last()`，离线 batch 逐条 replay 同一个 Signal。
+## 项目背景和用户偏好
 
-pyta2 提供 rolling 指标、schema、窗口、full name 和递推状态；sigma2 提供 kline/orderbook/trade family、字段绑定、市场结构派生、组合逻辑、最终因子身份和运行生命周期。pyta2 直接转 Signal 只保留通用 bridge `rPyta2Signal` / `pyta2_signal()`，不能把 sigma2 扩展成 `rPyta2Xxx` 镜像 catalogue。
+- `GOAL.md` 定义项目目标：按数据类型组织量化交易信号库，`sigma2/core` 为核心，K 线、成交、盘口和多 symbol K 线分别组织输入接口。只有用户明确要求时才能修改 `GOAL.md`。
+- 用户的代码哲学是极简：接口应从实际使用场景判断必要性，避免为了可能的未来需求保留概念。
+- 继续工作前应读取根目录 `GOAL.md`、`AGENTS.md`，检查 `git status`，结合当前代码核实历史文档。之前的交接内容保存于基准提交的 `docs/HANDOFF.md`，其中 `update_last()` 等描述已过时，不应作为当前契约。
 
-长期研究训练层仍是 `FeatureData -> TargetData -> ResearchDataset -> AnalysisReport / EnvBuilder`。这些对象消费 Signal，不进入 core。
+## 当前交接点：MA 的三个属性
 
-## 当前仓库状态
+用户询问 `sigma2/kline/trend/ma.py` 中 `rKlineMA.field`、`n`、`ma_type` 三个只读属性是否有必要，并要求写交接文档，让别人继续处理。前一轮仅做分析，**尚未修改或移除这三个属性**；用户也尚未明确指定要删除它们，接手时按用户后续的具体指令确定操作范围。
 
-- 仓库：`/Users/mac/pai-studio-fin/library/sigma2`
-- 分支：`main`
-- 包版本：`0.3.0`
-- 当前总设计：`docs/design/sigma2-20260922-v5.md`，设计版本 v5.2。
-- 当前实施：`docs/dev/PLAN-019-kline-api-layout.md` 及对应 OUTCOME。
-- K 线因子模板：`docs/design/kline-factor-20260922-template.md`。
-- `pyta2`、`minbt`、`fintools` 是本地未跟踪软链接，只用于参考或验证，不得提交。
-- `docs/ref/` 是用户未跟踪资料，`AGENTS.md` 有用户修改；均不得擅自清理、回退或混入提交。
+已确认的事实：
 
-## 最新交接点
+- `field` 返回 `self._field`，当前 `forward()` 用 `self.field` 选择输入字段，`full_name` 也使用它。若决定移除该属性，需要同步处理这两处读取，保留字段选择功能。见 `sigma2/kline/trend/ma.py:38`、`sigma2/kline/trend/ma.py:66` 和 `sigma2/kline/trend/ma.py:84`。
+- `n` 返回内部指标的周期，`ma_type` 返回内部指标的名称；具体均线类型和周期在构造内部指标时已确定，计算由内部指标执行。见 `sigma2/kline/trend/ma.py:30`、`sigma2/kline/trend/ma.py:38` 和 `sigma2/kline/trend/ma.py:76`。
+- 搜索当前仓库时，外部示例只有 `examples/008_kline_missing.py:26` 打印 `ma.field`；该行是在本会话同步示例时加入的。未发现直接读取 `rKlineMA.n` 或 `rKlineMA.ma_type` 的仓库内调用，仓库外使用情况未知。
+- `full_name` 可用于展示配置，例如 `EMA(5)[volume]`，但它是字符串，不能替代结构化属性查询。`n_backward` 和 `min_periods` 描述时序，不能普遍当作 `n` 的替代；见 `README.md` 的时间参数说明。
+- 当前三个属性对外只读。如果决定精简，应保留计算真正依赖的内部字段及指标，不要仅把它们改为可随意赋值的公开状态；运行中变更字段可能混入历史窗口，改变一个独立的公开周期值也不等于改变内部指标。
 
-- 最新提交：`73ff574`（`实现：迁移K线公共API与浅层目录`）；当前 `HEAD` 与 `origin/main` 一致。
-- 本次交接前，工作区没有 sigma2 代码或文档改动；仅有用户自己的 `AGENTS.md` 修改、`docs/ref/` 资料和 `fintools`、`minbt`、`pyta2` 本地软链接。
-- PLAN-019 的实现和验证结论见 `docs/dev/PLAN-019-kline-api-layout-OUTCOME.md`。最近一次记录为 123 项测试通过、Ruff 和 compileall 通过。
-- 上一项用户请求是评审最新提交；评审启动后被中断在读取规范阶段，尚未检查提交差异，也没有评审结论。若该请求仍需继续，评审范围为 `9f34099..73ff574`，从只读差异审阅开始。
+前一轮的**建议**是：若没有程序从既有实例反查字段、周期和均线类型的需求，可以移除三个公开属性。它们的实际价值是支持这样的结构化反查；该建议不等同于用户已经决定删除，也不自动扩展到其他算子。
 
-## 已完成的核心生命周期
+## 本会话已完成：移除 used_fields
 
-- `rSignal.step()` 保存观测前检查点并推进 `g_index`。
-- `rSignal.update_last()` 从该检查点重算最后观测，不增加 `g_index`，不追加输出行。
-- 连续 `update_last()` 幂等；修订后继续 `step()` 与最终序列完整重放一致。
-- `_apply_pyta2()` 在 step 时调用子指标 `rolling()`，在修订时调用 `update_last()`。
-- 计算或恢复失败后 Signal 进入 faulted 状态，必须 `reset()` 并重放。
-- `factor_names`：单输出使用 full name，多输出使用 `full_name.output_key`。
-- kline/orderbook/trade family 均提供 keyword-only 同签名 `update_last()`。
-- future target 显式 `supports_update_last = False`，避免把历史 anchor 输出误当成当前 bar 输出。
-- `forward_signal_apply()` 校验列式输入并 replay 公共 `step()`，支持 dict、tuple、逐行 list、pandas、polars 和 metadata 返回。
+用户已明确要求移除 `used_fields`，并就该次移除说明不考虑兼容性。该授权针对 `used_fields`，不应自动解释为对其他接口变化的决定。
 
-## PLAN-019：K 线 API 与目录
+- 已从 `rOperator`、`rSignal`、`rOutcome` 删除构造参数、存储、属性及 `meta_info` 字段；各内置算子不再向基类声明它。
+- 已同步当前 `README.md`、`examples/`、`skills/sigma2-usage/` 和 `tests/test_core_output_current.py`。具体算子用于计算的 `field`、`fields`、`reference_field` 等配置保留。
+- 计划与结果分别为 `docs/plans/PLAN-20261112-001-model-unknown-remove-used-fields.md` 和 `docs/plans/PLAN-20261112-001-model-unknown-remove-used-fields-OUTCOME.md`，索引为 `docs/plans/INDEX.md`。以上变更尚未提交或推送。
 
-### Canonical API
+## 验证与待评估事项
 
-pyta2 和 sigma2 同时使用时，sigma2 的 K 线入口用 family-qualified 名称避免冲突：
+本会话上一项代码修改后验证过：
 
-| rolling | batch | canonical 文件 |
-| --- | --- | --- |
-| `rKlineMA` | `KlineMA` | `kline/trend/ma.py` |
-| `rKlineMACD` | `KlineMACD` | `kline/trend/macd.py` |
-| `rKlineRSI` | `KlineRSI` | `kline/momentum/rsi.py` |
-| `rKlineKDJ` | `KlineKDJ` | `kline/momentum/kdj.py` |
-| `rKlineATR` | `KlineATR` | `kline/volatility/atr.py` |
-| `rKlineBoll` | `KlineBoll` | `kline/volatility/boll.py` |
-| `rKlineReturn` | `KlineReturn` | `kline/price/return_.py` |
-| `rKlineGap` | `KlineGap` | `kline/price/gap.py` |
+- 当前契约测试 17 项通过；15 个独立示例运行通过；本次修改的 Python 文件 Ruff 检查通过，仓库使用 skill 的格式验证通过。
+- 额外验证了成交量均线、按成交量计算未来变化和按开盘价计算未来高低价变化。
+- 全量 `pytest -q` 在修改前后均因 13 个历史测试文件引用已移除接口而在收集阶段失败；全套测试没有执行。相关整理建议登记为待评估的 `TD-20261112-0209-001`，见 `docs/TODOS.md` 和 `docs/todos/TD-20261112-0209-001-current-test-suite.md`，并非本次移除 MA 属性的授权。
+- 上述运行使用 Python 3.11 和本地 `pyta2` 软链接；验证时 `pyta2` 的提交为 `20e22e6565766c979fee1facd23eba36dbf518f5`。工作区的 `pyproject.toml` 是任务前已有改动。
 
-Python 名称改变不影响数据身份：`rKlineRSI(14).full_name` 仍为 `RSI(14)[close]`，schema、factor names、window、数值与 update-last 语义保持不变。
-
-### 浅层分类与 target 安全边界
-
-```text
-sigma2/kline/
-  price/
-  trend/
-  momentum/
-  volatility/
-  target/
-  _internal/
-  compat/
-```
-
-放置优先级是：任何依赖未来 K 线的输出一律进入 `target/`；其余 causal Signal 按主要市场含义分类。`target` 与 trend 等并列虽然混合“数据可用时点”和“市场语义”两个轴，但能以较浅路径提供强泄漏边界；不增加低信息量的 `factor/` 层。
-
-future return/change/high-low 与 ATR bound trigger 的真实实现已从 `effect/` 迁到 `target/`。旧 `effect/` 在 0.3.x 仅转发相同类对象。`.gitignore` 的通用 `target/` 规则已收紧为仓库根 `/target/`，否则 Python 的 `kline/target` 会被错误忽略。
-
-### 单一实现与兼容周期
-
-- canonical 算法只存在于新领域目录；旧 `kline/ma.py` 等文件只转发到 `compat/`。
-- `_rKlineIndicatorFactor` 的真实位置是 `kline/_internal/indicator_factor.py`；旧 `_factor.py` 只转发。
-- v0.2 短名称仍可显式导入，但不在顶层或 `sigma2.kline.__all__` 中。
-- 调用 `rMA/MA`、`rRSI/RSI`、`rReturn/rGap` 等旧入口会发出含替代名和删除版本的 `DeprecationWarning`。
-- `rSMA` 与 `rPyta2SMA` 的替代入口是 `rKlineMA(..., ma_type="SMA")`；不新增 `rKlineSMA`。
-- 旧短名称、旧根模块和 `effect/` 路径计划在 `0.4.0` 删除。
-- `rSMA` 在兼容期保留旧 `sma` schema key；canonical MA 使用 pyta2 的 `ma` key。
-- `rPyta2Signal` / `pyta2_signal()` 是正式通用 bridge，不属于弃用对象。
-
-## 因子身份与关键边界
-
-```text
-EMA(20)[close]
-KAMA(10,2,30,stride=2)[volume]
-RSI(14)[close]
-MACD(26,12,9)[close].dif
-Boll(20,2)[close].mid
-KDJ(9,3,3)[high,low,close].k
-ATR(20,EMA)[high,low,close]
-```
-
-- 一个公开因子原则上一个文件；rolling/batch 成对放在该文件。
-- batch replay 是正确性基线，暂不为向量化复制公式。
-- output schema key 与训练 factor name 分工，不互相替代。
-- `update_last()` 只修订最新观测，不支持任意历史位置 rollback。
-- 内置有额外递推状态的 Signal 必须显式声明 `_update_state_fields`。
-- `rATR(n=1)` 的 family 历史至少保留两根，以正确使用前收盘价；输出 warmup 仍沿用 pyta2。
-
-## 验证状态
-
-当前 contract tests 覆盖：
-
-- 8 种 MA 及 RSI、MACD、Boll、KDJ、ATR 与 pyta2 数值一致。
-- 所有 canonical batch、rolling replay 和重复 `update_last()` 一致。
-- pyta2 `rRSI/RSI` 与 sigma2 `rKlineRSI/KlineRSI` 可同时直接导入。
-- 旧类、旧 batch、旧模块路径的告警、数值和身份兼容。
-- canonical 类只定义在领域目录，future-data 类只定义在 `target/`。
-- `rKlineReturn/KlineReturn`、`rKlineGap/KlineGap` 配对。
-- orderbook“深度失衡 + pyta2 SMA”组合的父子状态修订。
-- target 修订拒绝、factor names、空表、列校验和全部返回格式。
-
-验证命令：
+可复现当前契约测试的命令：
 
 ```bash
-pytest -q                         # 123 passed
-ruff check sigma2 tests           # All checks passed
-python -m compileall -q sigma2 tests
+PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=pyta2 /Users/mac/miniconda3/envs/py311/bin/python3.11 -m pytest -q tests/test_core_output_current.py tests/test_input_schema_current.py tests/test_bundle_current.py
 ```
 
-## 后续高价值工作
+## 工作区保护
 
-1. 如继续上一项用户请求，先评审提交 `73ff574`，审阅记录应区分具体缺陷、风险和建议，不因测试通过而跳过代码检查。
-2. 按 v5 第 10 节分别实现公开的 `mean_of_mean`、`smoothed_depth_imbalance`、`rolling_trade_imbalance`，验证三个 family 的复杂组合开发体验。
-3. 为正式发布明确 pyta2 的安装依赖和版本下界，替代当前本地软链接兜底。
-4. 在 `0.4.0` 按迁移数据删除 compat、旧根模块与 `effect/` 路径，并同步删除旧入口测试。
-5. 有真实性能数据后再评估 batch replay 优化；优化必须保留与 `step()` 的一致性 oracle。
-6. 核心稳定后再做多 symbol online runner、FeatureData/TargetData 与研究训练层。
-
-不要先做全面 pyta2 wrapper catalogue、通用表达式 DAG、任意位置回滚、完整 RL 环境或自动训练框架。
+- 任务开始前已修改的文件：`AGENTS.md`、`pyproject.toml`。
+- 任务开始前已有未跟踪项：`GOAL.md` 和本地软链接 `fintools`、`minbt`、`pyta2`。不要清理、覆盖或无区别暂存它们。
+- 本会话未提交改动涉及 `sigma2/`、`README.md`、`examples/`、`skills/sigma2-usage/`、`tests/test_core_output_current.py`，以及新增的 `docs/plans/`、`docs/TODOS.md`、`docs/todos/`；本交接还更新了 `docs/HANDOFF.md`。接手前请以 `git status --short --untracked-files=all` 和实际差异为准。
+- 如后续修改或提交，应区分本会话成果和用户原有改动；不得擅自回滚、覆盖或混入无关文件。

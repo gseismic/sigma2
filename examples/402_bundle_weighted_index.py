@@ -73,7 +73,6 @@ def main() -> None:
     for snapshot in snapshots:
         print("固定权重：", fixed.step(**snapshot))
         print("动态市值：", market_cap.step(**snapshot))
-    print("市值加权使用字段：", market_cap.meta_info["used_fields"])
     print(
         "批量固定权重：", KlineBundleFixedWeightIndex(snapshots, {"BTC": 1, "ETH": 1})
     )

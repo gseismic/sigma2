@@ -32,7 +32,6 @@ class rOperator(ABC):
         n_backward: int = 0,
         n_forward: int = 0,
         buffer_size: int = 1,
-        used_fields: tuple[str, ...] | None = None,
     ) -> None:
         self._schema = Schema(schema) if schema is not None else None
         self._output_keys = (
@@ -44,8 +43,6 @@ class rOperator(ABC):
         self._n_backward = ensure_integer(n_backward, "n_backward", min_value=0)
         self._n_forward = ensure_integer(n_forward, "n_forward", min_value=0)
         self._buffer_size = ensure_integer(buffer_size, "buffer_size", min_value=-1)
-        # 字段声明仅用于元信息，不参与逐条检查。
-        self._used_fields = tuple(used_fields) if used_fields is not None else None
 
         self._outputs = None
         if self.buffer_size != 0:
@@ -62,10 +59,6 @@ class rOperator(ABC):
     @property
     def output_keys(self) -> tuple[str, ...] | None:
         return self._output_keys
-
-    @property
-    def used_fields(self) -> tuple[str, ...] | None:
-        return self._used_fields
 
     @property
     def g_index(self) -> int:
@@ -112,8 +105,6 @@ class rOperator(ABC):
         full_name = self.full_name
         if full_name is not None:
             info["full_name"] = full_name
-        if self.used_fields is not None:
-            info["used_fields"] = self.used_fields
         return info
 
     def step(self, *args: Any, **kwargs: Any) -> dict[str, Any]:

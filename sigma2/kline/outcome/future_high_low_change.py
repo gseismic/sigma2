@@ -33,7 +33,6 @@ class rKlineFutureHighLowChange(rKlineOutcome):
             },
             n_forward=n_forward,
             buffer_size=buffer_size,
-            used_fields=tuple(dict.fromkeys(("high", "low", reference_field))),
         )
         self._values = deque(maxlen=self.n_forward + 1)
 
@@ -55,7 +54,7 @@ class rKlineFutureHighLowChange(rKlineOutcome):
             "close": close,
             "volume": volume,
         }
-        reference = fields[self.reference_field]
+        reference = fields[self._reference_field]
         values = self._values
         values.append((high, low, float("nan") if reference is None else reference))
         result = {"high_change": float("nan"), "low_change": float("nan")}
@@ -76,12 +75,8 @@ class rKlineFutureHighLowChange(rKlineOutcome):
         return result
 
     @property
-    def reference_field(self) -> str:
-        return self._reference_field
-
-    @property
     def full_name(self) -> str:
-        return f"{self.name}({self.reference_field},{self.n_forward})"
+        return f"{self.name}({self._reference_field},{self.n_forward})"
 
 
 __all__ = ["rKlineFutureHighLowChange"]

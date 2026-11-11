@@ -33,7 +33,6 @@ class rKlineRSI(rKlineSignal):
             schema=dict(indicator.schema.items()),
             n_backward=indicator.n_backward,
             buffer_size=buffer_size,
-            used_fields=(field,),
         )
         self._indicator = indicator
         self._values = deque(maxlen=indicator.min_periods)
@@ -55,22 +54,14 @@ class rKlineRSI(rKlineSignal):
             "low": low,
             "close": close,
             "volume": volume,
-        }[self.field]
+        }[self._field]
         values = self._values
         values.append(float("nan") if value is None else value)
         return self._indicator.rolling(np.asarray(values, dtype=float))
 
     @property
-    def field(self) -> str:
-        return self._field
-
-    @property
-    def n(self) -> int:
-        return self._indicator.n
-
-    @property
     def full_name(self) -> str:
-        return f"{self._indicator.full_name}[{self.field}]"
+        return f"{self._indicator.full_name}[{self._field}]"
 
 
 def KlineRSI(

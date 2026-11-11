@@ -23,7 +23,6 @@ def main() -> None:
     ]
     for bar in bars:
         print("观测索引：", ma.g_index + 1, "均线：", ma.step(**bar))
-    print("使用字段：", ma.meta_info["used_fields"])
 
 
 if __name__ == "__main__":

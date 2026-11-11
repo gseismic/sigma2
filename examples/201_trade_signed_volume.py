@@ -12,7 +12,6 @@ def main() -> None:
     signal = rTradeSignedVolume()
     for trade in trades:
         print("有向成交量：", signal.step(**trade))
-    print("使用字段：", signal.meta_info["used_fields"])
     print(
         "批量结果：", forward_step_apply(trades, rTradeSignedVolume())["signed_volume"]
     )

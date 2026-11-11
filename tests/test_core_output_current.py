@@ -11,6 +11,11 @@ class ValueSignal(rSignal):
         return {"value": value}
 
 
+class ValueOutcome(rOutcome):
+    def forward(self, value):
+        return {"value": value}
+
+
 class DelayedOutcome(rOutcome):
     def __init__(self, *, buffer_size=1):
         super().__init__(
@@ -23,20 +28,32 @@ class DelayedOutcome(rOutcome):
         return {"value": value * 10}
 
 
-def test_configuration_is_read_only_and_fields_are_copied():
-    fields = ["close"]
-    signal = ValueSignal(used_fields=fields)
-    fields.append("open")
-    assert signal.used_fields == ("close",)
+def test_configuration_is_read_only():
+    signal = ValueSignal()
     for name, value in (
         ("schema", None),
         ("output_keys", ()),
-        ("used_fields", ()),
         ("g_index", 5),
     ):
         with pytest.raises(AttributeError):
             setattr(signal, name, value)
     assert signal.g_index == -1
+
+
+@pytest.mark.parametrize(
+    ("operator_type", "options"),
+    [(ValueSignal, {}), (ValueOutcome, {"n_forward": 1})],
+)
+def test_field_metadata_is_not_exposed(operator_type, options):
+    operator = operator_type(**options)
+    assert not hasattr(operator, "used_fields")
+    assert "used_fields" not in operator.meta_info
+    with pytest.raises(TypeError, match="used_fields"):
+        operator_type(**options, used_fields=("value",))
+
+    _, meta = forward_step_apply([{"value": 1}], operator, return_meta_info=True)
+    assert "used_fields" not in meta
+    assert meta["g_index"] == 0
 
 
 @pytest.mark.parametrize("buffer_size", [0, 2])

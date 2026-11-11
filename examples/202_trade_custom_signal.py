@@ -9,7 +9,7 @@ class rTradeCumulativeSignedVolume(rTradeSignal):
     name = "trade_cumulative_signed_volume"
 
     def __init__(self, *, buffer_size: int = 1) -> None:
-        super().__init__(buffer_size=buffer_size, used_fields=("volume", "side"))
+        super().__init__(buffer_size=buffer_size)
         self._total = 0.0
 
     def forward(self, price: float, volume: float, side: str | None = None) -> dict:

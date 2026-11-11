@@ -36,7 +36,6 @@ class rKlineATR(rKlineSignal):
             schema=dict(indicator.schema.items()),
             n_backward=indicator.n_backward,
             buffer_size=buffer_size,
-            used_fields=("high", "low", "close"),
         )
         self._indicator = indicator
         # ATR 需要当前 HLC 和上一根的收盘价。
@@ -57,14 +56,6 @@ class rKlineATR(rKlineSignal):
         values.append((high, low, close))
         hlc = np.asarray(values, dtype=float)
         return self._indicator.rolling(hlc[:, 0], hlc[:, 1], hlc[:, 2])
-
-    @property
-    def n(self) -> int:
-        return self._indicator.n
-
-    @property
-    def ma_type(self) -> str:
-        return self._indicator.ma_type
 
     @property
     def full_name(self) -> str:

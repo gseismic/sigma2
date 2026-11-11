@@ -24,7 +24,6 @@ class rKlineOBV(rKlineSignal):
             schema=dict(indicator.schema.items()),
             n_backward=indicator.n_backward,
             buffer_size=buffer_size,
-            used_fields=("close", "volume"),
         )
         self._indicator = indicator
         self._closes = deque(maxlen=2)
@@ -61,7 +60,6 @@ class rKlineMFI(rKlineSignal):
             schema=dict(indicator.schema.items()),
             n_backward=indicator.n_backward,
             buffer_size=buffer_size,
-            used_fields=("high", "low", "close", "volume"),
         )
         self._indicator = indicator
 
@@ -78,10 +76,6 @@ class rKlineMFI(rKlineSignal):
     ) -> dict[str, Any]:
         volume = float("nan") if volume is None else volume
         return self._indicator.rolling((high,), (low,), (close,), (volume,))
-
-    @property
-    def n(self) -> int:
-        return self._indicator.n
 
     @property
     def full_name(self) -> str:
@@ -106,7 +100,6 @@ class rKlineVWAP(rKlineSignal):
             schema=dict(indicator.schema.items()),
             n_backward=indicator.n_backward,
             buffer_size=buffer_size,
-            used_fields=("high", "low", "close", "volume"),
         )
         self._indicator = indicator
 
@@ -123,14 +116,6 @@ class rKlineVWAP(rKlineSignal):
     ) -> dict[str, Any]:
         volume = float("nan") if volume is None else volume
         return self._indicator.rolling((high,), (low,), (close,), (volume,))
-
-    @property
-    def n(self) -> int:
-        return self._indicator.n
-
-    @property
-    def ma_type(self) -> str:
-        return self._indicator.ma_type
 
     @property
     def full_name(self) -> str:

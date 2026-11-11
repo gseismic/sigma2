@@ -14,7 +14,7 @@ def main() -> None:
     signal = pyta2_signal(rSMA, params={"n": 2}, field="close", history_window=2)
     for bar in bars:
         print("在线指标：", signal.step(**bar))
-    print("指标名称和使用字段：", signal.full_name, signal.meta_info["used_fields"])
+    print("指标名称：", signal.full_name)
 
     fresh = pyta2_signal(rSMA, params={"n": 2}, field="close", history_window=2)
     columns = forward_step_apply(bars, fresh)

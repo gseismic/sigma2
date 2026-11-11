@@ -26,7 +26,6 @@ class rKlineFutureChange(rKlineOutcome):
             schema={"value": Scalar(low=-np.inf, high=np.inf, dtype=np.float64)},
             n_forward=n_forward,
             buffer_size=buffer_size,
-            used_fields=(field,),
         )
         self._values = deque(maxlen=self.n_forward + 1)
 
@@ -47,7 +46,7 @@ class rKlineFutureChange(rKlineOutcome):
             "low": low,
             "close": close,
             "volume": volume,
-        }[self.field]
+        }[self._field]
         values = self._values
         values.append(float("nan") if value is None else value)
         if len(values) <= self.n_forward:
@@ -60,12 +59,8 @@ class rKlineFutureChange(rKlineOutcome):
         return {"value": float(result) if np.isfinite(result) else float("nan")}
 
     @property
-    def field(self) -> str:
-        return self._field
-
-    @property
     def full_name(self) -> str:
-        return f"{self.name}({self.field},{self.n_forward})"
+        return f"{self.name}({self._field},{self.n_forward})"
 
 
 __all__ = ["rKlineFutureChange"]

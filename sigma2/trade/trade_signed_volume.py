@@ -17,7 +17,6 @@ class rTradeSignedVolume(rTradeSignal):
                 "signed_volume": Scalar(low=-np.inf, high=np.inf, dtype=np.float64)
             },
             buffer_size=buffer_size,
-            used_fields=("volume", "side"),
         )
 
     def forward(self, price, volume, side=None) -> dict[str, float]:

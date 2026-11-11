@@ -31,7 +31,6 @@ class rKlineKDJ(rKlineSignal):
             schema=dict(indicator.schema.items()),
             n_backward=indicator.n_backward,
             buffer_size=buffer_size,
-            used_fields=("high", "low", "close"),
         )
         self._indicator = indicator
         self._values = deque(maxlen=indicator.min_periods)
@@ -51,26 +50,6 @@ class rKlineKDJ(rKlineSignal):
         values.append((high, low, close))
         hlc = np.asarray(values, dtype=float)
         return self._indicator.rolling(hlc[:, 0], hlc[:, 1], hlc[:, 2])
-
-    @property
-    def n1(self) -> int:
-        return self._indicator.n1
-
-    @property
-    def n2(self) -> int:
-        return self._indicator.n2
-
-    @property
-    def n3(self) -> int:
-        return self._indicator.n3
-
-    @property
-    def ktimes(self) -> int:
-        return self._indicator.ktimes
-
-    @property
-    def dtimes(self) -> int:
-        return self._indicator.dtimes
 
     @property
     def full_name(self) -> str:

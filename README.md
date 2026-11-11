@@ -23,10 +23,10 @@ ma = rKlineMA(2, ma_type="SMA", field="close")
 ma.step(10, 10, 10, 10, open_time=0)
 ma.step(20, 20, 20, 20, open_time=1)
 print(ma.step(30, 40, 30, 40, open_time=2))  # {'ma': 30.0}
-print(ma.g_index, ma.meta_info["used_fields"])  # 2 ('close',)
+print(ma.g_index)  # 2
 ```
 
-`step(open, high, low, close, volume=None, *, open_time=None, is_missing=False)` 中，OHLC 必须提供，`volume` 可以省略；时间和缺失标记使用关键字。输入字段和 `is_missing` 原样传给 `forward()`，基类不校验标记或自动替换字段。现有内置单 K 线算子不依据 `is_missing` 忽略价格；上游需要用 NaN 表示缺失字段，自定义算子也可以自行解释该标记。选择成交量作为计算输入时，`volume=None` 也作为缺失值。数据格式由上游保证，`used_fields` 是元信息，不参与逐条校验。
+`step(open, high, low, close, volume=None, *, open_time=None, is_missing=False)` 中，OHLC 必须提供，`volume` 可以省略；时间和缺失标记使用关键字。输入字段和 `is_missing` 原样传给 `forward()`，基类不校验标记或自动替换字段。现有内置单 K 线算子不依据 `is_missing` 忽略价格；上游需要用 NaN 表示缺失字段，自定义算子也可以自行解释该标记。选择成交量作为计算输入时，`volume=None` 也作为缺失值。数据格式由上游保证。
 
 每次 `step()` 都处理一根新 K 线。上游须按顺序提供已确定的数据，并过滤同一根 K 线的盘中更新和重复消息；`open_time` 不用于检查重复或顺序。历史数据修订时，创建新实例并从可靠数据重放。各实例独立处理一条 symbol 数据流。
 
@@ -144,7 +144,7 @@ input_schema_details = [
 
 子类沿用普通 Python 属性继承：新声明会整体替换父类列表，`[]` 清空；需要保留其他项时可显式展开父类列表，并替换目标项，不应原地修改共享声明。查询返回独立的描述容器，但签名中的默认对象保持原引用，请只读使用。`input_schema()` 的外层 `parameters` 结构保持不变，旧的字典式 `input_schema_details` 和嵌套 `fields` 字典需要改为列表。
 
-这是结构说明，不检查实际输入，也不推断某个实例的字段选择、条件必需项、固定成员或数据可得性。实例的 `schema` 描述输出空间，`used_fields` 记录实际读取字段；它们与输入描述各司其职。批量重放通过 `step(**inputs)` 调用，不能仅凭查询结果推断它支持位置限定参数或必须通过 `*args` 提供的数据。
+这是结构说明，不检查实际输入，也不推断某个实例的字段选择、条件必需项、固定成员或数据可得性。实例的 `schema` 描述输出空间。批量重放通过 `step(**inputs)` 调用，不能仅凭查询结果推断它支持位置限定参数或必须通过 `*args` 提供的数据。
 
 ## 多 symbol 收益率排名
 
@@ -167,7 +167,6 @@ rank = rKlineBundleReturnRank(lag=1)
 rank.step(first, open_time=0)  # 预热，所有排名为 NaN
 print(rank.step(second, open_time=1))
 # {'rank': {'BTC': 2, 'ETH': 3, 'SOL': 1}}
-print(rank.meta_info["used_fields"])  # ('close',)
 ```
 
 `step(bundle, *, open_time=None, has_missing=False)` 将每次输入视为已确认的截面；调用方负责时间顺序和去重。`lag` 为正整数，表示回看的截面步数，默认从低到高排名；`ascending=False` 改为从高到低。排序稳定，相同收益率按当前 Bundle 的输入顺序分配不同名次。需要先收到 `lag` 个截面作为历史；当前或参考 close 为 None、非有限、被标记缺失，或者参考价为零时，该 symbol 的排名为 NaN。只使用两个端点，中间截面的缺失不改变结果。
@@ -191,10 +190,9 @@ fixed = rKlineBundleFixedWeightIndex({"BTC": 1, "ETH": 1})
 market_cap = rKlineBundleMarketCapWeightedIndex()
 print(fixed.step(bundle, open_time=1))       # {'index': 150.0}
 print(market_cap.step(bundle, open_time=1))  # {'index': 125.0}
-print(market_cap.meta_info["used_fields"])   # ('close', 'market_cap')
 ```
 
-固定权重在计算时归一化，必须非负且至少一个为正；`weights` 属性返回原始正权重成分的副本。`has_missing=False` 时，调用方保证参与成分的价格完整且为有限数值，市值模式还须保证市值完整、有限且非负；算子直接计算，不逐项检查。数据缺失或无效时，数据源须设置 `has_missing=True`。
+固定权重在计算时归一化，必须非负且至少一个为正。`has_missing=False` 时，调用方保证参与成分的价格完整且为有限数值，市值模式还须保证市值完整、有限且非负；算子直接计算，不逐项检查。数据缺失或无效时，数据源须设置 `has_missing=True`。
 
 `has_missing=True` 时，固定权重模式检查正权重成分，缺少成分、标记缺失或价格无效则返回 NaN；缺失的非成分不影响结果。市值模式直接返回 NaN，因为算子无法推断没有传入的 symbol；市值模式的空截面和全部市值为零也返回 NaN。零权重或零市值不参与加权，固定权重中没有的 symbol 不影响结果。
 
@@ -232,9 +230,9 @@ print(volume.step(price=100, volume=3, side="sell"))  # {'signed_volume': -3.0}
 
 盘口价差使用最高买价和最低卖价，档位不必预先排序；任一侧为空时返回 NaN。
 
-自定义算子继承数据类型对应的基类并实现 `forward`，返回字典即可；子指标、输入窗口和递推数值使用普通实例属性。`step()` 中的计算、输出字段检查或缓存写入失败后，实例被锁定，应新建实例并重放；失败实例的索引和缓存不保证可用。数据类型入口在推进前拒绝的输入不会锁定实例。实例不保证并发或重入安全。可用 `schema`、`n_backward`、`buffer_size` 和 `used_fields` 指定元信息与缓存；不指定 schema 时，输出字段由首次结果确定，缓存使用 object 类型。
+自定义算子继承数据类型对应的基类并实现 `forward`，返回字典即可；子指标、输入窗口和递推数值使用普通实例属性。`step()` 中的计算、输出字段检查或缓存写入失败后，实例被锁定，应新建实例并重放；失败实例的索引和缓存不保证可用。数据类型入口在推进前拒绝的输入不会锁定实例。实例不保证并发或重入安全。可用 `schema`、`n_backward` 和 `buffer_size` 指定输出、时序与缓存；不指定 schema 时，输出字段由首次结果确定，缓存使用 object 类型。
 
-`schema`、`output_keys`、`used_fields` 和 `g_index` 为只读属性；`schema` 中的 Space、`meta_info` 返回的描述及 `outputs` 表也应只读使用，不支持原地修改。输出顶层必须是字符串键字典，字段由输出 schema 或首次结果确定，之后必须保持一致；首次返回空字典也会固定为空字段集合。缓存和批量输出使用实例确定的同一组存储配置。在线缓存按调用顺序保存返回值，未来结果的批量表按历史锚点回填，两者行位置并不相同。
+`schema`、`output_keys` 和 `g_index` 为只读属性；`schema` 中的 Space、`meta_info` 返回的描述及 `outputs` 表也应只读使用，不支持原地修改。输出顶层必须是字符串键字典，字段由输出 schema 或首次结果确定，之后必须保持一致；首次返回空字典也会固定为空字段集合。缓存和批量输出使用实例确定的同一组存储配置。在线缓存按调用顺序保存返回值，未来结果的批量表按历史锚点回填，两者行位置并不相同。
 
 ## pyta2 桥接
 
@@ -244,4 +242,4 @@ print(volume.step(price=100, volume=3, side="sell"))  # {'signed_volume': -3.0}
 
 `examples/001_kline_ma.py` 是均线示例；其余示例分别展示趋势、动量、波动、量价、价格变化、缺失数据、盘口成交、未来结果、pyta2 桥接、自定义信号、ATR 边界、截面排名和加权价格指数。文件名按 K 线、盘口、成交、未来结果和截面分级编号，每个示例自带数据，可以独立运行。
 
-旧 `sigma2.batch`、旧 Bundle 实现及相关输入辅助已归档至 `docs/backup/v-0.11/`；当前 Bundle 提供通用 Signal 基类和 K 线截面的收益率排名、加权价格指数。`tests/` 中的 `*_current.py` 覆盖本轮关键契约，其余历史测试仍含已移除接口。设计见[通用 Bundle](docs/design/bundle-20261111-overview.md)、[core 与输入 schema](docs/design/core-input-schema-20261112-overview.md)、[算子单向推进与失败锁定](docs/design/operator-single-pass-20261031-overview.md)、[K 线截面收益率排名](docs/design/kline-bundle-return-rank-20261030-overview.md)及[加权价格指数](docs/design/kline-bundle-weighted-index-20261030-overview.md)。
+旧 `sigma2.batch`、旧 Bundle 实现及相关输入辅助已归档至 `docs/backup/v-0.11/`；当前 Bundle 提供通用 Signal 基类和 K 线截面的收益率排名、加权价格指数。`tests/` 中的 `*_current.py` 覆盖本轮关键契约，其余历史测试仍含已移除接口。设计见[通用 Bundle](docs/design/bundle-20261111-overview.md)、[core 与输入 schema](docs/design/core-input-schema-20261112-overview.md)、[算子单向推进与失败锁定](docs/design/operator-single-pass-20261031-overview.md)、[K 线截面收益率排名](docs/design/kline-bundle-return-rank-20261030-overview.md)及[加权价格指数](docs/design/kline-bundle-weighted-index-20261030-overview.md)。设计文档保留编写时的接口，当前行为以源码和本说明为准。

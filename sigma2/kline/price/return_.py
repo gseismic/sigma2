@@ -21,11 +21,10 @@ class rKlineReturn(rKlineSignal):
         self._lag = ensure_integer(lag, "lag", min_value=1)
         super().__init__(
             schema={"return": Scalar(low=-np.inf, high=np.inf, dtype=np.float64)},
-            n_backward=self.lag,
+            n_backward=self._lag,
             buffer_size=buffer_size,
-            used_fields=("close",),
         )
-        self._closes = deque(maxlen=self.lag + 1)
+        self._closes = deque(maxlen=self._lag + 1)
 
     def forward(
         self,
@@ -40,7 +39,7 @@ class rKlineReturn(rKlineSignal):
     ) -> dict[str, float]:
         closes = self._closes
         closes.append(close)
-        if len(closes) <= self.lag:
+        if len(closes) <= self._lag:
             return {"return": float("nan")}
         previous = closes[0]
         if not (np.isfinite(previous) and np.isfinite(close)) or previous == 0:
@@ -50,12 +49,8 @@ class rKlineReturn(rKlineSignal):
         return {"return": float(result) if np.isfinite(result) else float("nan")}
 
     @property
-    def lag(self) -> int:
-        return self._lag
-
-    @property
     def full_name(self) -> str:
-        return f"{self.name}({self.lag})"
+        return f"{self.name}({self._lag})"
 
 
 def KlineReturn(

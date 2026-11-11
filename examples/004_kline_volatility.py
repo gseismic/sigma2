@@ -16,7 +16,7 @@ def main() -> None:
     ]
     atr, info = KlineATR(bars, 3, ma_type="EMA", return_meta_info=True)
     boll = KlineBoll(bars, 3, F=2)
-    print("ATR：", atr["atr"], "使用字段：", info["used_fields"])
+    print("ATR：", atr["atr"], "指标：", info["full_name"])
     print("布林带上、中、下轨：", boll)
 
 

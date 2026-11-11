@@ -82,7 +82,6 @@ class rKlineBundleFixedWeightIndex(rKlineBundleSignal):
         super().__init__(
             schema={"index": Scalar(low=-np.inf, high=np.inf, dtype=np.float64)},
             buffer_size=buffer_size,
-            used_fields=(field,),
         )
 
     def forward(
@@ -97,14 +96,14 @@ class rKlineBundleFixedWeightIndex(rKlineBundleSignal):
                 bar = bundle.get(symbol)
                 if bar is None or bar.get("is_missing", False):
                     return {"index": float("nan")}
-                price = bar.get(self.field)
+                price = bar.get(self._field)
                 if price is None or not isfinite(price):
                     return {"index": float("nan")}
 
         return {
             "index": _weighted_average(
                 (
-                    (bundle[symbol][self.field], weight)
+                    (bundle[symbol][self._field], weight)
                     for symbol, weight in self._weights
                 ),
                 self._weight_scale,
@@ -113,17 +112,8 @@ class rKlineBundleFixedWeightIndex(rKlineBundleSignal):
         }
 
     @property
-    def field(self) -> str:
-        return self._field
-
-    @property
-    def weights(self) -> dict[str, float]:
-        """返回原始正权重成分的副本。"""
-        return dict(self._weights)
-
-    @property
     def full_name(self) -> str:
-        return f"{self.name}({self.field},weights={dict(sorted(self._weights))})"
+        return f"{self.name}({self._field},weights={dict(sorted(self._weights))})"
 
 
 class rKlineBundleMarketCapWeightedIndex(rKlineBundleSignal):
@@ -172,7 +162,6 @@ class rKlineBundleMarketCapWeightedIndex(rKlineBundleSignal):
         super().__init__(
             schema={"index": Scalar(low=-np.inf, high=np.inf, dtype=np.float64)},
             buffer_size=buffer_size,
-            used_fields=(field, "market_cap"),
         )
 
     def forward(
@@ -192,7 +181,7 @@ class rKlineBundleMarketCapWeightedIndex(rKlineBundleSignal):
         return {
             "index": _weighted_average(
                 (
-                    (bar[self.field], bar["market_cap"])
+                    (bar[self._field], bar["market_cap"])
                     for bar in bundle.values()
                     if bar["market_cap"] != 0
                 ),
@@ -202,12 +191,8 @@ class rKlineBundleMarketCapWeightedIndex(rKlineBundleSignal):
         }
 
     @property
-    def field(self) -> str:
-        return self._field
-
-    @property
     def full_name(self) -> str:
-        return f"{self.name}({self.field})"
+        return f"{self.name}({self._field})"
 
 
 def KlineBundleFixedWeightIndex(

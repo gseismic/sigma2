@@ -51,7 +51,6 @@ def main() -> None:
     rank = rKlineBundleReturnRank(lag=1)
     for snapshot in snapshots:
         print("每个 symbol 的收益率排名：", rank.step(**snapshot)["rank"])
-    print("使用字段：", rank.meta_info["used_fields"])
 
     columns = KlineBundleReturnRank(snapshots, lag=1)
     print("逐时点排名：", columns["rank"])

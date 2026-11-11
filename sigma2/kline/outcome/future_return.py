@@ -33,14 +33,13 @@ class rKlineFutureReturn(rKlineOutcome):
             raise ValueError(f"unsupported K-line field: {field!r}")
         self._return_type = return_type.lower()
         self._field = field
-        self._output_key = "log_return" if self.return_type == "log" else "return"
+        self._output_key = "log_return" if self._return_type == "log" else "return"
         super().__init__(
             schema={
                 self._output_key: Scalar(low=-np.inf, high=np.inf, dtype=np.float64)
             },
             n_forward=n_forward,
             buffer_size=buffer_size,
-            used_fields=(field,),
         )
         self._values = deque(maxlen=self.n_forward + 1)
 
@@ -61,7 +60,7 @@ class rKlineFutureReturn(rKlineOutcome):
             "low": low,
             "close": close,
             "volume": volume,
-        }[self.field]
+        }[self._field]
         values = self._values
         values.append(float("nan") if value is None else value)
         if len(values) <= self.n_forward:
@@ -71,7 +70,7 @@ class rKlineFutureReturn(rKlineOutcome):
             return {self._output_key: float("nan")}
         with np.errstate(divide="ignore", over="ignore", invalid="ignore"):
             ratio = window[-1] / window[0]
-            if self.return_type == "log":
+            if self._return_type == "log":
                 result = np.log(ratio) if ratio > 0 else np.nan
             else:
                 result = ratio - 1.0
@@ -80,18 +79,8 @@ class rKlineFutureReturn(rKlineOutcome):
         }
 
     @property
-    def field(self) -> str:
-        return self._field
-
-    @property
-    def return_type(self) -> str:
-        return self._return_type
-
-    @property
     def full_name(self) -> str:
-        return (
-            f"{self.name}({self.field},{self.n_forward},return_type={self.return_type})"
-        )
+        return f"{self.name}({self._field},{self.n_forward},return_type={self._return_type})"
 
 
 __all__ = ["rKlineFutureReturn"]

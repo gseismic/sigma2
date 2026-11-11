@@ -21,7 +21,6 @@ class rKlineGap(rKlineSignal):
             schema={"gap": Scalar(low=-np.inf, high=np.inf, dtype=np.float64)},
             n_backward=1,
             buffer_size=buffer_size,
-            used_fields=("open", "close"),
         )
         self._previous_close = float("nan")
 

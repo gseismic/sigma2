@@ -67,12 +67,11 @@ class rKlineBundleReturnRank(rKlineBundleSignal):
             raise TypeError("ascending must be bool")
         self._ascending = ascending
         super().__init__(
-            n_backward=self.lag,
+            n_backward=self._lag,
             buffer_size=buffer_size,
-            used_fields=("close",),
         )
         # 每一项属于一个完整截面，避免 symbol 缺席时改变回看时点。
-        self._closes = deque(maxlen=self.lag)
+        self._closes = deque(maxlen=self._lag)
 
     def forward(
         self,
@@ -82,7 +81,7 @@ class rKlineBundleReturnRank(rKlineBundleSignal):
         has_missing: bool = False,
     ) -> dict[str, Any]:
         history = self._closes
-        previous = history[0] if len(history) == self.lag else {}
+        previous = history[0] if len(history) == self._lag else {}
         current = {}
         ranks = dict.fromkeys(bundle, float("nan"))
         returns = []
@@ -103,22 +102,14 @@ class rKlineBundleReturnRank(rKlineBundleSignal):
                 returns.append((symbol, value))
 
         history.append(current)
-        returns.sort(key=lambda item: item[1], reverse=not self.ascending)
+        returns.sort(key=lambda item: item[1], reverse=not self._ascending)
         for rank, (symbol, _) in enumerate(returns, start=1):
             ranks[symbol] = rank
         return {"rank": ranks}
 
     @property
-    def lag(self) -> int:
-        return self._lag
-
-    @property
-    def ascending(self) -> bool:
-        return self._ascending
-
-    @property
     def full_name(self) -> str:
-        return f"{self.name}({self.lag},ascending={self.ascending})"
+        return f"{self.name}({self._lag},ascending={self._ascending})"
 
 
 def KlineBundleReturnRank(

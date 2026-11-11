@@ -70,18 +70,15 @@ class rPyta2Signal(rKlineSignal):
         if not fields:
             raise ValueError("inputs must contain at least one K-line field")
         self._fields = fields
-        self._history_window = ensure_integer(
-            history_window, "history_window", min_value=1
-        )
+        history_window = ensure_integer(history_window, "history_window", min_value=1)
         self._full_name = full_name
         super().__init__(
             schema=dict(component.schema.items()),
             n_backward=component.n_backward,
             buffer_size=buffer_size,
-            used_fields=fields,
         )
         self._indicator = component
-        self._values = deque(maxlen=self.history_window)
+        self._values = deque(maxlen=history_window)
 
     def forward(
         self,
@@ -105,25 +102,17 @@ class rPyta2Signal(rKlineSignal):
         values.append(
             tuple(
                 float("nan") if fields[name] is None else fields[name]
-                for name in self.fields
+                for name in self._fields
             )
         )
         array = np.asarray(values, dtype=float)
-        return self._indicator.rolling(*(array[:, i] for i in range(len(self.fields))))
-
-    @property
-    def fields(self) -> tuple[str, ...]:
-        return self._fields
-
-    @property
-    def history_window(self) -> int:
-        return self._history_window
+        return self._indicator.rolling(*(array[:, i] for i in range(len(self._fields))))
 
     @property
     def full_name(self) -> str:
         if self._full_name is not None:
             return self._full_name
-        return f"{self._indicator.full_name}[{','.join(self.fields)}]"
+        return f"{self._indicator.full_name}[{','.join(self._fields)}]"
 
 
 __all__ = ["pyta2_signal", "rPyta2Signal"]

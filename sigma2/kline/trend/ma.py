@@ -41,7 +41,6 @@ class rKlineMA(rKlineSignal):
             schema={"ma": indicator.schema[indicator.output_keys[0]]},
             n_backward=indicator.n_backward,
             buffer_size=buffer_size,
-            used_fields=(field,),
         )
         self._indicator = indicator
         self._values = deque(maxlen=indicator.min_periods)
@@ -64,27 +63,15 @@ class rKlineMA(rKlineSignal):
             "close": close,
             "volume": volume,
         }
-        value = fields[self.field]
+        value = fields[self._field]
         values = self._values
         values.append(float("nan") if value is None else value)
         result = self._indicator.rolling(np.asarray(values, dtype=float))
         return {"ma": result}
 
     @property
-    def field(self) -> str:
-        return self._field
-
-    @property
-    def n(self) -> int:
-        return self._indicator.n
-
-    @property
-    def ma_type(self) -> str:
-        return self._indicator.name
-
-    @property
     def full_name(self) -> str:
-        return f"{self._indicator.full_name}[{self.field}]"
+        return f"{self._indicator.full_name}[{self._field}]"
 
 
 def KlineMA(

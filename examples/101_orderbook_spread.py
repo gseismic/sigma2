@@ -12,7 +12,6 @@ def main() -> None:
     spread = rBookSpread()
     for snapshot in snapshots:
         print("盘口价差：", spread.step(**snapshot))
-    print("使用字段：", spread.meta_info["used_fields"])
     print("批量价差：", forward_step_apply(snapshots, rBookSpread())["spread"])
 
 

@@ -65,7 +65,6 @@ class rKlineATRBoundTrigger(rKlineOutcome):
             n_backward=effect.n_backward,
             n_forward=effect.n_forward,
             buffer_size=buffer_size,
-            used_fields=("open", "high", "low", "close"),
         )
         self._effect = effect
         self._history = deque(maxlen=max(2, self.n_forward + 1))
@@ -90,26 +89,11 @@ class rKlineATRBoundTrigger(rKlineOutcome):
         return self._effect.rolling(*prefixes)
 
     @property
-    def x_unit_ub(self) -> float:
-        return self._effect.x_unit_ub
-
-    @property
-    def x_unit_lb(self) -> float:
-        return self._effect.x_unit_lb
-
-    @property
-    def atr_n(self) -> int:
-        return self._effect.n_atr
-
-    @property
-    def atr_ma_type(self) -> str:
-        return self._effect.atr_ma_type
-
-    @property
     def full_name(self) -> str:
         return (
-            f"{self.name}(x_unit_ub={self.x_unit_ub},x_unit_lb={self.x_unit_lb},"
-            f"n_forward={self.n_forward},atr_n={self.atr_n},atr_ma_type={self.atr_ma_type})"
+            f"{self.name}(x_unit_ub={self._effect.x_unit_ub},"
+            f"x_unit_lb={self._effect.x_unit_lb},n_forward={self.n_forward},"
+            f"atr_n={self._effect.n_atr},atr_ma_type={self._effect.atr_ma_type})"
         )
 
 
