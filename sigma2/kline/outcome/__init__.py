@@ -1,4 +1,4 @@
-from ..outcome_base import rKlineOutcome
+from ..base import rKlineOutcome
 from .bound_trigger import rKlineATRBoundTrigger
 from .future_change import rKlineFutureChange
 from .future_high_low_change import rKlineFutureHighLowChange

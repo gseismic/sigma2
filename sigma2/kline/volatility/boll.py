@@ -9,7 +9,7 @@ import numpy as np
 from pyta2.structure.channel import rBoll
 
 from sigma2.core.utils import forward_step_apply
-from sigma2.kline.signal import rKlineSignal
+from sigma2.kline.base import rKlineSignal
 
 _FIELDS = frozenset({"open", "high", "low", "close", "volume"})
 

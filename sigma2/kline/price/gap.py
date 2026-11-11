@@ -7,7 +7,7 @@ import numpy as np
 from pyta2.utils.space import Scalar
 
 from sigma2.core.utils import forward_step_apply
-from sigma2.kline.signal import rKlineSignal
+from sigma2.kline.base import rKlineSignal
 
 
 class rKlineGap(rKlineSignal):

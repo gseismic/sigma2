@@ -42,6 +42,8 @@ print(ma.g_index, ma.meta_info["used_fields"])  # 2 ('close',)
 
 MA 及使用 MA 的指标支持 SMA、EMA、WMA、HMA、DEMA、TEMA 和 ZLEMA；均线只接收一个周期参数。VWAP 使用滚动窗口，不按交易日重置。指标的预热和缺失后的恢复由 pyta2 决定。
 
+单 K 线的基础类位于 `sigma2.kline.base`，pyta2 桥接位于 `sigma2.kline.utils`；这些名称也可以继续从 `sigma2.kline` 或 `sigma2` 导入。原 `sigma2.kline.signal`、`sigma2.kline.outcome_base` 和 `sigma2.kline.pyta2` 模块路径已移除，使用这些路径的代码需要更新。按旧模块路径保存的序列化数据也可能需要迁移。
+
 ## 时间参数命名
 
 | 名称 | 含义 | 示例 |

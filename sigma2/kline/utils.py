@@ -8,7 +8,7 @@ import numpy as np
 from pyta2.base import rIndicator
 from pyta2.utils.validation import ensure_integer
 
-from sigma2.kline.signal import rKlineSignal
+from sigma2.kline.base import rKlineSignal
 from sigma2.utils.pyta2 import (
     normalize_pyta2_inputs,
     resolve_pyta2_default_inputs,

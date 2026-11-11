@@ -32,10 +32,10 @@ _MODULES = {
     "rKlineFutureChange": "outcome",
     "rKlineFutureHighLowChange": "outcome",
     "rKlineFutureReturn": "outcome",
-    "rKlineSignal": "signal",
-    "rKlineOutcome": "outcome_base",
-    "pyta2_signal": "pyta2",
-    "rPyta2Signal": "pyta2",
+    "rKlineSignal": "base",
+    "rKlineOutcome": "base",
+    "pyta2_signal": "utils",
+    "rPyta2Signal": "utils",
 }
 
 

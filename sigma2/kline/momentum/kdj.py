@@ -8,7 +8,7 @@ import numpy as np
 from pyta2.momentum import rKDJ
 
 from sigma2.core.utils import forward_step_apply
-from sigma2.kline.signal import rKlineSignal
+from sigma2.kline.base import rKlineSignal
 
 
 class rKlineKDJ(rKlineSignal):

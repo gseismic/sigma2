@@ -6,7 +6,7 @@ from typing import Any
 import numpy as np
 from pyta2.utils.space import Scalar
 
-from sigma2.kline.outcome_base import rKlineOutcome
+from sigma2.kline.base import rKlineOutcome
 
 _FIELDS = frozenset({"open", "high", "low", "close", "volume"})
 

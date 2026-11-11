@@ -9,7 +9,7 @@ from pyta2.utils.space import Scalar
 from pyta2.utils.validation import ensure_integer
 
 from sigma2.core.utils import forward_step_apply
-from sigma2.kline.signal import rKlineSignal
+from sigma2.kline.base import rKlineSignal
 
 
 class rKlineReturn(rKlineSignal):

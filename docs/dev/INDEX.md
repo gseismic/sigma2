@@ -157,3 +157,11 @@ core 与 `rKlineMA` 的新接口和设计取舍见 `docs/design/kline-step-core-
 | 更新时间 | 计划文件 | 结果文件 | 摘要 |
 | --- | --- | --- | --- |
 | 2026-10-31 14:25 CST | `PLAN-050-single-pass-operator.md` | `PLAN-050-single-pass-operator-OUTCOME.md` | 将算子收敛为单向推进和失败锁定，移除末根更新、状态快照和重置；迁移各数据类型、示例与使用说明，静态检查通过，未运行测试或示例。 |
+
+## 2026-11-11 单 K 线基础组件与工具模块
+
+单 K 线基础组件和桥接的当前目录及导入约定见 `docs/design/kline-package-layout-20261111-overview.md`；之前设计中单 K 线基类和桥接的旧深层模块路径已由该设计取代。
+
+| 更新时间 | 计划文件 | 结果文件 | 摘要 |
+| --- | --- | --- | --- |
+| 2026-11-11 21:05 CST | `PLAN-051-kline-base-utils.md` | `PLAN-051-kline-base-utils-OUTCOME.md` | 将 K 线共享输入和基类归入 `base/`、pyta2 桥接归入 `utils.py`；更新内部导入及说明，保留聚合入口并移除旧深层路径；静态检查通过，未运行测试或示例。 |

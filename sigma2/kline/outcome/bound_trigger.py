@@ -6,7 +6,7 @@ from typing import Any
 
 from pyta2.effect import rFutureATRBoundTrigger
 
-from sigma2.kline.outcome_base import rKlineOutcome
+from sigma2.kline.base import rKlineOutcome
 
 _MA_TYPES = frozenset({"SMA", "EMA", "WMA", "HMA", "DEMA", "TEMA", "ZLEMA"})
 
