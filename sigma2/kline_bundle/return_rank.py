@@ -9,7 +9,7 @@ from pyta2.utils.validation import ensure_integer
 
 from sigma2.core.utils import forward_step_apply
 
-from .signal import rKlineBundleSignal
+from .base import rKlineBundleSignal
 
 
 class rKlineBundleReturnRank(rKlineBundleSignal):

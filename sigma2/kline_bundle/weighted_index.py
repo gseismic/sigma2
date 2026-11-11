@@ -11,7 +11,7 @@ from pyta2.utils.space import Scalar
 
 from sigma2.core.utils import forward_step_apply
 
-from .signal import rKlineBundleSignal
+from .base import rKlineBundleSignal
 
 _PRICE_FIELDS = frozenset({"open", "high", "low", "close"})
 

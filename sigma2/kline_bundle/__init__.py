@@ -1,7 +1,7 @@
 """同一时点的多 symbol K 线计算。"""
 
+from .base import rKlineBundleSignal
 from .return_rank import KlineBundleReturnRank, rKlineBundleReturnRank
-from .signal import rKlineBundleSignal
 from .weighted_index import (
     KlineBundleFixedWeightIndex,
     KlineBundleMarketCapWeightedIndex,

@@ -44,6 +44,16 @@ MA 及使用 MA 的指标支持 SMA、EMA、WMA、HMA、DEMA、TEMA 和 ZLEMA；
 
 单 K 线的基础类位于 `sigma2.kline.base`，pyta2 桥接位于 `sigma2.kline.utils`；这些名称也可以继续从 `sigma2.kline` 或 `sigma2` 导入。原 `sigma2.kline.signal`、`sigma2.kline.outcome_base` 和 `sigma2.kline.pyta2` 模块路径已移除，使用这些路径的代码需要更新。按旧模块路径保存的序列化数据也可能需要迁移。
 
+多 symbol K 线、盘口和成交的基础类分别位于 `sigma2.kline_bundle.base`、`sigma2.orderbook.base` 和 `sigma2.trade.base`，仍可从对应数据包或根包导入。直接使用旧深层路径时需要迁移：
+
+| 旧路径 | 新路径 |
+| --- | --- |
+| `sigma2.kline_bundle.signal` | `sigma2.kline_bundle.base` |
+| `sigma2.orderbook.signal` | `sigma2.orderbook.base` |
+| `sigma2.trade.signal` | `sigma2.trade.base` |
+
+旧路径保存的序列化实例可能需要额外迁移。
+
 ## 时间参数命名
 
 | 名称 | 含义 | 示例 |

@@ -3,13 +3,11 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import Any
 
-from sigma2.core.signal import rSignal
-
 BookLevel = tuple[float, float]
 
 
-class rOrderBookSignal(rSignal):
-    """逐个处理订单簿快照。"""
+class _OrderBookStep:
+    """单 symbol 盘口快照的输入入口。"""
 
     family = "orderbook"
 
@@ -17,6 +15,3 @@ class rOrderBookSignal(rSignal):
         self, *, bids: Sequence[BookLevel], asks: Sequence[BookLevel]
     ) -> dict[str, Any]:
         return super().step(bids=bids, asks=asks)
-
-
-__all__ = ["BookLevel", "rOrderBookSignal"]

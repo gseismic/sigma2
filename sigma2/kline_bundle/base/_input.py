@@ -3,11 +3,9 @@ from __future__ import annotations
 from collections.abc import Mapping
 from typing import Any
 
-from sigma2.core.signal import rSignal
 
-
-class rKlineBundleSignal(rSignal):
-    """处理同一时点的多 symbol K 线截面。"""
+class _KlineBundleStep:
+    """多 symbol K 线截面的输入入口。"""
 
     family = "kline_bundle"
 
@@ -19,6 +17,3 @@ class rKlineBundleSignal(rSignal):
         has_missing: bool = False,
     ) -> dict[str, Any]:
         return super().step(bundle, open_time=open_time, has_missing=has_missing)
-
-
-__all__ = ["rKlineBundleSignal"]
