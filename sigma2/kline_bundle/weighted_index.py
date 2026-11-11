@@ -139,6 +139,24 @@ class rKlineBundleMarketCapWeightedIndex(rKlineBundleSignal):
     """
 
     name = "MarketCapWeightedIndex"
+    input_schema_details = {
+        **rKlineBundleSignal.input_schema_details,
+        "bundle": {
+            **rKlineBundleSignal.input_schema_details["bundle"],
+            "values": {
+                **rKlineBundleSignal.input_schema_details["bundle"]["values"],
+                "fields": {
+                    **rKlineBundleSignal.input_schema_details["bundle"]["values"][
+                        "fields"
+                    ],
+                    "market_cap": {
+                        "required": False,
+                        "schema": {"type": "number", "nullable": True},
+                    },
+                },
+            },
+        },
+    }
 
     def __init__(self, *, field: str = "close", buffer_size: int = 1) -> None:
         if not isinstance(field, str) or field not in _PRICE_FIELDS:

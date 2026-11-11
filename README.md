@@ -106,6 +106,21 @@ total.step({}, time=1)  # {'total': 0}；空截面仍推进一步
 
 输入在调用期间按只读借用，算子需要跨调用保留数据时应复制所需内容；调用方可在调用结束后复用输入。返回结果及缓存可能共享嵌套对象，算子发布后和调用方读取时都应按只读使用；要修改时自行复制。已有 K 线截面入口继续使用扁平 Bar 和 `open_time`、`has_missing`。
 
+## 查询输入格式
+
+调用算子类的 `input_schema()` 可查询实际 `step()` 的参数及声明的值结构，无须创建实例：
+
+```python
+from sigma2 import rKlineBundleReturnRank
+
+parameters = rKlineBundleReturnRank.input_schema()["parameters"]
+print(parameters["bundle"]["schema"])  # 字符串 symbol 到 Bar 字段记录的映射
+```
+
+参数的顺序、调用方式、是否必需及默认值来自实际签名；值结构由类属性 `input_schema_details` 声明，未声明的值为 `unknown`。子类沿用普通 Python 属性继承；如需修改部分声明，应显式展开父类字典并替换相应节点。查询返回独立的描述容器，但签名中的默认对象保持原引用，请只读使用。声明错误会在查询时报错，查询不会消费行情或推进实例。
+
+这是结构说明，不检查实际输入，也不推断某个实例的字段选择、条件必需项、固定成员或数据可得性。实例的 `schema` 描述输出空间，`used_fields` 记录实际读取字段；它们与输入描述各司其职。批量重放通过 `step(**inputs)` 调用，不能仅凭查询结果推断它支持位置限定参数或必须通过 `*args` 提供的数据。
+
 ## 多 symbol 收益率排名
 
 `rKlineBundleReturnRank` 按每个 symbol 的 `lag` 步收盘收益率排名，收益率为 `close_t / close_(t-lag) - 1`：

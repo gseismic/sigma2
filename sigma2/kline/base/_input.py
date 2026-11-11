@@ -7,6 +7,12 @@ class _KlineStep:
     """单 K 线 Signal 和 Outcome 共用的固定输入。"""
 
     family = "kline"
+    input_schema_details = {
+        **{field: {"type": "number"} for field in ("open", "high", "low", "close")},
+        "volume": {"type": "number", "nullable": True},
+        "open_time": {"type": "unknown", "nullable": True},
+        "is_missing": {"type": "boolean"},
+    }
 
     def step(
         self,

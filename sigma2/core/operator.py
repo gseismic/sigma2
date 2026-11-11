@@ -8,6 +8,8 @@ from pyta2.base.schema import Schema
 from pyta2.utils.deque import DequeTable
 from pyta2.utils.validation import ensure_integer
 
+from .input_schema import describe_input
+
 
 def _storage_dtypes(schema: Schema) -> dict[str, Any]:
     """为多维输出和可空输出保留对象列。"""
@@ -27,6 +29,12 @@ class rOperator(ABC):
     name: str | None = None
     family: str | None = None
     full_name: str | None = None
+    input_schema_details: dict[str, Any] = {}
+
+    @classmethod
+    def input_schema(cls) -> dict[str, Any]:
+        """描述类的实际 step 签名与输入结构，不检查行情数据。"""
+        return describe_input(cls)
 
     def __init__(
         self,

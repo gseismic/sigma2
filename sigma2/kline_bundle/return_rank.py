@@ -24,6 +24,27 @@ class rKlineBundleReturnRank(rKlineBundleSignal):
     """
 
     name = "ReturnRank"
+    input_schema_details = {
+        **rKlineBundleSignal.input_schema_details,
+        "bundle": {
+            "type": "mapping",
+            "keys": {"type": "string"},
+            "values": {
+                "type": "object",
+                "fields": {
+                    "close": {
+                        "required": False,
+                        "schema": {"type": "number", "nullable": True},
+                    },
+                    "is_missing": {
+                        "required": False,
+                        "schema": {"type": "boolean"},
+                    },
+                },
+                "allow_extra": True,
+            },
+        },
+    }
 
     def __init__(
         self,
