@@ -119,7 +119,30 @@ parameters = rKlineBundleReturnRank.input_schema()["parameters"]
 print(parameters["bundle"]["schema"])  # 字符串 symbol 到 Bar 字段记录的映射
 ```
 
-参数的顺序、调用方式、是否必需及默认值来自实际签名；值结构由类属性 `input_schema_details` 声明，未声明的值为 `unknown`。子类沿用普通 Python 属性继承；如需修改部分声明，应显式展开父类字典并替换相应节点。查询返回独立的描述容器，但签名中的默认对象保持原引用，请只读使用。声明错误会在查询时报错，查询不会消费行情或推进实例。
+参数的顺序、调用方式、是否必需及默认值来自实际签名；值结构由类属性 `input_schema_details` 的字典列表声明，未声明的值为 `unknown`。例如，收益率排名对 `bundle` 的描述可以写成：
+
+```python
+input_schema_details = [
+    {
+        "name": "bundle",
+        "type": "mapping",
+        "description": "key 是 symbol 字符串，value 是该 symbol 的 K 线",
+        "values": {
+            "type": "mapping",
+            "fields": [
+                {"name": "close", "type": "number", "required": False,
+                 "description": "可省略或为 None，按缺失价格处理"},
+                {"name": "is_missing", "type": "bool", "required": False,
+                 "description": "可省略，默认为 False"},
+            ],
+        },
+    },
+]
+```
+
+嵌套描述按需使用 `fields`、`values` 和 `items`；字段的 `required` 省略时表示未知，与是否可为 `None` 无关。描述是普通元数据，不递归校验内容或限制类型词汇。顶层只检查列表、参数名、重复声明及与签名字段的冲突；查询不会消费行情或推进实例。
+
+子类沿用普通 Python 属性继承：新声明会整体替换父类列表，`[]` 清空；需要保留其他项时可显式展开父类列表，并替换目标项，不应原地修改共享声明。查询返回独立的描述容器，但签名中的默认对象保持原引用，请只读使用。`input_schema()` 的外层 `parameters` 结构保持不变，旧的字典式 `input_schema_details` 和嵌套 `fields` 字典需要改为列表。
 
 这是结构说明，不检查实际输入，也不推断某个实例的字段选择、条件必需项、固定成员或数据可得性。实例的 `schema` 描述输出空间，`used_fields` 记录实际读取字段；它们与输入描述各司其职。批量重放通过 `step(**inputs)` 调用，不能仅凭查询结果推断它支持位置限定参数或必须通过 `*args` 提供的数据。
 

@@ -9,11 +9,11 @@ class _TradeStep:
     """单 symbol 成交事件的输入入口。"""
 
     family = "trade"
-    input_schema_details = {
-        "price": {"type": "number"},
-        "volume": {"type": "number"},
-        "side": {"type": "string", "enum": ["buy", "sell"], "nullable": True},
-    }
+    input_schema_details = [
+        {"name": "price", "type": "number"},
+        {"name": "volume", "type": "number"},
+        {"name": "side", "type": "string", "description": "buy、sell 或 None"},
+    ]
 
     def step(
         self, *, price: float, volume: float, side: TradeSide = None

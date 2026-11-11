@@ -10,16 +10,18 @@ class _OrderBookStep:
     """单 symbol 盘口快照的输入入口。"""
 
     family = "orderbook"
-    input_schema_details = {
-        name: {
+    input_schema_details = [
+        {
+            "name": name,
             "type": "sequence",
+            "description": "盘口档位序列",
             "items": {
                 "type": "tuple",
-                "items": [{"type": "number"}, {"type": "number"}],
+                "description": "价格与数量的二元组，两个值均为数值",
             },
         }
         for name in ("bids", "asks")
-    }
+    ]
 
     def step(
         self, *, bids: Sequence[BookLevel], asks: Sequence[BookLevel]

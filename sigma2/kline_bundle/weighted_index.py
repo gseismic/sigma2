@@ -139,24 +139,30 @@ class rKlineBundleMarketCapWeightedIndex(rKlineBundleSignal):
     """
 
     name = "MarketCapWeightedIndex"
-    input_schema_details = {
-        **rKlineBundleSignal.input_schema_details,
-        "bundle": {
-            **rKlineBundleSignal.input_schema_details["bundle"],
+    input_schema_details = [
+        {
+            "name": "bundle",
+            "type": "mapping",
+            "description": "key 是 symbol 字符串，value 是含价格和市值的 K 线",
             "values": {
-                **rKlineBundleSignal.input_schema_details["bundle"]["values"],
-                "fields": {
-                    **rKlineBundleSignal.input_schema_details["bundle"]["values"][
-                        "fields"
-                    ],
-                    "market_cap": {
-                        "required": False,
-                        "schema": {"type": "number", "nullable": True},
+                "type": "mapping",
+                "fields": [
+                    {"name": "open", "type": "number"},
+                    {"name": "high", "type": "number"},
+                    {"name": "low", "type": "number"},
+                    {"name": "close", "type": "number"},
+                    {
+                        "name": "market_cap",
+                        "type": "number",
+                        "description": "截面完整时须为有限非负数；0 不参与计算",
                     },
-                },
+                ],
+                "description": "截面完整时，field 选定的价格字段须有效",
             },
         },
-    }
+        {"name": "open_time", "description": "K 线截面开盘时间标签，可为 None"},
+        {"name": "has_missing", "type": "bool", "description": "为 True 时结果为 NaN"},
+    ]
 
     def __init__(self, *, field: str = "close", buffer_size: int = 1) -> None:
         if not isinstance(field, str) or field not in _PRICE_FIELDS:

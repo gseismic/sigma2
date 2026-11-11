@@ -8,14 +8,15 @@ class _BundleStep:
     """不绑定 value 格式的多 symbol 输入入口。"""
 
     family = "bundle"
-    input_schema_details = {
-        "bundle": {
+    input_schema_details = [
+        {
+            "name": "bundle",
             "type": "mapping",
-            "keys": {"type": "string"},
+            "description": "key 是 symbol 字符串，value 格式由具体算子定义",
             "values": {"type": "unknown"},
         },
-        "time": {"type": "unknown", "nullable": True},
-    }
+        {"name": "time", "description": "时间标签，可为 None"},
+    ]
 
     def step(self, bundle: Mapping[str, Any], *, time: Any = None) -> dict[str, Any]:
         return super().step(bundle, time=time)

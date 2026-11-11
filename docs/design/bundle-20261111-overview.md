@@ -5,6 +5,7 @@
 - 状态：已实施，详见 `docs/dev/PLAN-053-family-base-layout-OUTCOME.md` 至 `PLAN-056-core-output-contract-OUTCOME.md`。文中“拟议”及“尚未实施”保留设计提出时的语境。
 - 范围：Bundle 输入模型、各数据包的职责、高频 K 线入口、时间粒度、缺失和迁移边界。
 - 配套设计：[core 与输入 schema](core-input-schema-20261112-overview.md)。本文件替代原稿中的通用入口、schema 实现和目录迁移建议。
+- 更新：输入声明格式以 [简化输入描述声明](input-schema-simple-20261112-overview.md) 为准。
 
 ## 1. 目标与本轮澄清
 

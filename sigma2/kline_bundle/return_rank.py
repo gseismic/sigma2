@@ -24,27 +24,36 @@ class rKlineBundleReturnRank(rKlineBundleSignal):
     """
 
     name = "ReturnRank"
-    input_schema_details = {
-        **rKlineBundleSignal.input_schema_details,
-        "bundle": {
+    input_schema_details = [
+        {
+            "name": "bundle",
             "type": "mapping",
-            "keys": {"type": "string"},
+            "description": "key 是 symbol 字符串，value 是该 symbol 的 K 线",
             "values": {
-                "type": "object",
-                "fields": {
-                    "close": {
+                "type": "mapping",
+                "fields": [
+                    {
+                        "name": "close",
+                        "type": "number",
                         "required": False,
-                        "schema": {"type": "number", "nullable": True},
+                        "description": "可省略或为 None，按缺失价格处理",
                     },
-                    "is_missing": {
+                    {
+                        "name": "is_missing",
+                        "type": "bool",
                         "required": False,
-                        "schema": {"type": "boolean"},
+                        "description": "可省略，默认为 False",
                     },
-                },
-                "allow_extra": True,
+                ],
             },
         },
-    }
+        {"name": "open_time", "description": "K 线截面开盘时间标签，可为 None"},
+        {
+            "name": "has_missing",
+            "type": "bool",
+            "description": "收益率排名不使用截面缺失标志",
+        },
+    ]
 
     def __init__(
         self,

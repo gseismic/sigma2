@@ -2,7 +2,13 @@ from __future__ import annotations
 
 import pytest
 
-from sigma2 import rBundleSignal, rKlineBundleReturnRank, rKlineSignal, rSignal
+from sigma2 import (
+    rBundleSignal,
+    rKlineBundleMarketCapWeightedIndex,
+    rKlineBundleReturnRank,
+    rKlineSignal,
+    rSignal,
+)
 from sigma2.orderbook import rOrderBookSignal
 from sigma2.trade import rTradeSignal
 
@@ -24,27 +30,47 @@ def test_builtin_input_schemas_describe_actual_entries():
         "schema": {"type": "number"},
     }
     assert kline["volume"]["default"] is None
-    assert kline["volume"]["schema"]["nullable"] is True
+    assert "None" in kline["volume"]["schema"]["description"]
     assert kline["open_time"]["kind"] == "keyword_only"
+
     bundle = rBundleSignal.input_schema()["parameters"]
     assert bundle["bundle"]["schema"]["values"] == {"type": "unknown"}
     assert bundle["time"]["default"] is None
     rank = rKlineBundleReturnRank.input_schema()["parameters"]
     assert set(rank) == {"bundle", "open_time", "has_missing"}
-    assert not rank["bundle"]["schema"]["values"]["fields"]["close"]["required"]
+    fields = rank["bundle"]["schema"]["values"]["fields"]
+    assert [field["name"] for field in fields] == ["close", "is_missing"]
+    assert fields[0]["required"] is False and "None" in fields[0]["description"]
+    cap = rKlineBundleMarketCapWeightedIndex.input_schema()["parameters"]
+    assert "market_cap" in [
+        field["name"] for field in cap["bundle"]["schema"]["values"]["fields"]
+    ]
     levels = rOrderBookSignal.input_schema()["parameters"]["bids"]["schema"]
     assert levels["items"]["type"] == "tuple"
-    assert rTradeSignal.input_schema()["parameters"]["side"]["schema"]["enum"] == [
-        "buy",
-        "sell",
-    ]
+    assert (
+        "buy"
+        in rTradeSignal.input_schema()["parameters"]["side"]["schema"]["description"]
+    )
 
 
-def test_signature_defaults_inheritance_and_independent_descriptions():
+def test_signature_defaults_inheritance_and_nested_description_copy():
     default = []
 
     class Custom(rSignal):
-        input_schema_details = {"x": {"type": "string", "enum": ["a", "b"]}}
+        input_schema_details = [
+            {
+                "name": "x",
+                "type": "mapping",
+                "values": {
+                    "type": "list",
+                    "items": {
+                        "type": "custom",
+                        "fields": [{"name": "price", "type": "number"}],
+                    },
+                },
+                "说明": "自由元数据",
+            }
+        ]
 
         def step(self, x, /, optional=default, *args, flag, **kwargs):
             return super().step(x, optional, *args, flag=flag, **kwargs)
@@ -56,7 +82,7 @@ def test_signature_defaults_inheritance_and_independent_descriptions():
         pass
 
     class Cleared(Custom):
-        input_schema_details = {}
+        input_schema_details = []
 
     parameters = Inherited.input_schema()["parameters"]
     assert [item["kind"] for item in parameters.values()] == [
@@ -68,14 +94,17 @@ def test_signature_defaults_inheritance_and_independent_descriptions():
     ]
     assert parameters["optional"]["default"] is default
     assert parameters["flag"]["required"] and not parameters["args"]["required"]
-    parameters["x"]["schema"]["enum"].append("changed")
-    assert Custom.input_schema()["parameters"]["x"]["schema"]["enum"] == ["a", "b"]
+    schema = parameters["x"]["schema"]
+    assert schema["说明"] == "自由元数据"
+    schema["values"]["items"]["fields"][0]["name"] = "changed"
+    fresh = Custom.input_schema()["parameters"]["x"]["schema"]
+    assert fresh["values"]["items"]["fields"][0]["name"] == "price"
     assert Cleared.input_schema()["parameters"]["x"]["schema"] == {"type": "unknown"}
 
 
-def test_bad_declarations_are_reported_without_advancing_instance():
+def test_top_level_declaration_errors_do_not_advance_instance():
     class Broken(rBundleSignal):
-        input_schema_details = {"obsolete": {"type": "number"}}
+        input_schema_details = [{"name": "obsolete", "type": "number"}]
 
         def forward(self, bundle, *, time=None):
             return {"count": len(bundle)}
@@ -86,11 +115,9 @@ def test_bad_declarations_are_reported_without_advancing_instance():
     assert instance.g_index == -1
     assert instance.step({}) == {"count": 0}
 
-    cyclic = {"type": "sequence"}
-    cyclic["items"] = cyclic
-    Broken.input_schema_details = {"bundle": cyclic}
-    with pytest.raises(ValueError, match=r"Broken.*bundle.*items.*循环"):
+    Broken.input_schema_details = [{"name": "bundle"}, {"name": "bundle"}]
+    with pytest.raises(ValueError, match="重复"):
         Broken.input_schema()
-    Broken.input_schema_details = {"bundle": {"type": "number", "enum": [None]}}
-    with pytest.raises(TypeError, match=r"Broken.*bundle.*enum"):
+    Broken.input_schema_details = [{"name": "bundle", "required": False}]
+    with pytest.raises(ValueError, match="签名决定"):
         Broken.input_schema()

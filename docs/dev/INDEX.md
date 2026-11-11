@@ -189,3 +189,9 @@ core 与 `rKlineMA` 的新接口和设计取舍见 `docs/design/kline-step-core-
 | 2026-11-12 01:22 CST | `PLAN-054-generic-bundle.md` | `PLAN-054-generic-bundle-OUTCOME.md` | 实现通用 Bundle Signal 和独立输入入口，允许具体算子定义 value 和时间粒度，保留 K 线截面原入口；静态检查通过。 |
 | 2026-11-12 01:27 CST | `PLAN-055-input-schema.md` | `PLAN-055-input-schema-OUTCOME.md` | 实现类级输入描述查询及各数据入口声明，按用户要求补充关键契约测试；6 项针对性测试通过，记录历史全套基线问题。 |
 | 2026-11-12 01:34 CST | `PLAN-056-core-output-contract.md` | `PLAN-056-core-output-contract-OUTCOME.md` | 收口只读配置与在线/批量共享的输出存储规则，补充引用和 replay 说明；本地及固定版本 pyta2 各 15 项针对性测试通过，历史套件问题另行记录。 |
+
+## 2026-11-12 简化输入描述
+
+| 更新时间 | 计划文件 | 结果文件 | 摘要 |
+| --- | --- | --- | --- |
+| 2026-11-12 01:53 CST | `PLAN-057-simple-input-schema.md` | `PLAN-057-simple-input-schema-OUTCOME.md` | 输入描述改为普通字典列表，按需描述嵌套字段；移除递归校验，保留真实签名与顶层检查，7 项针对性测试通过。 |

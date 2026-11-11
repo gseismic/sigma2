@@ -18,7 +18,7 @@ class rOperator(ABC):
     name: str | None = None
     family: str | None = None
     full_name: str | None = None
-    input_schema_details: dict[str, Any] = {}
+    input_schema_details: list[dict[str, Any]] = []
 
     @classmethod
     def input_schema(cls) -> dict[str, Any]:
